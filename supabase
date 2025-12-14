@@ -1,0 +1,2 @@
+brew install supabase/tap/supabase
+# or npm install -g supabase
