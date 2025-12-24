@@ -23,7 +23,7 @@ export default function Home() {
         padding: "1.5rem",
         border: "1px solid #ddd",
         borderRadius: "8px",
-        background: "#fafafa"
+        background: "#E07A2F"
       }}>
         <strong>More updates coming soon.</strong>
         <p>
