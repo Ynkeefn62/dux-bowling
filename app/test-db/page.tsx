@@ -1,36 +1,62 @@
-export default function Home() {
+"use client";
+
+import { useState } from "react";
+
+export default function TestDbPage() {
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
+  const [result, setResult] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit() {
+    setLoading(true);
+    setResult(null);
+
+    const res = await fetch("/api/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        a: Number(a),
+        b: Number(b)
+      })
+    });
+
+    const data = await res.json();
+    setResult(data.sum);
+    setLoading(false);
+  }
+
   return (
-    <main style={{ 
-      maxWidth: "800px", 
-      margin: "0 auto", 
-      padding: "4rem 1.5rem",
-      fontFamily: "system-ui, sans-serif"
-    }}>
-      <h1>Dux Bowling</h1>
+    <main style={{ maxWidth: 600, margin: "4rem auto", fontFamily: "system-ui" }}>
+      <h1>Supabase Test</h1>
 
-      <p style={{ fontSize: "1.1rem", lineHeight: "1.6" }}>
-        Dux Bowling is focused on modernizing duckpin bowling through
-        custom equipment, technology, and new player experiences.
-      </p>
+      <input
+        type="number"
+        placeholder="First number"
+        value={a}
+        onChange={(e) => setA(e.target.value)}
+      />
 
-      <p style={{ fontSize: "1.1rem", lineHeight: "1.6" }}>
-        We’re currently building out our pinsetter systems, scoring
-        software, and supporting tools.
-      </p>
+      <br /><br />
 
-      <div style={{
-        marginTop: "2.5rem",
-        padding: "1.5rem",
-        border: "1px solid #ddd",
-        borderRadius: "8px",
-        background: "#fafafa"
-      }}>
-        <strong>More updates coming soon.</strong>
+      <input
+        type="number"
+        placeholder="Second number"
+        value={b}
+        onChange={(e) => setB(e.target.value)}
+      />
+
+      <br /><br />
+
+      <button onClick={handleSubmit} disabled={loading}>
+        {loading ? "Adding..." : "Add Numbers"}
+      </button>
+
+      {result !== null && (
         <p>
-          Follow along as we continue development and prepare for
-          upcoming announcements.
+          <strong>Result:</strong> {result}
         </p>
-      </div>
+      )}
     </main>
   );
 }
