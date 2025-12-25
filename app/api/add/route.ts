@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     // OPTIONAL: insert into Supabase table
     // Comment this out until the table exists
     const { error } = await supabase
-      .from("test_additions")
+      .from("calculations")
       .insert([{ a, b, sum }]);
 
     if (error) {
