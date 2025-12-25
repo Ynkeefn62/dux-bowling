@@ -17,16 +17,20 @@ export async function POST(request: Request) {
     const sum = a + b;
 
     const { error } = await supabase
-      .from("calculations")
-      .insert([{ a, b }]);
+  .from("calculations")
+  .insert([{ a, b }]);
 
-    if (error) {
-      console.error("Supabase insert error:", error);
-      return NextResponse.json(
-        { error: "Database insert failed" },
-        { status: 500 }
-      );
-    }
+if (error) {
+  console.error("Supabase error:", error);
+  return NextResponse.json(
+    {
+      error: error.message,
+      details: error.details,
+      hint: error.hint
+    },
+    { status: 500 }
+  );
+}
 
     return NextResponse.json({ sum });
   } catch (err) {
