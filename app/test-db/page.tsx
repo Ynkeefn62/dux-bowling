@@ -8,10 +8,11 @@ export default function TestDbPage() {
   const [result, setResult] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit() {
-    setLoading(true);
-    setResult(null);
+async function handleSubmit() {
+  setLoading(true);
+  setResult(null);
 
+  try {
     const res = await fetch("/api/add", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -22,9 +23,22 @@ export default function TestDbPage() {
     });
 
     const data = await res.json();
+    console.log("API response:", data);
+
+    if (!res.ok) {
+      alert(`API error: ${data.error || "Unknown error"}`);
+      setLoading(false);
+      return;
+    }
+
     setResult(data.sum);
+  } catch (err) {
+    console.error("Fetch failed:", err);
+    alert("Request failed — check console logs");
+  } finally {
     setLoading(false);
   }
+}
 
   return (
     <main style={{ maxWidth: 600, margin: "4rem auto", fontFamily: "system-ui" }}>
@@ -48,8 +62,8 @@ export default function TestDbPage() {
 
       <br /><br />
 
-      <button onClick={handleSubmit}>
-        Add Numbers
+      <button onClick={handleSubmit} disabled={loading}>
+        {loading ? "Adding..." : "Add Numbers"}
       </button>
 
       {result !== null && (
