@@ -48,8 +48,11 @@ export default function TestDbPage() {
 
       <br /><br />
 
-      <button onClick={handleSubmit} disabled={loading}>
-        {loading ? "Adding..." : "Add Numbers"}
+      //<button onClick={handleSubmit} disabled={loading}>
+      //  {loading ? "Adding..." : "Add Numbers"}
+      //</button>
+      <button onClick={handleSubmit}>
+        Add Numbers
       </button>
 
       {result !== null && (
