@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Image from "next/image";
 import { Montserrat } from "next/font/google";
 
 const montserrat = Montserrat({
@@ -47,19 +46,17 @@ export default function Home() {
     <main className={`${montserrat.className} page`}>
       {/* Mission */}
       <section className="mission">
-        <Image
-          src="/public/logo_test.png"
-          alt="Dux Bowling Logo"
-          width={420}
-          height={240}
-          priority
-          style={{
-            maxWidth: "100%",
-            height: "auto",
-            margin: "0 auto 1.5rem",
-            display: "block"
-          }}
-        />
+        <img
+          src="/1@300x.png"
+            alt="Dux Bowling Logo"
+            style={{
+              maxWidth: "420px",
+              width: "100%",
+              height: "auto",
+              margin: "0 auto 1.5rem",
+              display: "block"
+            }}
+/>
 
         <p className="missionText">
           <strong>Why we’re doing this:</strong> Duckpin bowling is a historic,
