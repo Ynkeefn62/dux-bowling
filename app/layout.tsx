@@ -1,6 +1,16 @@
-export const metadata = {
+import type { Metadata } from "next";
+import { Montserrat } from "next/font/google";
+import "./globals.css";
+
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  display: "swap"
+});
+
+export const metadata: Metadata = {
   title: "Dux Bowling",
-  description: "Modernizing duckpin bowling"
+  description: "Saving Duckpin Bowling"
 };
 
 export default function RootLayout({
@@ -10,16 +20,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif" }}>
+      <body className={montserrat.className}>
         {children}
       </body>
     </html>
   );
 }
-
-import { Montserrat } from "next/font/google";
-
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"]
-});
