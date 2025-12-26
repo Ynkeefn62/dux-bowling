@@ -48,7 +48,7 @@ export default function Home() {
       {/* Mission */}
       <section className="mission">
         <Image
-          src="/logo_test.png"
+          src="/public/logo_test.png"
           alt="Dux Bowling Logo"
           width={420}
           height={240}
