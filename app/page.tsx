@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import Image from "next/image";
 import { Montserrat } from "next/font/google";
 
@@ -10,21 +10,22 @@ const montserrat = Montserrat({
 });
 
 export default function Home() {
-  const itemsRef = useRef<HTMLDivElement[]>([]);
-
   useEffect(() => {
+    const elements = document.querySelectorAll(".step");
+
     const observer = new IntersectionObserver(
       entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             entry.target.classList.add("visible");
+            observer.unobserve(entry.target); // observe once only
           }
         });
       },
       { threshold: 0.15 }
     );
 
-    itemsRef.current.forEach(el => el && observer.observe(el));
+    elements.forEach(el => observer.observe(el));
 
     return () => observer.disconnect();
   }, []);
@@ -44,7 +45,7 @@ export default function Home() {
 
   return (
     <main className={`${montserrat.className} page`}>
-      {/* Mission / Header */}
+      {/* Mission */}
       <section className="mission">
         <Image
           src="/1@300x.png"
@@ -73,13 +74,7 @@ export default function Home() {
         <h2>Our 10-Step Plan</h2>
 
         {steps.map((text, i) => (
-          <div
-            key={i}
-            ref={el => {
-              if (el) itemsRef.current[i] = el;
-            }}
-            className="step"
-          >
+          <div key={i} className="step">
             <span className="stepNumber">{i + 1}</span>
             <p>{text}</p>
           </div>
