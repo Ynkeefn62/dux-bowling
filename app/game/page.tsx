@@ -3,108 +3,103 @@
 import { useState } from "react";
 
 export default function GamePage() {
-  const [frame, setFrame] = useState(1);
-  const [rolls, setRolls] = useState<number[]>([]);
-  const [totalScore, setTotalScore] = useState(0);
   const [gameId] = useState(crypto.randomUUID());
+  const [frames, setFrames] = useState<number[][]>([]);
+  const [currentRolls, setCurrentRolls] = useState<number[]>([]);
+  const [score, setScore] = useState(0);
 
-  const maxPins = Math.max(0, 10 - rolls.reduce((a, b) => a + b, 0));
+  const frameNumber = frames.length + 1;
+  const pinsRemaining = 10 - currentRolls.reduce((a, b) => a + b, 0);
 
-  function addRoll(pins: number) {
-    if (rolls.length >= 3 || pins > maxPins) return;
-    setRolls([...rolls, pins]);
-  }
+  const rollOptions = Array.from(
+    { length: pinsRemaining + 1 },
+    (_, i) => i
+  );
 
-  async function submitFrame() {
-    const frameScore = rolls.reduce((a, b) => a + b, 0);
-
-    await fetch("/api/test-score", {
+  async function submitFrame(rolls: number[]) {
+    const res = await fetch("/api/test-score", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        gameId,
-        frame,
-        roll1: rolls[0] ?? null,
-        roll2: rolls[1] ?? null,
-        roll3: rolls[2] ?? null,
-        frameScore
+        game_id: gameId,
+        frame_number: frameNumber,
+        rolls
       })
     });
 
-    setTotalScore(totalScore + frameScore);
-    setRolls([]);
-    setFrame(frame + 1);
+    const data = await res.json();
+    if (data.score !== undefined) {
+      setScore(data.score);
+    }
+  }
+
+  function addRoll(pins: number) {
+    const updated = [...currentRolls, pins];
+    setCurrentRolls(updated);
+
+    const isStrike = updated[0] === 10;
+    const isSpare = updated.reduce((a, b) => a + b, 0) === 10;
+
+    const maxRolls =
+      frameNumber === 10
+        ? isStrike || isSpare
+          ? 3
+          : 3
+        : isStrike
+        ? 1
+        : 3;
+
+    if (updated.length >= maxRolls) {
+      setFrames([...frames, updated]);
+      submitFrame(updated);
+      setCurrentRolls([]);
+    }
   }
 
   return (
     <main
       style={{
-        background: "#f8eddc",
         minHeight: "100vh",
+        background: "#f8f1e7",
         padding: "1.5rem",
-        fontFamily: "Montserrat, system-ui",
-        color: "#d9772b",
-        maxWidth: 420,
-        margin: "0 auto"
+        fontFamily: "Montserrat, sans-serif",
+        color: "#e56b1f"
       }}
     >
-      <h1 style={{ textAlign: "center" }}>Duckpin Game</h1>
+      <h1>Duckpin Game</h1>
+      <p>Frame {frameNumber} / 10</p>
 
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 16,
-          padding: "1rem",
-          marginBottom: "1rem",
-          boxShadow: "0 6px 18px rgba(0,0,0,.08)"
-        }}
-      >
-        <strong>Frame {frame}</strong>
-        <p>Rolls: {rolls.join(", ") || "—"}</p>
-        <p>Total Score: {totalScore}</p>
+      <div style={{ margin: "1rem 0" }}>
+        <strong>Current Score:</strong> {score}
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gap: ".5rem",
-          marginBottom: "1rem"
-        }}
-      >
-        {Array.from({ length: maxPins + 1 }).map((_, i) => (
-          <button
-            key={i}
-            onClick={() => addRoll(i)}
-            style={{
-              padding: ".75rem 0",
-              borderRadius: 8,
-              border: "none",
-              background: "#d9772b",
-              color: "#fff",
-              fontSize: ".9rem"
-            }}
-          >
-            {i}
-          </button>
-        ))}
-      </div>
-
-      <button
-        onClick={submitFrame}
-        disabled={rolls.length === 0}
+      <select
+        onChange={e => addRoll(Number(e.target.value))}
+        defaultValue=""
         style={{
           width: "100%",
-          padding: ".75rem",
-          borderRadius: 10,
-          border: "none",
-          background: rolls.length ? "#d9772b" : "#ccc",
-          color: "#fff",
+          padding: "0.75rem",
           fontSize: "1rem"
         }}
       >
-        End Frame
-      </button>
+        <option value="" disabled>
+          Select pins knocked down
+        </option>
+        {rollOptions.map(p => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+
+      <section style={{ marginTop: "2rem" }}>
+        <h3>Frames</h3>
+        {frames.map((f, i) => (
+          <div key={i}>
+            Frame {i + 1}: {f.join(", ")}
+          </div>
+        ))}
+      </section>
     </main>
   );
 }
