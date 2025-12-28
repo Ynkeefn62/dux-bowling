@@ -1,112 +1,172 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useState } from "react";
 
-const steps = [
-  "Register the business as an LLC with the state of Maryland.",
-  "File provisional patent approval for the new pinsetter.",
-  "Complete the website MVP, including a bowling simulator and player accounts.",
-  "Engage bowlers, bowling alleys, and the National Duckpin Congress.",
-  "Finalize business plans and product offerings.",
-  "Work with TEDCO on prototyping, execution, and funding.",
-  "Develop and test prototypes integrated with scoring systems.",
-  "Deploy initial systems to partner bowling alleys.",
-  "Expand adoption and retire legacy Sherman pinsetters.",
-  "Grow into new geographic markets."
+const milestones = [
+  {
+    title: "Step 1",
+    text: "Register the business as an LLC with the state of Maryland."
+  },
+  {
+    title: "Step 2",
+    text: "File provisional patent approval for the new pinsetter."
+  },
+  {
+    title: "Step 3",
+    text: "Website MVP including scoring, accounts, and stat tracking."
+  },
+  {
+    title: "Step 4",
+    text: "Engage bowlers, alleys, and the National Duckpin Congress."
+  },
+  {
+    title: "Step 5",
+    text: "Finalize business plans and product offerings."
+  },
+  {
+    title: "Step 6",
+    text: "Work with TEDCO on prototyping, execution, and funding."
+  },
+  {
+    title: "Step 7",
+    text: "Prototype development and scoring system integration."
+  },
+  {
+    title: "Step 8",
+    text: "Initial deployment into real bowling alleys."
+  },
+  {
+    title: "Step 9",
+    text: "Broader adoption and retirement of Sherman Pinsetters."
+  },
+  {
+    title: "Step 10",
+    text: "Expand duckpin bowling into new geographies."
+  }
 ];
 
 export default function Home() {
-  const itemsRef = useRef<HTMLDivElement[]>([]);
+  const [index, setIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("show");
-          }
-        });
-      },
-      { threshold: 0.2 }
-    );
+  function next() {
+    setFlipped(false);
+    setIndex((i) => Math.min(i + 1, milestones.length - 1));
+  }
 
-    itemsRef.current.forEach(el => el && observer.observe(el));
-
-    return () => observer.disconnect();
-  }, []);
+  function prev() {
+    setFlipped(false);
+    setIndex((i) => Math.max(i - 1, 0));
+  }
 
   return (
     <main
       style={{
-        background: "#f8eddc",
         minHeight: "100vh",
-        padding: "3rem 1.25rem",
-        fontFamily: "'Montserrat', system-ui"
+        background: "#FBF4E9",
+        fontFamily: "Montserrat, system-ui, sans-serif",
+        color: "#E86C1A",
+        padding: "1.5rem"
       }}
     >
       {/* Logo */}
-      <img
-        src="/under_construction_2.png"
-        alt="Dux Bowling Logo"
-        style={{
-          maxWidth: "420px",
-          width: "100%",
-          display: "block",
-          margin: "0 auto 2rem"
-        }}
-      />
+      <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+        <img
+          src="/1@300x.png"
+          alt="Dux Bowling"
+          style={{ maxWidth: "180px", height: "auto" }}
+        />
+      </div>
 
       {/* Mission */}
-      <section
+      <p style={{ textAlign: "center", maxWidth: 600, margin: "0 auto 2rem" }}>
+        We’re building the future of duckpin bowling — preserving the game,
+        modernizing the experience, and ensuring it survives for generations.
+      </p>
+
+      {/* Card */}
+      <div
         style={{
-          maxWidth: 720,
-          margin: "0 auto 3rem",
-          textAlign: "center",
-          color: "#d9772b"
+          perspective: "1200px",
+          maxWidth: 320,
+          margin: "0 auto"
         }}
       >
-        <h1>Saving Duckpin Bowling</h1>
-        <p>
-          Dux Bowling exists to modernize duckpin bowling while preserving
-          its heritage — through new technology, new equipment, and new
-          player experiences.
-        </p>
-      </section>
-
-      {/* Steps */}
-      <section style={{ maxWidth: 900, margin: "0 auto" }}>
-        {steps.map((text, i) => (
+        <div
+          onClick={() => setFlipped(!flipped)}
+          style={{
+            position: "relative",
+            width: "100%",
+            height: 260,
+            transformStyle: "preserve-3d",
+            transition: "transform 0.6s",
+            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+            cursor: "pointer"
+          }}
+        >
+          {/* Front */}
           <div
-            key={i}
-            ref={el => {
-              if (el) itemsRef.current[i] = el;
-            }}
-            className="step"
             style={{
-              opacity: 0,
-              transform: "translateX(-40px)",
-              transition: "all 0.6s ease-out",
+              position: "absolute",
+              inset: 0,
+              backfaceVisibility: "hidden",
               background: "#fff",
-              borderRadius: 12,
-              padding: "1.25rem 1.5rem",
-              marginBottom: "1.25rem",
-              color: "#d9772b",
-              boxShadow: "0 6px 18px rgba(0,0,0,0.08)"
+              borderRadius: 16,
+              padding: "1.5rem",
+              boxShadow: "0 12px 30px rgba(0,0,0,0.1)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center"
             }}
           >
-            <strong>Step {i + 1}</strong>
-            <p style={{ marginTop: ".5rem" }}>{text}</p>
+            <h2>{milestones[index].title}</h2>
+            <p style={{ color: "#333" }}>{milestones[index].text}</p>
+            <small style={{ marginTop: "1rem" }}>
+              Tap to flip →
+            </small>
           </div>
-        ))}
-      </section>
 
-      {/* Animation styles */}
-      <style jsx>{`
-        .show {
-          opacity: 1 !important;
-          transform: translateX(0) !important;
-        }
-      `}</style>
+          {/* Back */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backfaceVisibility: "hidden",
+              background: "#E86C1A",
+              color: "#fff",
+              borderRadius: 16,
+              padding: "1.5rem",
+              transform: "rotateY(180deg)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center"
+            }}
+          >
+            <strong>More information on the way</strong>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          maxWidth: 320,
+          margin: "1.5rem auto 0"
+        }}
+      >
+        <button onClick={prev} disabled={index === 0}>
+          ← Prev
+        </button>
+        <span>
+          {index + 1} / {milestones.length}
+        </span>
+        <button onClick={next} disabled={index === milestones.length - 1}>
+          Next →
+        </button>
+      </div>
     </main>
   );
 }
