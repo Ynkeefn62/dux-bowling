@@ -46,7 +46,7 @@ export default function Home() {
     >
       {/* Logo */}
       <img
-        src="/IMG_2496.png"
+        src="/under_construction_2.png"
         alt="Dux Bowling Logo"
         style={{
           maxWidth: "420px",
