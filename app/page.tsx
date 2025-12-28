@@ -1,51 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+
+const ORANGE = "#E46C2A";
+const CREAM = "#FBF4E9";
 
 const milestones = [
-  {
-    title: "Step 1",
-    text: "Register the business as an LLC with the state of Maryland."
-  },
-  {
-    title: "Step 2",
-    text: "File provisional patent approval for the new pinsetter."
-  },
-  {
-    title: "Step 3",
-    text: "Website MVP completion with scoring simulator and user accounts."
-  },
-  {
-    title: "Step 4",
-    text: "Engage bowlers, alleys, and the National Duckpin Congress."
-  },
-  {
-    title: "Step 5",
-    text: "Finalize business plans and product offerings."
-  },
-  {
-    title: "Step 6",
-    text: "Work with TEDCO on prototyping, execution, and funding."
-  },
-  {
-    title: "Step 7",
-    text: "Prototype development and testing."
-  },
-  {
-    title: "Step 8",
-    text: "Initial deployment in live bowling alleys."
-  },
-  {
-    title: "Step 9",
-    text: "Broader adoption and retirement of Sherman Pinsetters."
-  },
-  {
-    title: "Step 10",
-    text: "Expansion into new geographies."
-  }
+  "Register the business as an LLC with the state of Maryland.",
+  "File provisional patent approval for the new pinsetter.",
+  "Website MVP completion, including a bowling simulator and scoring.",
+  "Gauge interest with bowlers, alleys, and the National Duckpin Congress.",
+  "Finalize business plans and product offerings.",
+  "Engage TEDCO for guidance on prototyping and funding.",
+  "Prototype development and testing.",
+  "Initial deployment in a bowling alley.",
+  "Broader adoption to retire Sherman Pinsetters.",
+  "Expansion into new geographies."
 ];
 
-export default function Home() {
+export default function HomePage() {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
@@ -67,134 +41,146 @@ export default function Home() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#f5f0e6",
-        fontFamily: "Montserrat, system-ui",
-        padding: "2rem"
+        background: CREAM,
+        padding: "2rem 1rem",
+        fontFamily: "Montserrat, system-ui"
       }}
     >
       {/* Logo */}
-      <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-        <img
+      <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+        <Image
           src="/1@300x.png"
           alt="Dux Bowling"
-          style={{ maxWidth: 180 }}
+          width={180}
+          height={180}
+          priority
         />
       </div>
 
       {/* Mission */}
-      <p style={{
-        textAlign: "center",
-        maxWidth: 700,
-        margin: "0 auto 3rem",
-        color: "#c75a1d",
-        fontSize: "1.1rem"
-      }}>
-        Dux Bowling exists to preserve and modernize duckpin bowling for future
-        generations through technology, equipment, and community.
+      <p
+        style={{
+          maxWidth: 600,
+          margin: "0 auto 2rem",
+          textAlign: "center",
+          fontSize: "1.05rem",
+          lineHeight: 1.6,
+          color: "#333"
+        }}
+      >
+        Dux Bowling exists to preserve and modernize duckpin bowling —
+        ensuring its survival through better technology, better experiences,
+        and better access.
       </p>
 
-      {/* Carousel */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "1.5rem"
-      }}>
-        {/* Left Arrow */}
-        <button
-          onClick={prev}
-          disabled={index === 0}
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: "50%",
-            border: "none",
-            background: "#e46a2e",
-            color: "#fff",
-            fontSize: "1.5rem",
-            opacity: index === 0 ? 0.5 : 1,
-            cursor: "pointer"
-          }}
-        >
-          ←
-        </button>
-
-        {/* Card */}
+      {/* Card Container */}
+      <div
+        style={{
+          maxWidth: 700,
+          margin: "0 auto",
+          perspective: "1000px"
+        }}
+      >
         <div
           onClick={() => setFlipped(!flipped)}
           style={{
-            width: 300,
-            height: 220,
-            perspective: 1000,
-            cursor: "pointer"
-          }}
-        >
-          <div style={{
             position: "relative",
-            width: "100%",
-            height: "100%",
+            height: 240,
+            cursor: "pointer",
             transformStyle: "preserve-3d",
             transition: "transform 0.6s",
             transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
-          }}>
-            {/* Front */}
-            <div style={{
+          }}
+        >
+          {/* Front */}
+          <div
+            style={{
               position: "absolute",
               inset: 0,
               background: "#fff",
-              borderRadius: 12,
-              padding: "1.5rem",
+              borderRadius: 16,
+              padding: "2.5rem 3.5rem",
               backfaceVisibility: "hidden",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              textAlign: "center"
-            }}>
-              <h2 style={{ color: "#e46a2e", marginBottom: "0.75rem" }}>
-                {milestones[index].title}
-              </h2>
-              <p>{milestones[index].text}</p>
-            </div>
-
-            {/* Back */}
-            <div style={{
-              position: "absolute",
-              inset: 0,
-              background: "#e46a2e",
-              color: "#fff",
-              borderRadius: 12,
-              padding: "1.5rem",
-              backfaceVisibility: "hidden",
-              transform: "rotateY(180deg)",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              textAlign: "center"
-            }}>
-              <p>More information on the way.</p>
-            </div>
+              textAlign: "center",
+              fontSize: "1.2rem",
+              color: ORANGE
+            }}
+          >
+            {milestones[index]}
+
+            {/* Left Arrow */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                prev();
+              }}
+              style={{
+                position: "absolute",
+                left: 16,
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: "2rem",
+                color: ORANGE,
+                background: "none",
+                border: "none",
+                cursor: index === 0 ? "default" : "pointer",
+                opacity: index === 0 ? 0.4 : 1
+              }}
+              aria-label="Previous"
+            >
+              ‹
+            </button>
+
+            {/* Right Arrow */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                next();
+              }}
+              style={{
+                position: "absolute",
+                right: 16,
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: "2rem",
+                color: ORANGE,
+                background: "none",
+                border: "none",
+                cursor:
+                  index === milestones.length - 1 ? "default" : "pointer",
+                opacity: index === milestones.length - 1 ? 0.4 : 1
+              }}
+              aria-label="Next"
+            >
+              ›
+            </button>
+          </div>
+
+          {/* Back */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: ORANGE,
+              borderRadius: 16,
+              padding: "2.5rem",
+              backfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              fontSize: "1.2rem"
+            }}
+          >
+            More information on the way.
           </div>
         </div>
-
-        {/* Right Arrow */}
-        <button
-          onClick={next}
-          disabled={index === milestones.length - 1}
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: "50%",
-            border: "none",
-            background: "#e46a2e",
-            color: "#fff",
-            fontSize: "1.5rem",
-            opacity: index === milestones.length - 1 ? 0.5 : 1,
-            cursor: "pointer"
-          }}
-        >
-          →
-        </button>
       </div>
     </main>
   );
