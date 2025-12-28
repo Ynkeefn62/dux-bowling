@@ -23,26 +23,27 @@ export default function HomePage() {
   const isFirst = index === 0;
   const isLast = index === steps.length - 1;
 
-  function prev() {
+  const goPrev = () => {
     if (!isFirst) {
       setFlipped(false);
       setIndex((i) => i - 1);
     }
-  }
+  };
 
-  function next() {
+  const goNext = () => {
     if (!isLast) {
       setFlipped(false);
       setIndex((i) => i + 1);
     }
-  }
+  };
 
   return (
     <main
       style={{
         minHeight: "100vh",
         backgroundColor: "#FBF3E6",
-        padding: "2rem 1rem"
+        padding: "2rem 1rem",
+        fontFamily: "Montserrat, system-ui, sans-serif"
       }}
     >
       {/* Logo */}
@@ -60,8 +61,8 @@ export default function HomePage() {
       <p
         style={{
           textAlign: "center",
-          maxWidth: 640,
-          margin: "0 auto 2rem",
+          maxWidth: 620,
+          margin: "0 auto 2.5rem",
           color: "#C45A1A",
           fontSize: "1rem",
           lineHeight: 1.6
@@ -72,31 +73,39 @@ export default function HomePage() {
       </p>
 
       {/* Card Wrapper */}
-      <div style={{ maxWidth: 760, margin: "0 auto", position: "relative" }}>
+      <div
+        style={{
+          maxWidth: 760,
+          margin: "0 auto",
+          position: "relative"
+        }}
+      >
         {/* Card */}
         <div
           onClick={() => setFlipped((f) => !f)}
           style={{
             position: "relative",
-            background: "#fff",
+            backgroundColor: "#FFFFFF",
             borderRadius: 18,
-            padding: "2.75rem 4rem",
+            padding: "3rem 4rem",
             minHeight: 240,
-            boxShadow: "0 14px 36px rgba(0,0,0,0.1)",
+            boxShadow: "0 14px 34px rgba(0,0,0,0.1)",
             cursor: "pointer",
-            color: "#C45A1A",
-            textAlign: "center"
+            textAlign: "center",
+            color: "#C45A1A"
           }}
         >
           {!flipped ? (
             <>
-              <h2 style={{ marginBottom: "1rem" }}>
+              <h2 style={{ marginBottom: "1rem", fontWeight: 700 }}>
                 Step {index + 1}
               </h2>
-              <p style={{ fontSize: "1.05rem" }}>{steps[index]}</p>
+              <p style={{ fontSize: "1.05rem", lineHeight: 1.6 }}>
+                {steps[index]}
+              </p>
             </>
           ) : (
-            <p style={{ fontSize: "1.1rem" }}>
+            <p style={{ fontSize: "1.1rem", lineHeight: 1.6 }}>
               More information on the way.
             </p>
           )}
@@ -105,19 +114,20 @@ export default function HomePage() {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              prev();
+              goPrev();
             }}
             aria-label="Previous"
+            disabled={isFirst}
             style={{
               position: "absolute",
-              left: 14,
+              left: 16,
               top: "50%",
               transform: "translateY(-50%)",
+              fontSize: "2.2rem",
               background: "none",
               border: "none",
-              fontSize: "2.25rem",
               color: "#C45A1A",
-              opacity: isFirst ? 0.4 : 1,
+              opacity: isFirst ? 0.5 : 1,
               cursor: isFirst ? "default" : "pointer"
             }}
           >
@@ -128,19 +138,20 @@ export default function HomePage() {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              next();
+              goNext();
             }}
             aria-label="Next"
+            disabled={isLast}
             style={{
               position: "absolute",
-              right: 14,
+              right: 16,
               top: "50%",
               transform: "translateY(-50%)",
+              fontSize: "2.2rem",
               background: "none",
               border: "none",
-              fontSize: "2.25rem",
               color: "#C45A1A",
-              opacity: isLast ? 0.4 : 1,
+              opacity: isLast ? 0.5 : 1,
               cursor: isLast ? "default" : "pointer"
             }}
           >
