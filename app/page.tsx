@@ -26,14 +26,14 @@ export default function HomePage() {
   function prev() {
     if (!isFirst) {
       setFlipped(false);
-      setIndex(index - 1);
+      setIndex((i) => i - 1);
     }
   }
 
   function next() {
     if (!isLast) {
       setFlipped(false);
-      setIndex(index + 1);
+      setIndex((i) => i + 1);
     }
   }
 
@@ -41,9 +41,8 @@ export default function HomePage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#FBF3E6",
-        padding: "2rem 1rem",
-        fontFamily: "'Montserrat', system-ui"
+        backgroundColor: "#FBF3E6",
+        padding: "2rem 1rem"
       }}
     >
       {/* Logo */}
@@ -61,37 +60,32 @@ export default function HomePage() {
       <p
         style={{
           textAlign: "center",
-          maxWidth: 600,
+          maxWidth: 640,
           margin: "0 auto 2rem",
           color: "#C45A1A",
-          fontSize: "1rem"
+          fontSize: "1rem",
+          lineHeight: 1.6
         }}
       >
         We are building modern equipment, software, and experiences to
         <strong> save duckpin bowling.</strong>
       </p>
 
-      {/* Card Container */}
-      <div
-        style={{
-          maxWidth: 720,
-          margin: "0 auto",
-          position: "relative"
-        }}
-      >
+      {/* Card Wrapper */}
+      <div style={{ maxWidth: 760, margin: "0 auto", position: "relative" }}>
         {/* Card */}
         <div
-          onClick={() => setFlipped(!flipped)}
+          onClick={() => setFlipped((f) => !f)}
           style={{
+            position: "relative",
             background: "#fff",
-            borderRadius: 16,
-            padding: "2.5rem 3.5rem",
-            textAlign: "center",
-            minHeight: 220,
-            boxShadow: "0 12px 30px rgba(0,0,0,0.08)",
+            borderRadius: 18,
+            padding: "2.75rem 4rem",
+            minHeight: 240,
+            boxShadow: "0 14px 36px rgba(0,0,0,0.1)",
             cursor: "pointer",
-            transition: "transform 0.4s",
-            color: "#C45A1A"
+            color: "#C45A1A",
+            textAlign: "center"
           }}
         >
           {!flipped ? (
@@ -113,19 +107,19 @@ export default function HomePage() {
               e.stopPropagation();
               prev();
             }}
+            aria-label="Previous"
             style={{
               position: "absolute",
-              left: 12,
+              left: 14,
               top: "50%",
               transform: "translateY(-50%)",
-              fontSize: "2rem",
               background: "none",
               border: "none",
+              fontSize: "2.25rem",
               color: "#C45A1A",
-              opacity: isFirst ? 0.5 : 1,
+              opacity: isFirst ? 0.4 : 1,
               cursor: isFirst ? "default" : "pointer"
             }}
-            aria-label="Previous"
           >
             ‹
           </button>
@@ -136,19 +130,19 @@ export default function HomePage() {
               e.stopPropagation();
               next();
             }}
+            aria-label="Next"
             style={{
               position: "absolute",
-              right: 12,
+              right: 14,
               top: "50%",
               transform: "translateY(-50%)",
-              fontSize: "2rem",
               background: "none",
               border: "none",
+              fontSize: "2.25rem",
               color: "#C45A1A",
-              opacity: isLast ? 0.5 : 1,
+              opacity: isLast ? 0.4 : 1,
               cursor: isLast ? "default" : "pointer"
             }}
-            aria-label="Next"
           >
             ›
           </button>
