@@ -1,455 +1,564 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-type FrameRolls = {
-  r1: number | null;
-  r2: number | null;
-  r3: number | null; // (kept to 3 for cookie scheme)
+/**
+ * Duckpin notes implemented:
+ * - Frames 1-9: up to 3 rolls, max 10 pins total per frame
+ * - Strike: 10 on first roll, frame ends early
+ * - Spare: reaching 10 by roll 2 or roll 3
+ * - Strike bonus: next 2 rolls
+ * - Spare bonus: next 1 roll
+ * - 10th frame:
+ *   - Strike on first roll => +2 bonus rolls (total 3 rolls in frame 10)
+ *   - Spare by roll 2 => +1 bonus roll (total 3 rolls in frame 10)
+ *   - Spare by roll 3 => +1 bonus roll (total 4 rolls in frame 10)
+ * - Pin limit per *frame* still enforced (0..remaining) EXCEPT bonus rolls in 10th frame
+ */
+
+type Frame = {
+  rolls: (number | null)[]; // length 3 normally, 10th can have 4
+  // computed:
+  strike: boolean;
+  spare: boolean;
+  open: boolean;
 };
 
 const ORANGE = "#e46a2e";
 const CREAM = "#f5f0e6";
-const TEXT_ORANGE = "#c75a1d";
-
-const COOKIE_PREFIX = ""; // keep simple, keys are game_id, frameX_rollY
 
 function setCookie(name: string, value: string, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(
+    value
+  )}; expires=${expires}; path=/; SameSite=Lax`;
 }
 
-function getCookie(name: string): string | null {
-  const match = document.cookie.match(
-    new RegExp("(^| )" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]+)")
-  );
-  return match ? decodeURIComponent(match[2]) : null;
+function getCookie(name: string) {
+  const target = encodeURIComponent(name) + "=";
+  const parts = document.cookie.split("; ");
+  for (const p of parts) {
+    if (p.startsWith(target)) return decodeURIComponent(p.slice(target.length));
+  }
+  return null;
 }
 
 function deleteCookie(name: string) {
-  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+  document.cookie = `${encodeURIComponent(
+    name
+  )}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
 }
 
-function frameKey(frameNumber: number, rollNumber: 1 | 2 | 3) {
-  return `${COOKIE_PREFIX}frame${frameNumber}_roll${rollNumber}`;
-}
-
-function createEmptyFrames(): FrameRolls[] {
-  return Array.from({ length: 10 }, () => ({ r1: null, r2: null, r3: null }));
-}
-
-/**
- * Duckpin frame interpretation with 3-roll storage.
- * Frames 1-9:
- *  - Strike (r1=10) ends frame immediately.
- *  - Spare can happen by roll2 or roll3 if total reaches 10.
- *  - Otherwise open frame total < 10 after up to 3 rolls.
- *
- * Frame 10:
- *  - If strike on roll1, roll2 and roll3 are bonus rolls (each 0-10).
- *  - If spare by roll2, roll3 is bonus roll (0-10).
- *  - Otherwise roll3 limited by remaining pins to max 10 total.
- */
-function allowedMaxPinsForNextRoll(
-  frameIndex: number,
-  current: FrameRolls
-): { nextRoll: 1 | 2 | 3 | null; maxPins: number } {
-  const frameNumber = frameIndex + 1;
-  const isTenth = frameNumber === 10;
-
-  // Determine next roll
-  let nextRoll: 1 | 2 | 3 | null = null;
-  if (current.r1 === null) nextRoll = 1;
-  else if (current.r2 === null) nextRoll = 2;
-  else if (current.r3 === null) nextRoll = 3;
-  else nextRoll = null;
-
-  if (!nextRoll) return { nextRoll: null, maxPins: 0 };
-
-  // STRIKE handling
-  if (!isTenth && nextRoll !== 1 && current.r1 === 10) {
-    // frame ended; no more rolls allowed
-    return { nextRoll: null, maxPins: 0 };
+function ensureGameId() {
+  let id = getCookie("game_id");
+  if (!id) {
+    id =
+      (globalThis.crypto && "randomUUID" in crypto && crypto.randomUUID()) ||
+      `game_${Math.random().toString(16).slice(2)}_${Date.now()}`;
+    setCookie("game_id", id, 7);
   }
-
-  // Compute remaining pins (normal rule)
-  const r1 = current.r1 ?? 0;
-  const r2 = current.r2 ?? 0;
-  const r3 = current.r3 ?? 0;
-  const sum12 = r1 + r2;
-  const sum123 = r1 + r2 + r3;
-
-  if (!isTenth) {
-    // Frame 1-9
-    if (current.r1 === 10) return { nextRoll: null, maxPins: 0 }; // strike ends frame
-    if (nextRoll === 2) return { nextRoll, maxPins: Math.max(0, 10 - r1) };
-    // roll3 allowed only if still <10 after roll2
-    if (sum12 >= 10) return { nextRoll: null, maxPins: 0 };
-    return { nextRoll, maxPins: Math.max(0, 10 - sum12) };
-  }
-
-  // Frame 10 special
-  if (nextRoll === 2) {
-    // If strike on roll1, roll2 is bonus roll (0-10)
-    if (current.r1 === 10) return { nextRoll, maxPins: 10 };
-    return { nextRoll, maxPins: Math.max(0, 10 - r1) };
-  }
-
-  // nextRoll === 3
-  if (current.r1 === 10) {
-    // strike in 10th: roll3 bonus (0-10)
-    return { nextRoll, maxPins: 10 };
-  }
-  if (current.r1 !== null && current.r2 !== null && sum12 === 10) {
-    // spare by roll2: roll3 bonus (0-10)
-    return { nextRoll, maxPins: 10 };
-  }
-  // otherwise normal remaining to max 10 total
-  return { nextRoll, maxPins: Math.max(0, 10 - sum12) };
+  return id;
 }
 
-function isStrike(frameNumber: number, f: FrameRolls) {
-  // In duckpin, strike is still 10 on first ball.
-  return f.r1 === 10;
+function cookieKey(frame: number, roll: number) {
+  return `frame${frame}_roll${roll}`;
 }
 
-function isSpare(frameNumber: number, f: FrameRolls) {
-  const r1 = f.r1 ?? 0;
-  const r2 = f.r2 ?? 0;
-  const r3 = f.r3 ?? 0;
-  if (f.r1 === 10) return false; // strike not spare
-  // spare can happen by roll2 or roll3 (total 10)
-  if (f.r1 !== null && f.r2 !== null && r1 + r2 === 10) return true;
-  if (f.r1 !== null && f.r2 !== null && f.r3 !== null && r1 + r2 + r3 === 10) return true;
-  return false;
-}
-
-function frameCompleted(frameNumber: number, f: FrameRolls) {
-  const tenth = frameNumber === 10;
-  if (!tenth) {
-    if (f.r1 === 10) return true;
-    if (f.r1 === null || f.r2 === null) return false;
-    const sum12 = (f.r1 ?? 0) + (f.r2 ?? 0);
-    if (sum12 >= 10) return true; // spare by roll2 ends frame
-    return f.r3 !== null; // otherwise needs roll3
-  } else {
-    // 10th: we keep 3 rolls total in this MVP cookie scheme.
-    // Frame completes when r1,r2,r3 all filled OR if strike/spare logic doesn't require r3? (we still allow r3 but not require)
-    if (f.r1 === null || f.r2 === null) return false;
-    // If open and sum12 <10, we require r3
-    const sum12 = (f.r1 ?? 0) + (f.r2 ?? 0);
-    if (f.r1 !== 10 && sum12 < 10) return f.r3 !== null;
-    // If strike or spare by roll2, r3 is a bonus (allowed but not required). We'll treat completed once r2 entered.
-    return true;
+function loadFramesFromCookies(): (number | null)[][] {
+  const frames: (number | null)[][] = [];
+  for (let f = 1; f <= 10; f++) {
+    const maxRolls = f === 10 ? 4 : 3;
+    const rolls: (number | null)[] = [];
+    for (let r = 1; r <= maxRolls; r++) {
+      const v = getCookie(cookieKey(f, r));
+      rolls.push(v === null ? null : Number(v));
+    }
+    frames.push(rolls);
   }
+  return frames;
 }
 
-/**
- * Score duckpin using:
- *  - Strike bonus: next 2 balls
- *  - Spare bonus: next 1 ball (spare can be by roll2 or roll3)
- *  - Open: sum of rolls in frame (up to 3)
- *
- * For incomplete games, returns:
- *  - frameTotals: per-frame cumulative if determinable, else null
- */
-function computeDuckpinCumulatives(frames: FrameRolls[]) {
-  // Build a "roll stream" and a mapping from each frame to its roll indices
-  const rollStream: number[] = [];
-  const frameRollIndexStart: number[] = []; // start index in rollStream for each frame
+function clearFrameCookies(frame: number) {
+  const maxRolls = frame === 10 ? 4 : 3;
+  for (let r = 1; r <= maxRolls; r++) deleteCookie(cookieKey(frame, r));
+}
 
-  for (let i = 0; i < 10; i++) {
-    const frameNumber = i + 1;
-    const f = frames[i];
-    frameRollIndexStart[i] = rollStream.length;
+function clearAllGameCookies() {
+  deleteCookie("game_id");
+  for (let f = 1; f <= 10; f++) clearFrameCookies(f);
+}
 
-    // Construct frame rolls for scoring stream
-    if (frameNumber !== 10) {
-      if (f.r1 === null) continue;
-      rollStream.push(f.r1);
-      if (f.r1 === 10) continue; // strike ends frame
-      if (f.r2 === null) continue;
-      rollStream.push(f.r2);
-      const sum12 = f.r1 + f.r2;
-      if (sum12 >= 10) continue; // spare by roll2 ends frame
-      if (f.r3 === null) continue;
-      rollStream.push(f.r3);
+function normalizeFrames(raw: (number | null)[][]): Frame[] {
+  return raw.map((rolls, idx) => {
+    const f = idx + 1;
+
+    // Keep only meaningful rolls for strike frames (1-9)
+    // For 10th frame we keep as user enters; validation enforced on entry.
+    const r1 = rolls[0];
+    const r2 = rolls[1];
+    const r3 = rolls[2];
+    const r4 = f === 10 ? rolls[3] : null;
+
+    const strike = r1 === 10;
+    const frameTotal3 =
+      (r1 ?? 0) + (r2 ?? 0) + (r3 ?? 0); // ignore r4 for spare detection
+    const spare =
+      !strike &&
+      r1 !== null &&
+      ((r2 !== null && r1 + r2 === 10) ||
+        (r3 !== null && frameTotal3 === 10));
+
+    const open =
+      r1 !== null &&
+      (f === 10
+        ? // 10th frame can be incomplete but open once 3 rolls entered w/o spare
+          r2 !== null &&
+          r3 !== null &&
+          !strike &&
+          !spare
+        : r2 !== null && r3 !== null && !strike && !spare);
+
+    // 10th frame bonus roll eligibility:
+    // - Strike on first => needs r2 & r3 as bonus (still stored in roll2/roll3)
+    // - Spare by roll2 => needs r3 as bonus
+    // - Spare by roll3 => needs r4 as bonus
+    // We'll handle entry rules elsewhere.
+
+    const normalized: (number | null)[] =
+      f === 10 ? [r1, r2, r3, r4] : [r1, r2, r3];
+
+    return { rolls: normalized, strike, spare, open };
+  });
+}
+
+function flattenRollsForScoring(frames: Frame[]): number[] {
+  // For scoring, we need a sequential list of rolls, including 10th frame bonus rolls.
+  const out: number[] = [];
+  for (let f = 1; f <= 10; f++) {
+    const fr = frames[f - 1];
+    const r = fr.rolls;
+
+    if (f <= 9) {
+      const r1 = r[0];
+      if (r1 === null) break;
+      if (r1 === 10) {
+        out.push(10);
+      } else {
+        const r2 = r[1];
+        const r3 = r[2];
+        if (r2 === null || r3 === null) break;
+        out.push(r1, r2, r3);
+      }
     } else {
-      // 10th: include whatever is set; for bonus we allow r3 optional
-      if (f.r1 === null) continue;
-      rollStream.push(f.r1);
-      if (f.r2 === null) continue;
-      rollStream.push(f.r2);
-      if (f.r3 !== null) rollStream.push(f.r3);
+      // Frame 10: always append whatever is present in order.
+      // (Scoring function will safely treat missing as 0 for incomplete scoring display.)
+      const seq = r.filter(v => v !== null) as number[];
+      out.push(...seq);
+    }
+  }
+  return out;
+}
+
+function duckpinCumulativeByFrame(frames: Frame[]): number[] {
+  // Returns array length 10 of cumulative score at each frame (or last computed),
+  // based on duckpin rules: strike bonus next 2 balls, spare bonus next 1.
+  const rolls = flattenRollsForScoring(frames);
+
+  // Build a mapping of frame->roll start indices for the rolls array
+  const frameStart: number[] = [];
+  let ri = 0;
+  for (let f = 1; f <= 10; f++) {
+    frameStart.push(ri);
+    const fr = frames[f - 1];
+    const r1 = fr.rolls[0];
+
+    if (f <= 9) {
+      if (r1 === null) break;
+      if (r1 === 10) ri += 1;
+      else ri += 3;
+    } else {
+      // 10th frame consumes whatever rolls exist (up to 4)
+      const count = fr.rolls.filter(v => v !== null).length;
+      ri += count;
     }
   }
 
-  // Now compute frame-by-frame totals + cumulative
-  const frameCum: (number | null)[] = Array(10).fill(null);
+  const cum: number[] = Array(10).fill(0);
+  let score = 0;
+  let rollIndex = 0;
 
-  let total = 0;
-  let streamIndex = 0;
-
-  for (let i = 0; i < 10; i++) {
-    const frameNumber = i + 1;
-    const f = frames[i];
-
-    // If no first roll, frame not started
-    if (f.r1 === null) break;
-
-    const r1 = f.r1 ?? 0;
-    const r2 = f.r2 ?? 0;
-    const r3 = f.r3 ?? 0;
-
-    // Determine how many rolls this frame uses in the rollStream
-    let rollsUsed = 0;
-    if (frameNumber !== 10) {
-      if (r1 === 10) rollsUsed = 1;
-      else if (f.r2 === null) rollsUsed = 0;
-      else if (r1 + r2 >= 10) rollsUsed = 2;
-      else if (f.r3 === null) rollsUsed = 0;
-      else rollsUsed = 3;
-    } else {
-      // tenth: at least 2 rolls to have a "frame" in our MVP
-      if (f.r2 === null) rollsUsed = 0;
-      else rollsUsed = f.r3 === null ? 2 : 3;
+  for (let frame = 1; frame <= 10; frame++) {
+    // If we have no roll for this frame, stop computing further.
+    if (rollIndex >= rolls.length) {
+      // carry score forward
+      for (let k = frame - 1; k < 10; k++) cum[k] = score;
+      break;
     }
 
-    if (rollsUsed === 0) break;
+    const r1 = rolls[rollIndex] ?? 0;
 
-    // strike
-    if (r1 === 10) {
-      const b1 = rollStream[streamIndex + 1];
-      const b2 = rollStream[streamIndex + 2];
-      if (b1 === undefined || b2 === undefined) {
-        frameCum[i] = null;
+    // Frames 1-9 rules use 1-roll strike else 3-roll frame
+    if (frame <= 9) {
+      if (r1 === 10) {
+        const b1 = rolls[rollIndex + 1] ?? 0;
+        const b2 = rolls[rollIndex + 2] ?? 0;
+        score += 10 + b1 + b2;
+        cum[frame - 1] = score;
+        rollIndex += 1;
+        continue;
+      }
+
+      const r2 = rolls[rollIndex + 1];
+      const r3 = rolls[rollIndex + 2];
+      if (r2 === undefined || r3 === undefined) {
+        // incomplete frame, carry score
+        for (let k = frame - 1; k < 10; k++) cum[k] = score;
         break;
       }
-      total += 10 + b1 + b2;
-      frameCum[i] = total;
-      streamIndex += 1;
+
+      const frameTotal = r1 + r2 + r3;
+
+      if (r1 + r2 === 10 || frameTotal === 10) {
+        const bonus = rolls[rollIndex + 3] ?? 0;
+        score += 10 + bonus;
+      } else {
+        score += frameTotal;
+      }
+
+      cum[frame - 1] = score;
+      rollIndex += 3;
       continue;
     }
 
-    // spare (by roll2 or roll3)
-    const sum12 = r1 + r2;
-    const sum123 = r1 + r2 + r3;
+    // Frame 10:
+    // Treat the remaining rolls as belonging to frame 10.
+    // Strike/spare bonus rolls are already included as additional rolls.
+    // We just compute the frame 10 score directly from its own rolls without "next frame" lookups.
+    const fr10 = frames[9];
+    const r10 = fr10.rolls;
 
-    const spareBy2 = f.r2 !== null && sum12 === 10;
-    const spareBy3 = f.r3 !== null && sum123 === 10;
-
-    if (spareBy2 || spareBy3) {
-      const bonusIndex = streamIndex + (spareBy2 ? 2 : 3);
-      const b = rollStream[bonusIndex];
-      if (b === undefined) {
-        frameCum[i] = null;
-        break;
-      }
-      total += 10 + b;
-      frameCum[i] = total;
-      streamIndex += spareBy2 ? 2 : 3;
-      continue;
+    // Need at least 1 roll to score anything
+    const a = r10[0];
+    if (a === null) {
+      cum[9] = score;
+      break;
     }
 
-    // open
-    total += sum123; // r3 may be 0 if not set, but rollsUsed ensures it's set when needed
-    frameCum[i] = total;
-    streamIndex += rollsUsed;
+    // Strike: score = 10 + next two rolls in frame 10 (roll2, roll3)
+    if (a === 10) {
+      const b = r10[1] ?? 0;
+      const c = r10[2] ?? 0;
+      // If b/c missing, still shows partial score
+      score += 10 + (b ?? 0) + (c ?? 0);
+      cum[9] = score;
+      break;
+    }
+
+    const b = r10[1];
+    const c = r10[2];
+
+    if (b === null || c === null) {
+      cum[9] = score;
+      break;
+    }
+
+    const total3 = a + b + c;
+
+    // Spare by roll2 => +1 bonus (roll3 is bonus), but in duckpin 10th we store it in roll3.
+    // Spare by roll3 => +1 bonus (roll4).
+    if (a + b === 10) {
+      // roll3 is bonus
+      score += 10 + c;
+      cum[9] = score;
+      break;
+    }
+
+    if (total3 === 10) {
+      const d = r10[3];
+      score += 10 + (d ?? 0);
+      cum[9] = score;
+      break;
+    }
+
+    // Open
+    score += total3;
+    cum[9] = score;
+    break;
   }
 
-  return frameCum;
+  return cum;
 }
 
-function classicRollBoxStyle(base?: React.CSSProperties): React.CSSProperties {
-  return {
-    width: 34,
-    height: 34,
-    border: `1px solid rgba(0,0,0,0.15)`,
-    borderRadius: 6,
-    display: "grid",
-    placeItems: "center",
-    fontWeight: 700,
-    color: TEXT_ORANGE,
-    background: "#fff",
-    ...base
-  };
-}
+function remainingPinsForRoll(framesRaw: (number | null)[][], frameIdx: number, rollIdx: number) {
+  // rollIdx: 0-based within frame
+  const frameNumber = frameIdx + 1;
+  const rolls = framesRaw[frameIdx];
 
-function triangleSpareBackground(): React.CSSProperties {
-  // half-shaded triangle in the top-right corner
-  return {
-    background:
-      "linear-gradient(135deg, rgba(228,106,46,0.35) 0%, rgba(228,106,46,0.35) 50%, transparent 50%, transparent 100%)"
-  };
+  const r1 = rolls[0];
+  const r2 = rolls[1];
+  const r3 = rolls[2];
+
+  // 10th frame bonus rules: once spare/strike achieved, bonus rolls are NOT constrained by remaining pins.
+  if (frameNumber === 10) {
+    const first = r1 ?? 0;
+    const second = r2 ?? 0;
+    const third = r3 ?? 0;
+
+    const strike = r1 === 10;
+    const spareBy2 = !strike && r1 !== null && r2 !== null && r1 + r2 === 10;
+    const spareBy3 = !strike && r1 !== null && r2 !== null && r3 !== null && (r1 + r2 + r3 === 10);
+
+    // If entering roll2/roll3 as strike bonus: not constrained
+    if (strike) return 10;
+
+    // If spare by roll2, roll3 is bonus: not constrained
+    if (spareBy2 && rollIdx === 2) return 10;
+
+    // If spare by roll3, roll4 is bonus: not constrained
+    if (spareBy3 && rollIdx === 3) return 10;
+
+    // Otherwise still constrained by remaining in first three rolls
+    const pinsSoFar = (r1 ?? 0) + (r2 ?? 0) + (r3 ?? 0);
+    return Math.max(0, 10 - pinsSoFar);
+  }
+
+  // Frames 1-9: constrained by remaining pins in frame total
+  const pinsSoFar = (r1 ?? 0) + (r2 ?? 0) + (r3 ?? 0);
+  return Math.max(0, 10 - pinsSoFar);
 }
 
 export default function GamePage() {
-  const [carouselIndex, setCarouselIndex] = useState(0); // 0..9
-  const [flippedFrame, setFlippedFrame] = useState<number | null>(null); // which frame is flipped (0..9) or null
-  const [frames, setFrames] = useState<FrameRolls[]>(createEmptyFrames());
   const [gameId, setGameId] = useState<string>("");
 
-  // Load cookies on mount
-  useEffect(() => {
-    const existingId = getCookie("game_id");
-    if (existingId) setGameId(existingId);
-    else {
-      const newId = crypto.randomUUID();
-      setGameId(newId);
-      setCookie("game_id", newId);
-    }
+  // Raw rolls storage for cookies: 10 frames, each with 3 rolls; 10th has optional 4th
+  const [framesRaw, setFramesRaw] = useState<(number | null)[][]>(() => {
+    // On first render client-side, cookies exist; but to be safe, initialize empty and load in effect.
+    return Array.from({ length: 10 }, (_, i) =>
+      i === 9 ? [null, null, null, null] : [null, null, null]
+    );
+  });
 
-    const loaded = createEmptyFrames();
-    for (let f = 1; f <= 10; f++) {
-      for (let r = 1 as 1 | 2 | 3; r <= 3; r = (r + 1) as 1 | 2 | 3) {
-        const v = getCookie(frameKey(f, r));
-        loaded[f - 1][`r${r}` as "r1" | "r2" | "r3"] = v === null ? null : Number(v);
+  const [currentFrameIdx, setCurrentFrameIdx] = useState(0); // 0..9
+  const [flipped, setFlipped] = useState(false);
+  const [editingFrameIdx, setEditingFrameIdx] = useState<number | null>(null);
+
+  // For positioning arrows: fixed left/right, but vertically centered with the card.
+  const cardWrapRef = useRef<HTMLDivElement | null>(null);
+  const [arrowTop, setArrowTop] = useState<number>(240);
+
+  useEffect(() => {
+    const id = ensureGameId();
+    setGameId(id);
+
+    const loaded = loadFramesFromCookies();
+
+    // Ensure 10th frame has 4 slots in state
+    const normalized = loaded.map((r, idx) => (idx === 9 ? [r[0], r[1], r[2], r[3]] : [r[0], r[1], r[2]]));
+    setFramesRaw(normalized);
+
+    // Determine current frame (first frame that isn't complete)
+    const computedFrames = normalizeFrames(normalized);
+    let cf = 0;
+    for (let i = 0; i < 10; i++) {
+      const fr = computedFrames[i];
+      const isComplete = isFrameCompleteForProgress(normalized, i);
+      if (!isComplete) {
+        cf = i;
+        break;
       }
+      cf = i;
     }
-    setFrames(loaded);
+    setCurrentFrameIdx(cf);
+
+    // Arrow position tracking
+    const updateArrowTop = () => {
+      const el = cardWrapRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setArrowTop(Math.round(rect.top + rect.height / 2));
+    };
+
+    updateArrowTop();
+    window.addEventListener("scroll", updateArrowTop, { passive: true });
+    window.addEventListener("resize", updateArrowTop);
+    return () => {
+      window.removeEventListener("scroll", updateArrowTop);
+      window.removeEventListener("resize", updateArrowTop);
+    };
   }, []);
 
-  const cumulatives = useMemo(() => computeDuckpinCumulatives(frames), [frames]);
+  const frames = useMemo(() => normalizeFrames(framesRaw), [framesRaw]);
+  const cumulative = useMemo(() => duckpinCumulativeByFrame(frames), [frames]);
 
-  const currentFrameIndex = useMemo(() => {
-    // First frame that is not completed (by our frameCompleted rules), else 9
-    for (let i = 0; i < 10; i++) {
-      if (!frameCompleted(i + 1, frames[i])) return i;
-    }
-    return 9;
-  }, [frames]);
+  const index = currentFrameIdx;
+  const isFirst = index === 0;
+  const isLast = index === 9;
 
-  const canEditFrame = (frameIdx: number) => frameIdx <= currentFrameIndex;
+  const viewingFrameIdx = editingFrameIdx ?? index;
+  const viewingFrameNumber = viewingFrameIdx + 1;
 
-  const isFirst = carouselIndex === 0;
-  const isLast = carouselIndex === 9;
+  // Allow: edit prior frames or current frame only
+  function canEditFrame(frameIdx: number) {
+    return frameIdx <= currentFrameIdx;
+  }
 
-  function goPrev() {
-    if (carouselIndex > 0) {
-      setFlippedFrame(null);
-      setCarouselIndex(carouselIndex - 1);
+  function prevFrame() {
+    if (index > 0) {
+      setFlipped(false);
+      setEditingFrameIdx(null);
+      setCurrentFrameIdx(index - 1);
     }
   }
 
-  function goNext() {
-    if (carouselIndex < 9) {
-      setFlippedFrame(null);
-      setCarouselIndex(carouselIndex + 1);
+  function nextFrame() {
+    if (index < 9) {
+      setFlipped(false);
+      setEditingFrameIdx(null);
+      setCurrentFrameIdx(index + 1);
     }
   }
 
-  function resetFrame(frameIdx: number) {
-    const frameNumber = frameIdx + 1;
-    // Clear cookies for the entire frame (prevents stale roll3, etc.)
-    deleteCookie(frameKey(frameNumber, 1));
-    deleteCookie(frameKey(frameNumber, 2));
-    deleteCookie(frameKey(frameNumber, 3));
-
-    setFrames(prev => {
-      const copy = [...prev];
-      copy[frameIdx] = { r1: null, r2: null, r3: null };
+  function startEditThisFrame() {
+    if (!canEditFrame(viewingFrameIdx)) return;
+    // Reset that frame cookies & local state rolls to null to force re-entry from roll1
+    clearFrameCookies(viewingFrameNumber);
+    setFramesRaw(prev => {
+      const copy = prev.map(arr => [...arr]);
+      copy[viewingFrameIdx] =
+        viewingFrameIdx === 9 ? [null, null, null, null] : [null, null, null];
       return copy;
     });
   }
 
-  function setRoll(frameIdx: number, roll: 1 | 2 | 3, pins: number | null) {
-    const frameNumber = frameIdx + 1;
-    const key = frameKey(frameNumber, roll);
+  function setRoll(frameIdx: number, rollIdx: number, pins: number) {
+    setFramesRaw(prev => {
+      const copy = prev.map(arr => [...arr]);
+      const frameNumber = frameIdx + 1;
 
-    if (pins === null) deleteCookie(key);
-    else setCookie(key, String(pins));
-
-    setFrames(prev => {
-      const copy = [...prev];
-      const f = { ...copy[frameIdx] };
-
-      // When editing, enforce "must re-enter from roll1":
-      // we will only allow setting roll N if all prior rolls are set.
-      if (roll === 1) {
-        f.r1 = pins;
-        f.r2 = null;
-        f.r3 = null;
-        // also clear cookies for roll2/3
-        deleteCookie(frameKey(frameNumber, 2));
-        deleteCookie(frameKey(frameNumber, 3));
-      } else if (roll === 2) {
-        f.r2 = pins;
-        f.r3 = null;
-        deleteCookie(frameKey(frameNumber, 3));
-      } else {
-        f.r3 = pins;
+      // Enforce sequential: can't set roll2 unless roll1 set, etc.
+      for (let r = 0; r < rollIdx; r++) {
+        if (copy[frameIdx][r] === null) return prev;
       }
 
-      copy[frameIdx] = f;
+      // Enforce edit rules: can only change if frame <= current
+      if (!canEditFrame(frameIdx)) return prev;
+
+      // Enforce max pins constraints (except 10th bonus)
+      const maxPins = remainingPinsForRoll(copy, frameIdx, rollIdx);
+      if (pins < 0 || pins > maxPins) return prev;
+
+      // If setting roll1 and it's a strike in frames 1-9, wipe roll2/roll3
+      if (frameNumber <= 9 && rollIdx === 0 && pins === 10) {
+        copy[frameIdx][0] = 10;
+        copy[frameIdx][1] = null;
+        copy[frameIdx][2] = null;
+      } else {
+        copy[frameIdx][rollIdx] = pins;
+      }
+
+      // If user edits earlier roll, clear later rolls in that frame (and cookies) to force re-entry
+      for (let r = rollIdx + 1; r < copy[frameIdx].length; r++) {
+        copy[frameIdx][r] = null;
+      }
+      // Also clear cookies for that frame then re-write what exists
+      clearFrameCookies(frameNumber);
+      const maxRolls = frameNumber === 10 ? 4 : 3;
+      for (let r = 1; r <= maxRolls; r++) {
+        const v = copy[frameIdx][r - 1];
+        if (v !== null) setCookie(cookieKey(frameNumber, r), String(v), 7);
+      }
+
       return copy;
     });
+  }
+
+  function confirmFrame() {
+    // Only confirm current frame or a prior frame that was edited.
+    // If confirming current frame, advance current frame if complete.
+    setFlipped(false);
+    setEditingFrameIdx(null);
+
+    // Recompute progress based on framesRaw
+    setFramesRaw(prev => {
+      // Ensure cookies are written for all non-null values in viewing frame
+      const frameNumber = viewingFrameNumber;
+      const maxRolls = frameNumber === 10 ? 4 : 3;
+      clearFrameCookies(frameNumber);
+      for (let r = 1; r <= maxRolls; r++) {
+        const v = prev[viewingFrameIdx][r - 1];
+        if (v !== null) setCookie(cookieKey(frameNumber, r), String(v), 7);
+      }
+      return prev;
+    });
+
+    // Advance if confirming current frame and it is complete
+    if (viewingFrameIdx === currentFrameIdx) {
+      if (isFrameCompleteForProgress(framesRaw, viewingFrameIdx)) {
+        setCurrentFrameIdx(Math.min(9, currentFrameIdx + 1));
+      }
+    }
   }
 
   function submitScore() {
-    // Clear all cookies and reset state
-    deleteCookie("game_id");
-    for (let f = 1; f <= 10; f++) {
-      deleteCookie(frameKey(f, 1));
-      deleteCookie(frameKey(f, 2));
-      deleteCookie(frameKey(f, 3));
-    }
-    const newId = crypto.randomUUID();
-    setCookie("game_id", newId);
-    setGameId(newId);
-    setFrames(createEmptyFrames());
-    setFlippedFrame(null);
-    setCarouselIndex(0);
+    // For now: just clears cookies and resets.
+    clearAllGameCookies();
+    const id = ensureGameId();
+    setGameId(id);
+    setFramesRaw(Array.from({ length: 10 }, (_, i) => (i === 9 ? [null, null, null, null] : [null, null, null])));
+    setCurrentFrameIdx(0);
+    setEditingFrameIdx(null);
+    setFlipped(false);
   }
 
   function newGame() {
-    // Same behavior per your request
     submitScore();
   }
 
-  const activeFrame = frames[carouselIndex];
-  const frameNumber = carouselIndex + 1;
-  const tenth = frameNumber === 10;
+  // Dropdown options for current input roll (based on remaining pins)
+  function rollOptions(frameIdx: number, rollIdx: number) {
+    const maxPins = remainingPinsForRoll(framesRaw, frameIdx, rollIdx);
+    return Array.from({ length: maxPins + 1 }, (_, i) => i);
+  }
 
-  const strike = isStrike(frameNumber, activeFrame);
-  const spare = isSpare(frameNumber, activeFrame);
+  // Visual sheet helpers
+  const fr = frames[viewingFrameIdx];
+  const rolls = framesRaw[viewingFrameIdx];
 
-  const { nextRoll, maxPins } = allowedMaxPinsForNextRoll(carouselIndex, activeFrame);
+  const frameCum = cumulative[viewingFrameIdx] ?? 0;
 
-  const rollOptions = useMemo(() => Array.from({ length: maxPins + 1 }, (_, i) => i), [maxPins]);
+  const strike = fr.strike;
+  const spare = fr.spare;
 
-  const editable = canEditFrame(carouselIndex);
-
-  function flipToBack() {
-    if (!editable) return;
-    // If editing a prior frame, reset that frame first (as requested)
-    if (carouselIndex < currentFrameIndex) {
-      resetFrame(carouselIndex);
+  const spareRollBoxIndex = (() => {
+    // Which roll (1-based) completed 10 pins in this frame (not a strike)?
+    if (strike) return null;
+    const r1 = rolls[0];
+    const r2 = rolls[1];
+    const r3 = rolls[2];
+    if (r1 === null) return null;
+    if (r2 !== null && r1 + r2 === 10) return 2;
+    if (r3 !== null && r2 !== null && r1 + r2 + r3 === 10) return 3;
+    if (viewingFrameNumber === 10) {
+      const r4 = (rolls as any[])[3] as number | null;
+      // spare by roll3 gets bonus roll4; spare indicator still on roll3
+      void r4;
     }
-    setFlippedFrame(carouselIndex);
-  }
+    return null;
+  })();
 
-  function flipToFront() {
-    setFlippedFrame(null);
-  }
+  const showRollInputsCount = viewingFrameNumber === 10 ? 4 : 3;
 
-  const isFlipped = flippedFrame === carouselIndex;
+  // Determine which roll is currently editable (first null)
+  const nextNeededRollIdx = (() => {
+    const list = framesRaw[viewingFrameIdx];
+    for (let i = 0; i < list.length; i++) {
+      if (list[i] === null) return i;
+    }
+    return list.length; // none needed
+  })();
 
-  // Determine roll symbols for the score-sheet front
-  const r1 = activeFrame.r1;
-  const r2 = activeFrame.r2;
-  const r3 = activeFrame.r3;
-
-  // spare completion roll index (2 or 3) for styling
-  const spareBy2 = r1 !== null && r2 !== null && r1 !== 10 && r1 + r2 === 10;
-  const spareBy3 =
-    r1 !== null &&
-    r2 !== null &&
-    r3 !== null &&
-    r1 !== 10 &&
-    r1 + r2 < 10 &&
-    r1 + r2 + r3 === 10;
-
-  const frameCum = cumulatives[carouselIndex];
+  // Prevent going into edit mode for future frames
+  const canEditThisCard = canEditFrame(viewingFrameIdx);
 
   return (
     <main
@@ -457,72 +566,76 @@ export default function GamePage() {
         minHeight: "100vh",
         background: CREAM,
         fontFamily: "Montserrat, system-ui",
-        padding: "2rem",
-        color: TEXT_ORANGE
+        padding: "2rem 1rem"
       }}
     >
-      {/* Header (logo + mission) */}
+      {/* Logo */}
       <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
         <img src="/1@300x.png" alt="Dux Bowling" style={{ maxWidth: 180, width: "100%" }} />
       </div>
 
+      {/* Header / Mission */}
       <p
         style={{
           textAlign: "center",
-          maxWidth: 720,
-          margin: "0 auto 2rem",
-          color: TEXT_ORANGE,
+          maxWidth: 700,
+          margin: "0 auto 1.75rem",
+          color: "#c75a1d",
           fontSize: "1.05rem",
-          lineHeight: 1.6
+          lineHeight: 1.5
         }}
       >
-        Enter your rolls frame-by-frame. Tap a frame to enter pins.
+        Enter your rolls frame-by-frame. Tap the card to flip and enter pins.
+        <br />
+        <strong>Duckpin rules</strong> are applied automatically.
       </p>
 
-      {/* Fixed arrows (same “fixed-to-screen” behavior as menu/login) */}
+      {/* Fixed arrows (left/right fixed; vertical tracks card center) */}
       <button
-        onClick={goPrev}
+        onClick={prevFrame}
         disabled={isFirst}
         aria-label="Previous frame"
         style={{
           position: "fixed",
-          left: 16,
-          top: "50%",
+          left: 14,
+          top: arrowTop,
           transform: "translateY(-50%)",
-          width: 48,
-          height: 48,
+          width: 44,
+          height: 44,
           borderRadius: "50%",
           border: "none",
           background: ORANGE,
           color: "#fff",
-          fontSize: "1.5rem",
+          fontSize: "1.4rem",
           opacity: isFirst ? 0.5 : 1,
           cursor: isFirst ? "default" : "pointer",
-          zIndex: 20
+          zIndex: 50,
+          boxShadow: "0 10px 24px rgba(0,0,0,0.18)"
         }}
       >
         ‹
       </button>
 
       <button
-        onClick={goNext}
+        onClick={nextFrame}
         disabled={isLast}
         aria-label="Next frame"
         style={{
           position: "fixed",
-          right: 16,
-          top: "50%",
+          right: 14,
+          top: arrowTop,
           transform: "translateY(-50%)",
-          width: 48,
-          height: 48,
+          width: 44,
+          height: 44,
           borderRadius: "50%",
           border: "none",
           background: ORANGE,
           color: "#fff",
-          fontSize: "1.5rem",
+          fontSize: "1.4rem",
           opacity: isLast ? 0.5 : 1,
           cursor: isLast ? "default" : "pointer",
-          zIndex: 20
+          zIndex: 50,
+          boxShadow: "0 10px 24px rgba(0,0,0,0.18)"
         }}
       >
         ›
@@ -531,14 +644,17 @@ export default function GamePage() {
       {/* Card */}
       <div style={{ display: "flex", justifyContent: "center" }}>
         <div
-          onClick={() => (isFlipped ? undefined : flipToBack())}
+          ref={cardWrapRef}
           style={{
-            width: 340,
+            width: "min(92vw, 360px)",
             height: 260,
-            perspective: 1000,
-            cursor: editable ? "pointer" : "not-allowed"
+            perspective: 1000
           }}
-          title={!editable ? "You can only edit current or prior frames." : "Tap to enter pins"}
+          onClick={() => {
+            // Only allow flipping if this is current or prior
+            if (!canEditThisCard) return;
+            setFlipped(v => !v);
+          }}
         >
           <div
             style={{
@@ -547,17 +663,17 @@ export default function GamePage() {
               height: "100%",
               transformStyle: "preserve-3d",
               transition: "transform 0.6s",
-              transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)"
+              transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
             }}
           >
-            {/* FRONT: Classic-ish scoresheet */}
+            {/* FRONT: Classic score sheet look */}
             <div
               style={{
                 position: "absolute",
                 inset: 0,
                 background: "#fff",
                 borderRadius: 14,
-                padding: "1.2rem 1.2rem 1rem",
+                padding: "1rem",
                 backfaceVisibility: "hidden",
                 boxShadow: "0 10px 25px rgba(0,0,0,0.10)",
                 display: "flex",
@@ -565,79 +681,99 @@ export default function GamePage() {
                 justifyContent: "space-between"
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                <h2 style={{ color: ORANGE, margin: 0 }}>Frame {frameNumber}</h2>
-                <span style={{ fontSize: ".9rem", opacity: 0.9 }}>
-                  {editable ? "Tap to enter" : "Locked"}
-                </span>
-              </div>
-
-              {/* Roll boxes */}
-              <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 16 }}>
-                {/* Roll 1 */}
-                <div
-                  style={classicRollBoxStyle(
-                    strike
-                      ? { background: "rgba(228,106,46,0.18)", borderColor: "rgba(228,106,46,0.5)" }
-                      : undefined
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <div style={{ color: ORANGE, fontWeight: 800 }}>
+                  Frame {viewingFrameNumber}
+                  {viewingFrameIdx === currentFrameIdx ? (
+                    <span style={{ fontWeight: 600, color: "#9b4a1d" }}> • Current</span>
+                  ) : (
+                    <span style={{ fontWeight: 600, color: "#9b4a1d" }}> • Review</span>
                   )}
-                >
-                  {r1 === null ? "" : strike ? "X" : r1}
                 </div>
-
-                {/* Roll 2 */}
-                <div
-                  style={classicRollBoxStyle(
-                    spareBy2
-                      ? { ...triangleSpareBackground(), borderColor: "rgba(228,106,46,0.5)" }
-                      : undefined
-                  )}
-                >
-                  {r2 === null ? "" : spareBy2 ? "/" : r2}
-                </div>
-
-                {/* Roll 3 */}
-                <div
-                  style={classicRollBoxStyle(
-                    spareBy3
-                      ? { ...triangleSpareBackground(), borderColor: "rgba(228,106,46,0.5)" }
-                      : tenth && r1 === 10
-                      ? { background: "rgba(228,106,46,0.06)" }
-                      : undefined
-                  )}
-                >
-                  {r3 === null ? "" : spareBy3 ? "/" : r3}
+                <div style={{ color: "#9b4a1d", fontSize: ".85rem" }}>
+                  Game: {gameId ? gameId.slice(0, 8) : "—"}
                 </div>
               </div>
 
-              {/* Cumulative score */}
+              {/* Score sheet row */}
               <div
                 style={{
-                  marginTop: 18,
-                  borderTop: "1px solid rgba(0,0,0,0.08)",
-                  paddingTop: 14,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center"
+                  marginTop: 10,
+                  border: `2px solid ${ORANGE}`,
+                  borderRadius: 10,
+                  overflow: "hidden",
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr 1.4fr",
+                  height: 110
                 }}
               >
-                <span style={{ fontWeight: 700 }}>Cumulative</span>
-                <span style={{ fontSize: "1.35rem", fontWeight: 800, color: ORANGE }}>
-                  {frameCum === null ? "—" : frameCum}
-                </span>
+                {/* Roll boxes */}
+                <RollBox
+                  label="1"
+                  value={renderRollValue({ frameNumber: viewingFrameNumber, rollNumber: 1, pins: rolls[0], strike, spareRollBoxIndex })}
+                  strikeCorner={strike}
+                  spareCorner={false}
+                  orange={ORANGE}
+                />
+                <RollBox
+                  label="2"
+                  value={renderRollValue({ frameNumber: viewingFrameNumber, rollNumber: 2, pins: rolls[1], strike, spareRollBoxIndex })}
+                  strikeCorner={false}
+                  spareCorner={spareRollBoxIndex === 2}
+                  orange={ORANGE}
+                />
+                <RollBox
+                  label="3"
+                  value={renderRollValue({ frameNumber: viewingFrameNumber, rollNumber: 3, pins: rolls[2], strike, spareRollBoxIndex })}
+                  strikeCorner={false}
+                  spareCorner={spareRollBoxIndex === 3}
+                  orange={ORANGE}
+                />
+                {/* Cumulative box */}
+                <div
+                  style={{
+                    borderLeft: `2px solid ${ORANGE}`,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    color: ORANGE
+                  }}
+                >
+                  <div style={{ fontSize: ".85rem", fontWeight: 700, opacity: 0.85 }}>Cumulative</div>
+                  <div style={{ fontSize: "2rem", fontWeight: 900, lineHeight: 1 }}>
+                    {frameCum}
+                  </div>
+                </div>
               </div>
 
-              <div style={{ fontSize: ".85rem", opacity: 0.85 }}>
-                {strike
-                  ? "Strike (bonus: next 2 balls)"
-                  : spare
-                  ? "Spare (bonus: next 1 ball)"
-                  : "Open frame"}
-                {tenth ? " · 10th frame rules apply" : ""}
+              <div style={{ color: "#9b4a1d", fontSize: ".9rem", lineHeight: 1.35 }}>
+                Tap to enter pins. You may edit <strong>current</strong> or <strong>prior</strong> frames.
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    newGame();
+                  }}
+                  style={pillButtonStyle({ bg: "#fff", border: ORANGE, color: ORANGE })}
+                >
+                  New Game
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    submitScore();
+                  }}
+                  style={pillButtonStyle({ bg: ORANGE, border: ORANGE, color: "#fff" })}
+                >
+                  Submit Score
+                </button>
               </div>
             </div>
 
-            {/* BACK: Roll entry UI */}
+            {/* BACK: Roll entry */}
             <div
               style={{
                 position: "absolute",
@@ -645,252 +781,336 @@ export default function GamePage() {
                 background: ORANGE,
                 color: "#fff",
                 borderRadius: 14,
-                padding: "1.2rem",
+                padding: "0.9rem",
                 backfaceVisibility: "hidden",
                 transform: "rotateY(180deg)",
                 boxShadow: "0 10px 25px rgba(0,0,0,0.10)",
                 display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between"
+                flexDirection: "column"
               }}
-              onClick={e => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <h2 style={{ margin: 0 }}>Frame {frameNumber}</h2>
-                  <button
-                    onClick={flipToFront}
-                    style={{
-                      background: "rgba(255,255,255,0.18)",
-                      color: "#fff",
-                      border: "none",
-                      padding: ".4rem .7rem",
-                      borderRadius: 10,
-                      cursor: "pointer"
-                    }}
-                  >
-                    Close
-                  </button>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                <div style={{ fontWeight: 900 }}>
+                  Frame {viewingFrameNumber} Entry
                 </div>
 
-                <p style={{ marginTop: 10, opacity: 0.95 }}>
-                  Enter pins knocked down. Must enter rolls in order.
-                </p>
-
-                {!editable ? (
-                  <p style={{ fontWeight: 700 }}>
-                    You can only edit the current frame or earlier frames.
-                  </p>
-                ) : (
-                  <>
-                    {/* Roll entry controls */}
-                    <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-                      <RollRow
-                        label="Roll 1"
-                        value={activeFrame.r1}
-                        enabled={activeFrame.r1 === null}
-                        options={activeFrame.r1 === null ? rollOptions : []}
-                        onPick={(v) => setRoll(carouselIndex, 1, v)}
-                      />
-
-                      <RollRow
-                        label="Roll 2"
-                        value={activeFrame.r2}
-                        enabled={activeFrame.r1 !== null && activeFrame.r2 === null && (tenth || activeFrame.r1 !== 10)}
-                        options={
-                          activeFrame.r1 !== null && activeFrame.r2 === null
-                            ? allowedMaxPinsForNextRoll(carouselIndex, activeFrame).nextRoll === 2
-                              ? Array.from({ length: allowedMaxPinsForNextRoll(carouselIndex, activeFrame).maxPins + 1 }, (_, i) => i)
-                              : []
-                            : []
-                        }
-                        onPick={(v) => setRoll(carouselIndex, 2, v)}
-                      />
-
-                      <RollRow
-                        label="Roll 3"
-                        value={activeFrame.r3}
-                        enabled={
-                          activeFrame.r1 !== null &&
-                          activeFrame.r2 !== null &&
-                          activeFrame.r3 === null &&
-                          // frame 1-9: only if not strike and not already spare by roll2
-                          (tenth ||
-                            (activeFrame.r1 !== 10 && (activeFrame.r1 + activeFrame.r2) < 10))
-                        }
-                        options={
-                          activeFrame.r1 !== null && activeFrame.r2 !== null && activeFrame.r3 === null
-                            ? allowedMaxPinsForNextRoll(carouselIndex, activeFrame).nextRoll === 3
-                              ? Array.from({ length: allowedMaxPinsForNextRoll(carouselIndex, activeFrame).maxPins + 1 }, (_, i) => i)
-                              : []
-                            : []
-                        }
-                        onPick={(v) => setRoll(carouselIndex, 3, v)}
-                      />
-                    </div>
-
-                    <div style={{ marginTop: 14, fontSize: ".9rem", opacity: 0.95 }}>
-                      {nextRoll ? (
-                        <>
-                          Next: <strong>Roll {nextRoll}</strong> (0–{maxPins})
-                        </>
-                      ) : (
-                        <>Frame entry complete.</>
-                      )}
-                    </div>
-
-                    {/* Submit frame / flip back */}
-                    <button
-                      onClick={() => {
-                        // Require that the frame is in a valid "completed" state before flipping back
-                        const complete = frameCompleted(frameNumber, frames[carouselIndex]);
-                        if (complete) flipToFront();
-                      }}
-                      style={{
-                        marginTop: 16,
-                        width: "100%",
-                        padding: ".85rem",
-                        borderRadius: 12,
-                        border: "none",
-                        background: "#fff",
-                        color: ORANGE,
-                        fontWeight: 800,
-                        cursor: frameCompleted(frameNumber, frames[carouselIndex]) ? "pointer" : "not-allowed",
-                        opacity: frameCompleted(frameNumber, frames[carouselIndex]) ? 1 : 0.6
-                      }}
-                    >
-                      Confirm Rolls & Return
-                    </button>
-
-                    <button
-                      onClick={() => resetFrame(carouselIndex)}
-                      style={{
-                        marginTop: 10,
-                        width: "100%",
-                        padding: ".75rem",
-                        borderRadius: 12,
-                        border: "1px solid rgba(255,255,255,0.6)",
-                        background: "transparent",
-                        color: "#fff",
-                        fontWeight: 700,
-                        cursor: "pointer"
-                      }}
-                    >
-                      Reset This Frame
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {/* Footer buttons */}
-              <div style={{ display: "grid", gap: 10 }}>
                 <button
-                  onClick={submitScore}
+                  onClick={() => setFlipped(false)}
                   style={{
-                    width: "100%",
-                    padding: ".85rem",
-                    borderRadius: 12,
                     border: "none",
-                    background: "rgba(0,0,0,0.18)",
+                    background: "rgba(255,255,255,0.2)",
                     color: "#fff",
+                    borderRadius: 999,
+                    padding: ".35rem .7rem",
                     fontWeight: 800,
                     cursor: "pointer"
                   }}
                 >
-                  Submit Score (clears cookies)
+                  Close
                 </button>
+              </div>
 
+              {!canEditThisCard && (
+                <div style={noteBoxStyle}>
+                  You can only edit the current frame or earlier frames.
+                </div>
+              )}
+
+              <div style={noteBoxStyle}>
+                <strong>Rule:</strong> If you change a frame, you must re-enter the entire frame from Roll 1.
+                <br />
+                (We automatically clear that frame’s cookies.)
+              </div>
+
+              <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
                 <button
-                  onClick={newGame}
+                  onClick={() => {
+                    if (!canEditThisCard) return;
+                    startEditThisFrame();
+                  }}
                   style={{
-                    width: "100%",
-                    padding: ".85rem",
-                    borderRadius: 12,
+                    flex: 1,
                     border: "none",
                     background: "rgba(255,255,255,0.18)",
                     color: "#fff",
+                    borderRadius: 12,
+                    padding: ".75rem",
                     fontWeight: 800,
-                    cursor: "pointer"
+                    cursor: canEditThisCard ? "pointer" : "default",
+                    opacity: canEditThisCard ? 1 : 0.6
                   }}
                 >
-                  New Game (clears cookies)
+                  Reset Frame
                 </button>
 
-                <div style={{ fontSize: ".8rem", opacity: 0.9, textAlign: "center" }}>
-                  Game ID: <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{gameId || "—"}</span>
+                <button
+                  onClick={() => {
+                    if (!canEditThisCard) return;
+                    setEditingFrameIdx(viewingFrameIdx);
+                    startEditThisFrame();
+                  }}
+                  style={{
+                    flex: 1,
+                    border: "none",
+                    background: "rgba(255,255,255,0.18)",
+                    color: "#fff",
+                    borderRadius: 12,
+                    padding: ".75rem",
+                    fontWeight: 800,
+                    cursor: canEditThisCard ? "pointer" : "default",
+                    opacity: canEditThisCard ? 1 : 0.6
+                  }}
+                >
+                  Edit This Frame
+                </button>
+              </div>
+
+              {/* Roll dropdowns */}
+              <div
+                style={{
+                  background: "rgba(255,255,255,0.14)",
+                  borderRadius: 12,
+                  padding: ".75rem",
+                  overflow: "auto",
+                  flex: 1
+                }}
+              >
+                <div style={{ fontSize: ".95rem", fontWeight: 800, marginBottom: 8 }}>
+                  Enter Pins (0–10)
+                </div>
+
+                {Array.from({ length: showRollInputsCount }).map((_, rollIdx) => {
+                  // Hide roll4 unless 10th spare-by-3 requires it
+                  if (viewingFrameNumber !== 10 && rollIdx === 3) return null;
+
+                  // Determine if roll4 should be shown
+                  if (viewingFrameNumber === 10 && rollIdx === 3) {
+                    const r1 = framesRaw[9][0];
+                    const r2 = framesRaw[9][1];
+                    const r3 = framesRaw[9][2];
+                    const strike10 = r1 === 10;
+                    const spareBy2 = !strike10 && r1 !== null && r2 !== null && r1 + r2 === 10;
+                    const spareBy3 = !strike10 && r1 !== null && r2 !== null && r3 !== null && (r1 + r2 + r3 === 10);
+                    if (!spareBy3) return null; // only show roll4 for spare-by-3
+                  }
+
+                  const disabled =
+                    !canEditThisCard ||
+                    (rollIdx > 0 && framesRaw[viewingFrameIdx][rollIdx - 1] === null) ||
+                    (rollIdx > nextNeededRollIdx); // prevents skipping ahead
+
+                  const options = rollOptions(viewingFrameIdx, rollIdx);
+
+                  return (
+                    <div
+                      key={rollIdx}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        marginBottom: 10
+                      }}
+                    >
+                      <div style={{ fontWeight: 800 }}>
+                        Roll {rollIdx + 1}
+                      </div>
+
+                      <select
+                        value={framesRaw[viewingFrameIdx][rollIdx] ?? ""}
+                        disabled={disabled}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? null : Number(e.target.value);
+                          if (val === null) return;
+                          setRoll(viewingFrameIdx, rollIdx, val);
+                        }}
+                        style={{
+                          width: 150,
+                          borderRadius: 10,
+                          border: "none",
+                          padding: ".6rem .75rem",
+                          fontWeight: 800,
+                          color: ORANGE,
+                          background: "#fff",
+                          opacity: disabled ? 0.7 : 1
+                        }}
+                      >
+                        <option value="" disabled>
+                          Select…
+                        </option>
+                        {options.map(o => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+
+                <div style={{ fontSize: ".85rem", opacity: 0.95, lineHeight: 1.35 }}>
+                  {viewingFrameNumber !== 10 ? (
+                    <>Frame total can’t exceed <strong>10</strong>.</>
+                  ) : (
+                    <>
+                      10th frame bonus rolls are allowed. Bonus rolls are not constrained by remaining pins.
+                    </>
+                  )}
                 </div>
               </div>
+
+              <button
+                onClick={() => confirmFrame()}
+                style={{
+                  marginTop: 10,
+                  border: "none",
+                  borderRadius: 12,
+                  padding: ".9rem",
+                  fontWeight: 900,
+                  background: "#fff",
+                  color: ORANGE,
+                  cursor: "pointer"
+                }}
+              >
+                Confirm Frame
+              </button>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Small helper row */}
-      <div style={{ textAlign: "center", marginTop: "1.25rem", color: TEXT_ORANGE, opacity: 0.9 }}>
-        Viewing frame <strong>{carouselIndex + 1}</strong> of <strong>10</strong>
       </div>
     </main>
   );
 }
 
-/** Simple roll picker row */
-function RollRow(props: {
+/** Classic roll box rendering */
+function RollBox(props: {
   label: string;
-  value: number | null;
-  enabled: boolean;
-  options: number[];
-  onPick: (v: number) => void;
+  value: string;
+  strikeCorner: boolean;
+  spareCorner: boolean;
+  orange: string;
 }) {
-  const { label, value, enabled, options, onPick } = props;
+  const { value, strikeCorner, spareCorner, orange } = props;
 
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.12)",
-        padding: ".75rem",
-        borderRadius: 12,
+        position: "relative",
+        borderRight: `2px solid ${orange}`,
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12
+        justifyContent: "center",
+        fontWeight: 900,
+        fontSize: "1.35rem",
+        color: orange
       }}
     >
-      <div style={{ fontWeight: 800 }}>{label}</div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ minWidth: 34, textAlign: "center", fontWeight: 800 }}>
-          {value === null ? "—" : value}
-        </div>
-
-        <select
-          disabled={!enabled}
-          value={value === null ? "" : String(value)}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            if (!Number.isNaN(v)) onPick(v);
-          }}
+      {/* Strike top-left box fill */}
+      {strikeCorner && (
+        <div
           style={{
-            width: 120,
-            padding: ".55rem .6rem",
-            borderRadius: 10,
-            border: "none",
-            outline: "none",
-            background: enabled ? "#fff" : "rgba(255,255,255,0.25)",
-            color: enabled ? "#111" : "rgba(255,255,255,0.85)",
-            fontWeight: 700,
-            cursor: enabled ? "pointer" : "not-allowed"
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: 26,
+            height: 26,
+            background: orange,
+            borderBottomRightRadius: 8
           }}
-        >
-          <option value="" disabled>
-            Select…
-          </option>
-          {options.map(n => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-      </div>
+        />
+      )}
+
+      {/* Spare triangle shading */}
+      {spareCorner && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: `linear-gradient(135deg, transparent 50%, rgba(228,106,46,0.22) 50%)`
+          }}
+        />
+      )}
+
+      <span style={{ position: "relative", zIndex: 1 }}>
+        {value}
+      </span>
     </div>
   );
+}
+
+function renderRollValue(args: {
+  frameNumber: number;
+  rollNumber: 1 | 2 | 3;
+  pins: number | null;
+  strike: boolean;
+  spareRollBoxIndex: number | null;
+}) {
+  const { rollNumber, pins, strike, spareRollBoxIndex } = args;
+
+  if (pins === null) return "";
+
+  // Strike: show X in roll 1 (classic)
+  if (rollNumber === 1 && strike) return "X";
+
+  // Spare: show "/" in the roll box that completed 10
+  if (spareRollBoxIndex === rollNumber) return "/";
+
+  return String(pins);
+}
+
+function pillButtonStyle(opts: { bg: string; border: string; color: string }) {
+  return {
+    flex: 1,
+    borderRadius: 999,
+    border: `2px solid ${opts.border}`,
+    background: opts.bg,
+    color: opts.color,
+    padding: ".65rem 1rem",
+    fontWeight: 900,
+    cursor: "pointer"
+  } as const;
+}
+
+const noteBoxStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.18)",
+  padding: ".65rem .75rem",
+  borderRadius: 12,
+  fontSize: ".88rem",
+  lineHeight: 1.35,
+  marginBottom: 10
+};
+
+function isFrameCompleteForProgress(framesRaw: (number | null)[][], frameIdx: number) {
+  const frameNumber = frameIdx + 1;
+  const r = framesRaw[frameIdx];
+
+  const r1 = r[0];
+  const r2 = r[1];
+  const r3 = r[2];
+
+  if (r1 === null) return false;
+
+  if (frameNumber <= 9) {
+    if (r1 === 10) return true; // strike completes frame
+    return r2 !== null && r3 !== null;
+  }
+
+  // 10th frame completion:
+  // - strike => needs roll2 and roll3
+  if (r1 === 10) return r2 !== null && r3 !== null;
+
+  if (r2 === null || r3 === null) return false;
+
+  const total2 = r1 + r2;
+  const total3 = total2 + r3;
+
+  // spare by 2 => roll3 is bonus, so frame complete if roll3 present (already required)
+  if (total2 === 10) return true;
+
+  // spare by 3 => needs roll4
+  if (total3 === 10) return r[3] !== null;
+
+  // open => 3 rolls complete
+  return true;
 }
