@@ -3,18 +3,15 @@
 import { useState } from "react";
 import Image from "next/image";
 
-const ORANGE = "#E46C2A";
-const CREAM = "#FBF4E9";
-
-const milestones = [
+const steps = [
   "Register the business as an LLC with the state of Maryland.",
   "File provisional patent approval for the new pinsetter.",
-  "Website MVP completion, including a bowling simulator and scoring.",
-  "Gauge interest with bowlers, alleys, and the National Duckpin Congress.",
+  "Website MVP completion, including scoring & simulator.",
+  "Reach out to bowlers, alleys, and NDC to gauge interest.",
   "Finalize business plans and product offerings.",
-  "Engage TEDCO for guidance on prototyping and funding.",
+  "Engage TEDCO for prototyping and funding guidance.",
   "Prototype development and testing.",
-  "Initial deployment in a bowling alley.",
+  "Initial deployment into pilot bowling alleys.",
   "Broader adoption to retire Sherman Pinsetters.",
   "Expansion into new geographies."
 ];
@@ -23,17 +20,20 @@ export default function HomePage() {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
+  const isFirst = index === 0;
+  const isLast = index === steps.length - 1;
+
   function prev() {
-    if (index > 0) {
-      setIndex(index - 1);
+    if (!isFirst) {
       setFlipped(false);
+      setIndex(index - 1);
     }
   }
 
   function next() {
-    if (index < milestones.length - 1) {
-      setIndex(index + 1);
+    if (!isLast) {
       setFlipped(false);
+      setIndex(index + 1);
     }
   }
 
@@ -41,9 +41,9 @@ export default function HomePage() {
     <main
       style={{
         minHeight: "100vh",
-        background: CREAM,
+        background: "#FBF3E6",
         padding: "2rem 1rem",
-        fontFamily: "Montserrat, system-ui"
+        fontFamily: "'Montserrat', system-ui"
       }}
     >
       {/* Logo */}
@@ -51,8 +51,8 @@ export default function HomePage() {
         <Image
           src="/1@300x.png"
           alt="Dux Bowling"
-          width={180}
-          height={180}
+          width={160}
+          height={160}
           priority
         />
       </div>
@@ -60,126 +60,98 @@ export default function HomePage() {
       {/* Mission */}
       <p
         style={{
+          textAlign: "center",
           maxWidth: 600,
           margin: "0 auto 2rem",
-          textAlign: "center",
-          fontSize: "1.05rem",
-          lineHeight: 1.6,
-          color: "#333"
+          color: "#C45A1A",
+          fontSize: "1rem"
         }}
       >
-        Dux Bowling exists to preserve and modernize duckpin bowling —
-        ensuring its survival through better technology, better experiences,
-        and better access.
+        We are building modern equipment, software, and experiences to
+        <strong> save duckpin bowling.</strong>
       </p>
 
       {/* Card Container */}
       <div
         style={{
-          maxWidth: 700,
+          maxWidth: 720,
           margin: "0 auto",
-          perspective: "1000px"
+          position: "relative"
         }}
       >
+        {/* Card */}
         <div
           onClick={() => setFlipped(!flipped)}
           style={{
-            position: "relative",
-            height: 240,
+            background: "#fff",
+            borderRadius: 16,
+            padding: "2.5rem 3.5rem",
+            textAlign: "center",
+            minHeight: 220,
+            boxShadow: "0 12px 30px rgba(0,0,0,0.08)",
             cursor: "pointer",
-            transformStyle: "preserve-3d",
-            transition: "transform 0.6s",
-            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
+            transition: "transform 0.4s",
+            color: "#C45A1A"
           }}
         >
-          {/* Front */}
-          <div
+          {!flipped ? (
+            <>
+              <h2 style={{ marginBottom: "1rem" }}>
+                Step {index + 1}
+              </h2>
+              <p style={{ fontSize: "1.05rem" }}>{steps[index]}</p>
+            </>
+          ) : (
+            <p style={{ fontSize: "1.1rem" }}>
+              More information on the way.
+            </p>
+          )}
+
+          {/* Left Arrow */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              prev();
+            }}
             style={{
               position: "absolute",
-              inset: 0,
-              background: "#fff",
-              borderRadius: 16,
-              padding: "2.5rem 3.5rem",
-              backfaceVisibility: "hidden",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              textAlign: "center",
-              fontSize: "1.2rem",
-              color: ORANGE
+              left: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              fontSize: "2rem",
+              background: "none",
+              border: "none",
+              color: "#C45A1A",
+              opacity: isFirst ? 0.5 : 1,
+              cursor: isFirst ? "default" : "pointer"
             }}
+            aria-label="Previous"
           >
-            {milestones[index]}
+            ‹
+          </button>
 
-            {/* Left Arrow */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                prev();
-              }}
-              style={{
-                position: "absolute",
-                left: 16,
-                top: "50%",
-                transform: "translateY(-50%)",
-                fontSize: "2rem",
-                color: ORANGE,
-                background: "none",
-                border: "none",
-                cursor: index === 0 ? "default" : "pointer",
-                opacity: index === 0 ? 0.4 : 1
-              }}
-              aria-label="Previous"
-            >
-              ‹
-            </button>
-
-            {/* Right Arrow */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                next();
-              }}
-              style={{
-                position: "absolute",
-                right: 16,
-                top: "50%",
-                transform: "translateY(-50%)",
-                fontSize: "2rem",
-                color: ORANGE,
-                background: "none",
-                border: "none",
-                cursor:
-                  index === milestones.length - 1 ? "default" : "pointer",
-                opacity: index === milestones.length - 1 ? 0.4 : 1
-              }}
-              aria-label="Next"
-            >
-              ›
-            </button>
-          </div>
-
-          {/* Back */}
-          <div
+          {/* Right Arrow */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              next();
+            }}
             style={{
               position: "absolute",
-              inset: 0,
-              background: ORANGE,
-              borderRadius: 16,
-              padding: "2.5rem",
-              backfaceVisibility: "hidden",
-              transform: "rotateY(180deg)",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              textAlign: "center",
-              fontSize: "1.2rem"
+              right: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              fontSize: "2rem",
+              background: "none",
+              border: "none",
+              color: "#C45A1A",
+              opacity: isLast ? 0.5 : 1,
+              cursor: isLast ? "default" : "pointer"
             }}
+            aria-label="Next"
           >
-            More information on the way.
-          </div>
+            ›
+          </button>
         </div>
       </div>
     </main>
