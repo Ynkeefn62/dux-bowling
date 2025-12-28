@@ -1,163 +1,200 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 
-const steps = [
-  "Register the business as an LLC with the state of Maryland.",
-  "File provisional patent approval for the new pinsetter.",
-  "Website MVP completion, including scoring & simulator.",
-  "Reach out to bowlers, alleys, and NDC to gauge interest.",
-  "Finalize business plans and product offerings.",
-  "Engage TEDCO for prototyping and funding guidance.",
-  "Prototype development and testing.",
-  "Initial deployment into pilot bowling alleys.",
-  "Broader adoption to retire Sherman Pinsetters.",
-  "Expansion into new geographies."
+const milestones = [
+  {
+    title: "Step 1",
+    text: "Register the business as an LLC with the state of Maryland."
+  },
+  {
+    title: "Step 2",
+    text: "File provisional patent approval for the new pinsetter."
+  },
+  {
+    title: "Step 3",
+    text: "Website MVP completion with scoring simulator and user accounts."
+  },
+  {
+    title: "Step 4",
+    text: "Engage bowlers, alleys, and the National Duckpin Congress."
+  },
+  {
+    title: "Step 5",
+    text: "Finalize business plans and product offerings."
+  },
+  {
+    title: "Step 6",
+    text: "Work with TEDCO on prototyping, execution, and funding."
+  },
+  {
+    title: "Step 7",
+    text: "Prototype development and testing."
+  },
+  {
+    title: "Step 8",
+    text: "Initial deployment in live bowling alleys."
+  },
+  {
+    title: "Step 9",
+    text: "Broader adoption and retirement of Sherman Pinsetters."
+  },
+  {
+    title: "Step 10",
+    text: "Expansion into new geographies."
+  }
 ];
 
-export default function HomePage() {
+export default function Home() {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
-  const isFirst = index === 0;
-  const isLast = index === steps.length - 1;
-
-  const goPrev = () => {
-    if (!isFirst) {
+  function prev() {
+    if (index > 0) {
+      setIndex(index - 1);
       setFlipped(false);
-      setIndex((i) => i - 1);
     }
-  };
+  }
 
-  const goNext = () => {
-    if (!isLast) {
+  function next() {
+    if (index < milestones.length - 1) {
+      setIndex(index + 1);
       setFlipped(false);
-      setIndex((i) => i + 1);
     }
-  };
+  }
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        backgroundColor: "#FBF3E6",
-        padding: "2rem 1rem",
-        fontFamily: "Montserrat, system-ui, sans-serif"
+        background: "#f5f0e6",
+        fontFamily: "Montserrat, system-ui",
+        padding: "2rem"
       }}
     >
       {/* Logo */}
-      <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-        <Image
+      <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+        <img
           src="/1@300x.png"
           alt="Dux Bowling"
-          width={160}
-          height={160}
-          priority
+          style={{ maxWidth: 180 }}
         />
       </div>
 
       {/* Mission */}
-      <p
-        style={{
-          textAlign: "center",
-          maxWidth: 620,
-          margin: "0 auto 2.5rem",
-          color: "#C45A1A",
-          fontSize: "1rem",
-          lineHeight: 1.6
-        }}
-      >
-        We are building modern equipment, software, and experiences to
-        <strong> save duckpin bowling.</strong>
+      <p style={{
+        textAlign: "center",
+        maxWidth: 700,
+        margin: "0 auto 3rem",
+        color: "#c75a1d",
+        fontSize: "1.1rem"
+      }}>
+        Dux Bowling exists to preserve and modernize duckpin bowling for future
+        generations through technology, equipment, and community.
       </p>
 
-      {/* Card Wrapper */}
-      <div
-        style={{
-          maxWidth: 760,
-          margin: "0 auto",
-          position: "relative"
-        }}
-      >
-        {/* Card */}
-        <div
-          onClick={() => setFlipped((f) => !f)}
+      {/* Carousel */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "1.5rem"
+      }}>
+        {/* Left Arrow */}
+        <button
+          onClick={prev}
+          disabled={index === 0}
           style={{
-            position: "relative",
-            backgroundColor: "#FFFFFF",
-            borderRadius: 18,
-            padding: "3rem 4rem",
-            minHeight: 240,
-            boxShadow: "0 14px 34px rgba(0,0,0,0.1)",
-            cursor: "pointer",
-            textAlign: "center",
-            color: "#C45A1A"
+            width: 48,
+            height: 48,
+            borderRadius: "50%",
+            border: "none",
+            background: "#e46a2e",
+            color: "#fff",
+            fontSize: "1.5rem",
+            opacity: index === 0 ? 0.5 : 1,
+            cursor: "pointer"
           }}
         >
-          {!flipped ? (
-            <>
-              <h2 style={{ marginBottom: "1rem", fontWeight: 700 }}>
-                Step {index + 1}
+          ←
+        </button>
+
+        {/* Card */}
+        <div
+          onClick={() => setFlipped(!flipped)}
+          style={{
+            width: 300,
+            height: 220,
+            perspective: 1000,
+            cursor: "pointer"
+          }}
+        >
+          <div style={{
+            position: "relative",
+            width: "100%",
+            height: "100%",
+            transformStyle: "preserve-3d",
+            transition: "transform 0.6s",
+            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
+          }}>
+            {/* Front */}
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: "#fff",
+              borderRadius: 12,
+              padding: "1.5rem",
+              backfaceVisibility: "hidden",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              textAlign: "center"
+            }}>
+              <h2 style={{ color: "#e46a2e", marginBottom: "0.75rem" }}>
+                {milestones[index].title}
               </h2>
-              <p style={{ fontSize: "1.05rem", lineHeight: 1.6 }}>
-                {steps[index]}
-              </p>
-            </>
-          ) : (
-            <p style={{ fontSize: "1.1rem", lineHeight: 1.6 }}>
-              More information on the way.
-            </p>
-          )}
+              <p>{milestones[index].text}</p>
+            </div>
 
-          {/* Left Arrow */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              goPrev();
-            }}
-            aria-label="Previous"
-            disabled={isFirst}
-            style={{
+            {/* Back */}
+            <div style={{
               position: "absolute",
-              left: 16,
-              top: "50%",
-              transform: "translateY(-50%)",
-              fontSize: "2.2rem",
-              background: "none",
-              border: "none",
-              color: "#C45A1A",
-              opacity: isFirst ? 0.5 : 1,
-              cursor: isFirst ? "default" : "pointer"
-            }}
-          >
-            ‹
-          </button>
-
-          {/* Right Arrow */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              goNext();
-            }}
-            aria-label="Next"
-            disabled={isLast}
-            style={{
-              position: "absolute",
-              right: 16,
-              top: "50%",
-              transform: "translateY(-50%)",
-              fontSize: "2.2rem",
-              background: "none",
-              border: "none",
-              color: "#C45A1A",
-              opacity: isLast ? 0.5 : 1,
-              cursor: isLast ? "default" : "pointer"
-            }}
-          >
-            ›
-          </button>
+              inset: 0,
+              background: "#e46a2e",
+              color: "#fff",
+              borderRadius: 12,
+              padding: "1.5rem",
+              backfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center"
+            }}>
+              <p>More information on the way.</p>
+            </div>
+          </div>
         </div>
+
+        {/* Right Arrow */}
+        <button
+          onClick={next}
+          disabled={index === milestones.length - 1}
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: "50%",
+            border: "none",
+            background: "#e46a2e",
+            color: "#fff",
+            fontSize: "1.5rem",
+            opacity: index === milestones.length - 1 ? 0.5 : 1,
+            cursor: "pointer"
+          }}
+        >
+          →
+        </button>
       </div>
     </main>
   );
