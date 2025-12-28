@@ -8,417 +8,452 @@ type Frame = {
   r3: number | null;
 };
 
-const CREAM = "#f5f0e6";
 const ORANGE = "#e46a2e";
+const CREAM = "#f5f0e6";
 
-// Cookie helpers
-function setCookie(name: string, value: string, days = 7) {
-  const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(
-    value
-  )}; expires=${expires}; path=/; SameSite=Lax`;
+const COOKIE_PREFIX = "dux_test_";
+const GAME_ID_COOKIE = `${COOKIE_PREFIX}game_id`;
+
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? decodeURIComponent(match[2]) : null;
 }
 
-function getCookie(name: string) {
-  const cookies = document.cookie ? document.cookie.split("; ") : [];
-  const prefix = encodeURIComponent(name) + "=";
-  for (const c of cookies) {
-    if (c.startsWith(prefix)) return decodeURIComponent(c.slice(prefix.length));
-  }
-  return null;
+function setCookie(name: string, value: string, days = 7) {
+  if (typeof document === "undefined") return;
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
 }
 
 function deleteCookie(name: string) {
-  document.cookie = `${encodeURIComponent(name)}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
 }
 
-function clampInt(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
+function frameCookieName(frameIndex0: number, roll: 1 | 2 | 3) {
+  // frame1_roll1 ... frame10_roll3
+  return `${COOKIE_PREFIX}frame${frameIndex0 + 1}_roll${roll}`;
 }
 
-// Duckpin: strike bonus next 2 balls; spare bonus next 1 ball.
-// Frames 1–9: up to 3 rolls, but frame ends early if strike on r1, or spare by r2.
-// Frame 10: max 3 rolls total (per your requirement).
-function getFrameRollCount(frameIndex: number, f: Frame): number {
-  const r1 = f.r1;
-  const r2 = f.r2;
-  const r3 = f.r3;
+function resetFrameCookies(frameIndex0: number) {
+  deleteCookie(frameCookieName(frameIndex0, 1));
+  deleteCookie(frameCookieName(frameIndex0, 2));
+  deleteCookie(frameCookieName(frameIndex0, 3));
+}
 
-  if (r1 == null) return 0;
+/**
+ * Duckpin rules (per your latest requirements):
+ * - Frames 1–9: up to 3 rolls.
+ *   - Strike: r1=10 -> frame ends; strike bonus = next 2 rolls.
+ *   - Spare: ONLY if r1+r2=10 (second ball clears) -> frame ends; spare bonus = next 1 roll.
+ *   - If total becomes 10 on third ball (r1+r2+r3=10): NOT a spare; NO bonus.
+ * - 10th frame: max 3 rolls. No extra rolls ever.
+ */
+function isStrike(frame: Frame) {
+  return frame.r1 === 10;
+}
 
-  // Frame 10 (index 9): always allow up to 3, but no extra beyond 3.
-  if (frameIndex === 9) {
-    if (r2 == null) return 1;
-    if (r3 == null) return 2;
-    return 3;
+function isSecondBallSpare(frame: Frame) {
+  return frame.r1 !== null && frame.r2 !== null && frame.r1 < 10 && frame.r1 + frame.r2 === 10;
+}
+
+function isThirdBallTenNoBonus(frame: Frame) {
+  return (
+    frame.r1 !== null &&
+    frame.r2 !== null &&
+    frame.r3 !== null &&
+    frame.r1 < 10 &&
+    frame.r1 + frame.r2 < 10 &&
+    frame.r1 + frame.r2 + frame.r3 === 10
+  );
+}
+
+function frameIsComplete(frame: Frame, frameIndex0: number) {
+  // 10th frame still max 3 rolls, ends early on strike or 2-ball spare as well.
+  if (frame.r1 === null) return false;
+
+  if (frame.r1 === 10) return true; // strike ends immediately (including 10th)
+  if (frame.r2 === null) return false;
+
+  if (frame.r1 + frame.r2 === 10) return true; // 2-ball spare ends immediately (including 10th)
+  if (frameIndex0 === 9) {
+    // 10th frame: allow third roll only if needed; ends after r3 OR earlier if open after r2 (still can roll 3 in duckpin?).
+    // In duckpin, you may take a 3rd ball if pins remain after two balls. If open after two, third is allowed.
+    // So for 10th: if not strike/spare, you can complete with r3 (but not required if you want to record fewer—here we require it if pins remained).
+    // We'll consider it complete only once r3 is set when not strike/spare.
+    return frame.r3 !== null;
   }
 
-  // Frames 1–9:
-  if (r1 === 10) return 1; // strike
-  if (r2 == null) return 1;
-
-  // spare by second ball
-  if (r1 + r2 === 10) return 2;
-
-  // otherwise can use third ball
-  if (r3 == null) return 2;
-  return 3;
+  // frames 1-9: if not strike/spare after two, allow 3rd only if pins remain; consider complete when:
+  // - r3 recorded OR
+  // - pins fell in 2 rolls total <10 AND you still must take 3rd? In duckpin, you CAN take third ball if pins remain.
+  // We'll require r3 to complete when not strike/spare (pins remain).
+  return frame.r3 !== null;
 }
 
-function isFrameComplete(frameIndex: number, f: Frame): boolean {
-  const count = getFrameRollCount(frameIndex, f);
-  if (frameIndex === 9) {
-    // 10th frame complete when 3 rolls entered OR earlier rolls missing? We'll treat as complete only when all 3 set.
-    return count === 3;
-  }
-
-  // frames 1–9 complete when:
-  // strike on first, spare by second, or third entered (open or spare-on-third)
-  const r1 = f.r1;
-  const r2 = f.r2;
-  const r3 = f.r3;
-
-  if (r1 == null) return false;
-  if (r1 === 10) return true;
-  if (r2 == null) return false;
-  if (r1 + r2 === 10) return true;
-  return r3 != null; // third roll entered
-}
-
-function flattenRolls(frames: Frame[]): number[] {
-  const rolls: number[] = [];
+function rollSequence(frames: Frame[]) {
+  // Flatten respecting that strike uses 1 roll, 2-ball spare uses 2 rolls, otherwise 3 rolls (or fewer if not entered yet).
+  const seq: number[] = [];
   frames.forEach((f, idx) => {
-    const count = getFrameRollCount(idx, f);
-    if (count >= 1 && f.r1 != null) rolls.push(f.r1);
-    if (count >= 2 && f.r2 != null) rolls.push(f.r2);
-    if (count >= 3 && f.r3 != null) rolls.push(f.r3);
+    if (f.r1 !== null) seq.push(f.r1);
+    if (f.r2 !== null) seq.push(f.r2);
+    // include r3 if present (even for 10th)
+    if (f.r3 !== null) seq.push(f.r3);
   });
-  return rolls;
+  return seq;
 }
 
-function computeDuckpinCumulative(frames: Frame[]): { perFrame: (number | null)[]; total: number | null } {
-  const allRolls = flattenRolls(frames);
-  const perFrame: (number | null)[] = Array(10).fill(null);
+function computeCumulativeScores(frames: Frame[]) {
+  // Returns cumulative per frame (length 10), null if not yet determinable for a frame (waiting on bonuses/rolls).
+  const cumul: (number | null)[] = Array(10).fill(null);
 
-  let total = 0;
-  let rollIndex = 0;
+  // Build a flat list of rolls to reference bonuses.
+  const flat: number[] = [];
+  const frameStartRollIndex: number[] = []; // roll index in flat at frame start
+  frames.forEach((f, i) => {
+    frameStartRollIndex[i] = flat.length;
+    if (f.r1 !== null) flat.push(f.r1);
+    if (f.r2 !== null) flat.push(f.r2);
+    if (f.r3 !== null) flat.push(f.r3);
+  });
 
-  for (let frame = 0; frame < 10; frame++) {
-    const f = frames[frame];
-    const count = getFrameRollCount(frame, f);
+  let running = 0;
 
-    // Not enough rolls to even score base of frame
-    if (count === 0) break;
+  for (let i = 0; i < 10; i++) {
+    const f = frames[i];
+    const start = frameStartRollIndex[i];
 
-    const r1 = allRolls[rollIndex] ?? null;
-    const r2 = allRolls[rollIndex + 1] ?? null;
-    const r3 = allRolls[rollIndex + 2] ?? null;
-
-    // Frame 10: no extra rolls beyond the 3 in this frame
-    if (frame === 9) {
-      if (count < 3) break; // wait until user finishes 10th
-      const frameTotal = (r1 ?? 0) + (r2 ?? 0) + (r3 ?? 0);
-      total += frameTotal;
-      perFrame[frame] = total;
-      rollIndex += 3;
+    // If frame not complete, cannot show its cumulative.
+    if (!frameIsComplete(f, i)) {
+      cumul[i] = null;
       continue;
     }
 
     // Strike
-    if (r1 === 10) {
-      const b1 = allRolls[rollIndex + 1];
-      const b2 = allRolls[rollIndex + 2];
-      if (b1 == null || b2 == null) break; // need next 2 balls
-      total += 10 + b1 + b2;
-      perFrame[frame] = total;
-      rollIndex += 1;
+    if (isStrike(f)) {
+      const b1 = flat[start + 1];
+      const b2 = flat[start + 2];
+      if (b1 === undefined || b2 === undefined) {
+        cumul[i] = null; // waiting for bonus rolls
+        continue;
+      }
+      running += 10 + b1 + b2;
+      cumul[i] = running;
       continue;
     }
 
-    // Need second roll for non-strike frames
-    if (r2 == null) break;
-
-    // Spare by second roll
-    if (r1 + r2 === 10) {
-      const b1 = allRolls[rollIndex + 2];
-      if (b1 == null) break; // need next 1 ball
-      total += 10 + b1;
-      perFrame[frame] = total;
-      rollIndex += 2;
+    // Second-ball spare ONLY (your rule)
+    if (isSecondBallSpare(f)) {
+      const b = flat[start + 2]; // next roll after the 2-roll frame
+      if (b === undefined) {
+        cumul[i] = null; // waiting for bonus roll
+        continue;
+      }
+      running += 10 + b;
+      cumul[i] = running;
       continue;
     }
 
-    // Otherwise: can have third roll (open or spare-on-third)
-    if (count < 3) break;
-    if (r3 == null) break;
-
-    const sum3 = r1 + r2 + r3;
-
-    // Spare-on-third (sum hits 10 on third ball): bonus next 1 ball
-    if (sum3 === 10) {
-      const b1 = allRolls[rollIndex + 3];
-      if (b1 == null) break;
-      total += 10 + b1;
-      perFrame[frame] = total;
-      rollIndex += 3;
+    // Third-ball 10 is NOT spare: NO bonus
+    if (isThirdBallTenNoBonus(f)) {
+      running += 10;
+      cumul[i] = running;
       continue;
     }
 
-    // Open frame
-    total += sum3;
-    perFrame[frame] = total;
-    rollIndex += 3;
+    // Open frame: sum of its entered rolls (1-9 will have 3 rolls; 10th also 3 if open)
+    const sum =
+      (f.r1 ?? 0) + (f.r2 ?? 0) + (f.r3 ?? 0);
+    running += sum;
+    cumul[i] = running;
   }
 
-  const totalOut = perFrame.some(v => v != null) ? perFrame.filter(v => v != null).slice(-1)[0] ?? null : null;
-  return { perFrame, total: totalOut };
+  return cumul;
 }
 
-function emptyFrames(): Frame[] {
+function makeEmptyFrames(): Frame[] {
   return Array.from({ length: 10 }, () => ({ r1: null, r2: null, r3: null }));
 }
 
-function frameCookieName(frameNum1Based: number, rollNum: 1 | 2 | 3) {
-  return `test_frame${frameNum1Based}_roll${rollNum}`;
-}
-
-function clearFrameCookies(frameNum1Based: number) {
-  deleteCookie(frameCookieName(frameNum1Based, 1));
-  deleteCookie(frameCookieName(frameNum1Based, 2));
-  deleteCookie(frameCookieName(frameNum1Based, 3));
-}
-
-function readFramesFromCookies(): { gameId: string | null; frames: Frame[] } {
-  const gameId = getCookie("test_game_id");
-  const frames = emptyFrames();
-  for (let f = 1; f <= 10; f++) {
-    const r1 = getCookie(frameCookieName(f, 1));
-    const r2 = getCookie(frameCookieName(f, 2));
-    const r3 = getCookie(frameCookieName(f, 3));
-    frames[f - 1] = {
-      r1: r1 == null || r1 === "" ? null : clampInt(Number(r1), 0, 10),
-      r2: r2 == null || r2 === "" ? null : clampInt(Number(r2), 0, 10),
-      r3: r3 == null || r3 === "" ? null : clampInt(Number(r3), 0, 10)
-    };
-  }
-  return { gameId, frames };
-}
-
-function writeFrameToCookies(frameNum1Based: number, f: Frame) {
-  setCookie(frameCookieName(frameNum1Based, 1), f.r1 == null ? "" : String(f.r1));
-  setCookie(frameCookieName(frameNum1Based, 2), f.r2 == null ? "" : String(f.r2));
-  setCookie(frameCookieName(frameNum1Based, 3), f.r3 == null ? "" : String(f.r3));
-}
-
-function clearAllGameCookies() {
-  deleteCookie("test_game_id");
-  for (let f = 1; f <= 10; f++) clearFrameCookies(f);
+function uuidLike() {
+  // good enough for a cookie game id without importing crypto in SSR contexts
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 export default function GamePage() {
-  const [frames, setFrames] = useState<Frame[]>(() => emptyFrames());
-  const [cardIndex, setCardIndex] = useState(0); // 0..9 frames
-  const [flipped, setFlipped] = useState(false);
-  const [editingFrame, setEditingFrame] = useState<number | null>(null); // which frame is being edited on back
-  const [temp, setTemp] = useState<Frame>({ r1: null, r2: null, r3: null });
-
-  // Arrow positioning
   const cardWrapRef = useRef<HTMLDivElement | null>(null);
-  const [arrowTop, setArrowTop] = useState<number>(200);
 
-  // Load cookies once
+  // Load or create game id
+  const [gameId, setGameId] = useState<string>("");
+
+  const [frames, setFrames] = useState<Frame[]>(makeEmptyFrames());
+  const [index, setIndex] = useState(0); // frame being viewed (0-9)
+  const [flipped, setFlipped] = useState(false);
+
+  // Arrow vertical alignment with the card (fixed left/right, but top follows card position)
+  const [arrowTop, setArrowTop] = useState<number>(240);
+
+  // Load cookies on mount
   useEffect(() => {
-    const saved = readFramesFromCookies();
-    setFrames(saved.frames);
+    // game id
+    const existing = getCookie(GAME_ID_COOKIE);
+    const id = existing ?? uuidLike();
+    setGameId(id);
+    if (!existing) setCookie(GAME_ID_COOKIE, id);
 
-    if (!saved.gameId) {
-      setCookie("test_game_id", crypto.randomUUID());
+    // frame/roll cookies
+    const loaded = makeEmptyFrames();
+    for (let f = 0; f < 10; f++) {
+      for (let r: 1 | 2 | 3 = 1 as 1; r <= 3; r = (r + 1) as 1 | 2 | 3) {
+        const v = getCookie(frameCookieName(f, r));
+        if (v !== null && v !== "") {
+          const n = Number(v);
+          if (!Number.isNaN(n)) {
+            if (r === 1) loaded[f].r1 = n;
+            if (r === 2) loaded[f].r2 = n;
+            if (r === 3) loaded[f].r3 = n;
+          }
+        }
+      }
     }
+    setFrames(loaded);
   }, []);
 
-  // Keep arrows vertically aligned to card center (but fixed left/right)
+  // Keep arrows aligned to the card as the user scrolls / resizes
   useEffect(() => {
-    let raf = 0;
-
     const update = () => {
-      raf = 0;
-      const el = cardWrapRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
+      if (!cardWrapRef.current) return;
+      const rect = cardWrapRef.current.getBoundingClientRect();
       setArrowTop(rect.top + rect.height / 2);
     };
 
-    const onScroll = () => {
-      if (raf) return;
-      raf = window.requestAnimationFrame(update);
-    };
-
     update();
+    const onScroll = () => update();
+    const onResize = () => update();
+
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("resize", onResize);
 
     return () => {
-      if (raf) window.cancelAnimationFrame(raf);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
     };
-  }, [cardIndex, flipped]);
+  }, []);
 
-  const { perFrame, total } = useMemo(() => computeDuckpinCumulative(frames), [frames]);
-
-  // Determine current frame the bowler is allowed to enter (first incomplete)
-  const currentFrame = useMemo(() => {
+  // Determine the "current frame" as first incomplete frame
+  const currentFrameIndex = useMemo(() => {
     for (let i = 0; i < 10; i++) {
-      if (!isFrameComplete(i, frames[i])) return i;
+      if (!frameIsComplete(frames[i], i)) return i;
     }
-    return 9; // if all complete, keep at 10th
+    return 9;
   }, [frames]);
 
-  const isFirst = cardIndex === 0;
-  const isLast = cardIndex === 9;
+  const cumul = useMemo(() => computeCumulativeScores(frames), [frames]);
+
+  const isFirst = index === 0;
+  const isLast = index === 9;
+
+  // Editing rules:
+  // - You can enter the current frame or edit prior frames.
+  const canEditThisFrame = index <= currentFrameIndex;
 
   function prev() {
-    if (isFirst) return;
-    setFlipped(false);
-    setCardIndex(cardIndex - 1);
+    if (index > 0) {
+      setIndex(index - 1);
+      setFlipped(false);
+    }
   }
 
   function next() {
-    if (isLast) return;
-    setFlipped(false);
-    setCardIndex(cardIndex + 1);
+    if (index < 9) {
+      setIndex(index + 1);
+      setFlipped(false);
+    }
   }
 
-  function openEdit(frameIdx: number) {
-    // Only allow editing current frame or earlier
-    if (frameIdx > currentFrame) return;
+  // Back-side entry state is derived from frames[index], but we enforce "must re-enter from roll 1 when editing".
+  // So when user flips to edit, we reset that frame first.
+  function beginEditFrame(frameIdx0: number) {
+    if (!canEditThisFrame) return;
 
-    // Reset cookies for that frame (prevents stale third-roll issues)
-    clearFrameCookies(frameIdx + 1);
+    // Reset ALL cookies for that frame and in-memory rolls for that frame (your requirement)
+    resetFrameCookies(frameIdx0);
 
-    // Clear the frame in state and force re-entry from roll 1
     setFrames(prev => {
-      const copy = [...prev];
-      copy[frameIdx] = { r1: null, r2: null, r3: null };
+      const copy = prev.map(f => ({ ...f }));
+      copy[frameIdx0] = { r1: null, r2: null, r3: null };
       return copy;
     });
 
-    setEditingFrame(frameIdx);
-    setTemp({ r1: null, r2: null, r3: null });
     setFlipped(true);
   }
 
-  function maxPinsForRoll(rollNum: 1 | 2 | 3) {
-    const r1 = temp.r1 ?? 0;
-    const r2 = temp.r2 ?? 0;
-
-    // 10-pin max per frame always; 10th frame still max 10 total across 3 rolls (your requirement)
-    if (rollNum === 1) return 10;
-
-    if (rollNum === 2) {
-      return clampInt(10 - r1, 0, 10);
-    }
-
-    // roll 3
-    return clampInt(10 - (r1 + r2), 0, 10);
-  }
-
-  function canSelectRoll2() {
-    return temp.r1 != null && temp.r1 !== 10; // in frames 1–9, strike ends frame; in 10th user may still roll 2/3 but we keep consistent UI:
-  }
-
-  function canSelectRoll3(frameIdx: number) {
-    if (temp.r1 == null) return false;
-    if (temp.r2 == null) return false;
-
-    // In frames 1–9, strike ends frame, spare by second ends frame
-    if (frameIdx !== 9) {
-      if (temp.r1 === 10) return false;
-      if ((temp.r1 ?? 0) + (temp.r2 ?? 0) === 10) return false;
-    }
-
-    return true;
-  }
-
-  function saveFrame() {
-    if (editingFrame == null) return;
-
-    // Validate sequential entry: must have r1 to save
-    if (temp.r1 == null) return;
-
-    const frameIdx = editingFrame;
-
-    // Determine how many rolls are allowed/needed for this frame given duckpin logic
-    let final: Frame = { ...temp };
-
-    if (frameIdx !== 9) {
-      // frames 1–9
-      if (final.r1 === 10) {
-        final = { r1: 10, r2: null, r3: null };
-      } else if (final.r2 == null) {
-        return; // must enter roll 2 if not strike
-      } else if (final.r1 + final.r2 === 10) {
-        final = { r1: final.r1, r2: final.r2, r3: null };
-      } else {
-        if (final.r3 == null) return; // open frame requires third roll
-        // ensure <=10
-        if (final.r1 + final.r2 + final.r3 > 10) return;
-      }
-    } else {
-      // 10th frame: allow up to 3 rolls, no extra beyond 3
-      if (final.r2 == null) return;
-      if (final.r3 == null) return;
-      if ((final.r1 ?? 0) + (final.r2 ?? 0) + (final.r3 ?? 0) > 10) return;
-    }
-
+  function setRoll(frameIdx0: number, roll: 1 | 2 | 3, value: number | null) {
     setFrames(prev => {
-      const copy = [...prev];
-      copy[frameIdx] = final;
+      const copy = prev.map(f => ({ ...f }));
+      const f = copy[frameIdx0];
+
+      if (roll === 1) {
+        f.r1 = value;
+        f.r2 = null;
+        f.r3 = null;
+      } else if (roll === 2) {
+        f.r2 = value;
+        f.r3 = null;
+      } else {
+        f.r3 = value;
+      }
+
       return copy;
     });
 
-    writeFrameToCookies(frameIdx + 1, final);
+    // Persist cookies (null clears)
+    const name = frameCookieName(frameIdx0, roll);
+    if (value === null) deleteCookie(name);
+    else setCookie(name, String(value));
+    // Also clear downstream rolls cookies when resetting a roll
+    if (roll === 1) {
+      deleteCookie(frameCookieName(frameIdx0, 2));
+      deleteCookie(frameCookieName(frameIdx0, 3));
+    }
+    if (roll === 2) {
+      deleteCookie(frameCookieName(frameIdx0, 3));
+    }
+  }
 
+  function maxPinsForRoll(frameIdx0: number, roll: 1 | 2 | 3) {
+    const f = frames[frameIdx0];
+    const r1 = f.r1 ?? 0;
+    const r2 = f.r2 ?? 0;
+
+    if (roll === 1) return 10;
+
+    // strike ends frame; we shouldn't even allow roll2/3
+    if (f.r1 === 10) return 0;
+
+    if (roll === 2) {
+      return Math.max(0, 10 - r1);
+    }
+
+    // roll === 3
+    // If second-ball spare ends frame (r1+r2=10), no third roll.
+    if (f.r1 !== null && f.r2 !== null && f.r1 + f.r2 === 10) return 0;
+
+    return Math.max(0, 10 - (r1 + r2));
+  }
+
+  function dropdownOptions(maxPins: number) {
+    return Array.from({ length: maxPins + 1 }, (_, i) => i);
+  }
+
+  function canPickRoll2(frameIdx0: number) {
+    const f = frames[frameIdx0];
+    return f.r1 !== null && f.r1 !== 10;
+  }
+
+  function canPickRoll3(frameIdx0: number) {
+    const f = frames[frameIdx0];
+    if (f.r1 === null || f.r2 === null) return false;
+    if (f.r1 === 10) return false;
+    if (f.r1 + f.r2 === 10) return false; // spare ends frame
+    return true;
+  }
+
+  function canSubmitFrame(frameIdx0: number) {
+    const f = frames[frameIdx0];
+    return frameIsComplete(f, frameIdx0);
+  }
+
+  function submitFrameAndFlip() {
+    // If they are on a prior frame or current, just flip back to show the front.
     setFlipped(false);
-    setEditingFrame(null);
   }
 
   function newGame() {
-    clearAllGameCookies();
-    setCookie("test_game_id", crypto.randomUUID());
-    setFrames(emptyFrames());
-    setCardIndex(0);
+    // Clear all cookies
+    deleteCookie(GAME_ID_COOKIE);
+    for (let f = 0; f < 10; f++) resetFrameCookies(f);
+
+    const id = uuidLike();
+    setCookie(GAME_ID_COOKIE, id);
+    setGameId(id);
+
+    setFrames(makeEmptyFrames());
+    setIndex(0);
     setFlipped(false);
-    setEditingFrame(null);
-    setTemp({ r1: null, r2: null, r3: null });
   }
 
   function submitScore() {
-    // For now: just clears cookies as requested
-    clearAllGameCookies();
+    // For now: just clears cookies and resets (per your request)
+    // Later: send to Supabase.
+    deleteCookie(GAME_ID_COOKIE);
+    for (let f = 0; f < 10; f++) resetFrameCookies(f);
+    setFrames(makeEmptyFrames());
+    setIndex(0);
     setFlipped(false);
-    setEditingFrame(null);
-    alert("Score submitted (test). Cookies cleared.");
   }
 
-  const displayFrame = frames[cardIndex];
+  const f = frames[index];
+  const cumScoreThisFrame = cumul[index];
 
-  // Determine strike/spare visual for the front
-  const frameIsStrike = displayFrame.r1 === 10 && cardIndex !== 9;
-  const frameSum2 = (displayFrame.r1 ?? 0) + (displayFrame.r2 ?? 0);
-  const frameSum3 = frameSum2 + (displayFrame.r3 ?? 0);
-  const frameIsSpare =
-    !frameIsStrike &&
-    displayFrame.r1 != null &&
-    displayFrame.r2 != null &&
-    ((frameSum2 === 10 && cardIndex !== 9) ||
-      (cardIndex !== 9 && displayFrame.r3 != null && frameSum3 === 10));
+  // Score-sheet style roll boxes
+  const strike = isStrike(f);
+  const spare2 = isSecondBallSpare(f);
+  const thirdTen = isThirdBallTenNoBonus(f);
 
-  // Which roll box gets the spare symbol?
-  const spareBox: 2 | 3 | null =
-    frameIsSpare
-      ? (frameSum2 === 10 ? 2 : 3)
-      : null;
+  // Display marks:
+  // - Strike: "X" in first box
+  // - Spare (2-ball only): triangle marker in second box
+  // - Third-ball 10: no spare marker; just show numbers and total.
+  function RollBox({
+    value,
+    isStrikeBox,
+    isSpareTriangle
+  }: {
+    value: string;
+    isStrikeBox?: boolean;
+    isSpareTriangle?: boolean;
+  }) {
+    return (
+      <div
+        style={{
+          width: 34,
+          height: 26,
+          border: `1px solid ${ORANGE}`,
+          borderRadius: 6,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          fontWeight: 700,
+          color: ORANGE,
+          background: "#fff"
+        }}
+      >
+        {isStrikeBox ? "X" : value}
+        {isSpareTriangle ? (
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              width: 0,
+              height: 0,
+              borderTop: `12px solid rgba(228,106,46,0.35)`,
+              borderLeft: `12px solid transparent`,
+              borderBottom: `12px solid transparent`,
+              borderRight: `0px solid transparent`
+            }}
+          />
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <main
@@ -426,43 +461,45 @@ export default function GamePage() {
         minHeight: "100vh",
         background: CREAM,
         fontFamily: "Montserrat, system-ui",
-        padding: "2rem 1rem",
-        color: "#2b1d12"
+        padding: "1.5rem 1rem 3rem",
+        color: ORANGE
       }}
     >
-      {/* Logo */}
-      <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
-        <img src="/1@300x.png" alt="Dux Bowling" style={{ maxWidth: 160, width: "100%" }} />
+      {/* Top (logo + subtle title) */}
+      <div style={{ textAlign: "center", marginBottom: "1rem" }}>
+        <img
+          src="/1@300x.png"
+          alt="Dux Bowling"
+          style={{ maxWidth: 140, width: "100%", height: "auto" }}
+        />
       </div>
 
-      {/* Minimal header / total */}
-      <div style={{ textAlign: "center", marginBottom: "1.25rem", color: ORANGE }}>
-        <div style={{ fontWeight: 700, fontSize: "1.15rem" }}>Duckpin Score</div>
-        <div style={{ fontSize: "0.95rem" }}>
-          Total: <strong>{total ?? "—"}</strong>
+      <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
+        <div style={{ fontWeight: 800, letterSpacing: "0.04em" }}>Duckpin Game</div>
+        <div style={{ fontSize: 12, opacity: 0.75 }}>
+          Game ID: {gameId || "—"}
         </div>
       </div>
 
-      {/* Fixed arrows (left/right fixed like menu/login), vertically centered to card */}
+      {/* Fixed arrows (left/right fixed, vertical aligned to card) */}
       <button
         onClick={prev}
         disabled={isFirst}
         aria-label="Previous frame"
         style={{
           position: "fixed",
-          left: 14,
+          left: 12,
           top: arrowTop,
           transform: "translateY(-50%)",
-          width: 46,
-          height: 46,
+          width: 48,
+          height: 48,
           borderRadius: "50%",
           border: "none",
           background: ORANGE,
           color: "#fff",
-          fontSize: "1.7rem",
+          fontSize: 26,
           opacity: isFirst ? 0.5 : 1,
           cursor: isFirst ? "default" : "pointer",
-          boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
           zIndex: 50
         }}
       >
@@ -475,310 +512,295 @@ export default function GamePage() {
         aria-label="Next frame"
         style={{
           position: "fixed",
-          right: 14,
+          right: 12,
           top: arrowTop,
           transform: "translateY(-50%)",
-          width: 46,
-          height: 46,
+          width: 48,
+          height: 48,
           borderRadius: "50%",
           border: "none",
           background: ORANGE,
           color: "#fff",
-          fontSize: "1.7rem",
+          fontSize: 26,
           opacity: isLast ? 0.5 : 1,
           cursor: isLast ? "default" : "pointer",
-          boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
           zIndex: 50
         }}
       >
         ›
       </button>
 
-      {/* Card Wrapper (used to compute arrowTop) */}
+      {/* Card */}
       <div
         ref={cardWrapRef}
         style={{
           maxWidth: 360,
           margin: "0 auto",
-          perspective: 1000
+          perspective: 1200
         }}
       >
         <div
+          onClick={() => {
+            // Tap card: if front -> begin edit; if back -> do nothing (use submit button)
+            if (!flipped) {
+              if (canEditThisFrame) beginEditFrame(index);
+            }
+          }}
           style={{
-            position: "relative",
             width: "100%",
             height: 260,
-            transformStyle: "preserve-3d",
-            transition: "transform 0.6s",
-            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
+            cursor: canEditThisFrame ? "pointer" : "default"
           }}
         >
-          {/* FRONT: classic-ish score sheet */}
           <div
-            onClick={() => openEdit(cardIndex)}
             style={{
-              position: "absolute",
-              inset: 0,
-              background: "#fff",
-              borderRadius: 14,
-              padding: "1rem",
-              backfaceVisibility: "hidden",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
-              cursor: cardIndex <= currentFrame ? "pointer" : "default",
-              opacity: cardIndex <= currentFrame ? 1 : 0.6,
-              display: "flex",
-              flexDirection: "column"
+              position: "relative",
+              width: "100%",
+              height: "100%",
+              transformStyle: "preserve-3d",
+              transition: "transform 0.6s",
+              transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <div style={{ fontWeight: 800, color: ORANGE, fontSize: "1.05rem" }}>
-                Frame {cardIndex + 1}
+            {/* FRONT (score sheet look) */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "#fff",
+                borderRadius: 14,
+                padding: "1rem",
+                backfaceVisibility: "hidden",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between"
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <div style={{ fontWeight: 900, fontSize: 18 }}>Frame {index + 1}</div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>
+                  {index < currentFrameIndex ? "Completed" : index === currentFrameIndex ? "Current" : "Locked"}
+                </div>
               </div>
-              <div style={{ color: "#7a5b42", fontSize: "0.9rem" }}>
-                {cardIndex < currentFrame ? "Edit" : cardIndex === currentFrame ? "Current" : ""}
-              </div>
-            </div>
 
-            {/* Score box */}
-            <div style={{ marginTop: "1rem" }}>
               {/* Roll boxes row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-                {[1, 2, 3].map((n) => {
-                  const rollVal = n === 1 ? displayFrame.r1 : n === 2 ? displayFrame.r2 : displayFrame.r3;
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 6 }}>
+                <RollBox
+                  value={f.r1 === null ? "" : String(f.r1)}
+                  isStrikeBox={strike}
+                />
 
-                  const isStrikeBox = frameIsStrike && n === 1;
-                  const isSpareThisBox = spareBox === n;
+                <RollBox
+                  value={
+                    f.r2 === null || strike ? "" : String(f.r2)
+                  }
+                  isSpareTriangle={spare2}
+                />
 
-                  return (
-                    <div
-                      key={n}
-                      style={{
-                        position: "relative",
-                        height: 46,
-                        border: "2px solid #2b1d12",
-                        borderRadius: 8,
-                        overflow: "hidden",
-                        background: isStrikeBox ? "rgba(228,106,46,0.16)" : "#fff"
-                      }}
-                    >
-                      {/* Spare triangle shading */}
-                      {isSpareThisBox && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            background:
-                              "linear-gradient(135deg, rgba(228,106,46,0.22) 0%, rgba(228,106,46,0.22) 50%, transparent 50%, transparent 100%)"
-                          }}
-                        />
-                      )}
-
-                      <div
-                        style={{
-                          position: "relative",
-                          height: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontWeight: 800,
-                          fontSize: "1.15rem",
-                          color: "#2b1d12"
-                        }}
-                      >
-                        {isStrikeBox ? "X" : isSpareThisBox ? "/" : rollVal ?? ""}
-                      </div>
-                    </div>
-                  );
-                })}
+                <RollBox
+                  value={
+                    f.r3 === null || strike || spare2 ? "" : String(f.r3)
+                  }
+                />
               </div>
 
-              {/* Cumulative box */}
+              {/* Notes (tiny) */}
+              <div style={{ textAlign: "center", fontSize: 12, opacity: 0.85, marginTop: 2 }}>
+                {strike
+                  ? "Strike (+ next 2 rolls)"
+                  : spare2
+                  ? "Spare (+ next 1 roll)"
+                  : thirdTen
+                  ? "Ten on 3rd (no bonus)"
+                  : ""}
+              </div>
+
+              {/* Cumulative */}
               <div
                 style={{
-                  marginTop: 10,
-                  height: 62,
-                  border: "2px solid #2b1d12",
-                  borderRadius: 10,
+                  marginTop: 6,
+                  borderTop: `1px solid rgba(228,106,46,0.25)`,
+                  paddingTop: 10,
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 900,
-                  fontSize: "1.6rem",
-                  color: ORANGE
+                  justifyContent: "space-between"
                 }}
               >
-                {perFrame[cardIndex] ?? "—"}
+                <div style={{ fontWeight: 800 }}>Cumulative</div>
+                <div style={{ fontWeight: 900, fontSize: 22 }}>
+                  {cumScoreThisFrame === null ? "—" : cumScoreThisFrame}
+                </div>
               </div>
+
+              {!canEditThisFrame && (
+                <div style={{ textAlign: "center", fontSize: 12, opacity: 0.7 }}>
+                  Complete earlier frames first
+                </div>
+              )}
             </div>
 
-            <div style={{ marginTop: "auto", textAlign: "center", fontSize: "0.85rem", color: "#7a5b42" }}>
-              Tap card to enter / edit
-            </div>
-          </div>
+            {/* BACK (entry, minimal text) */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: ORANGE,
+                color: "#fff",
+                borderRadius: 14,
+                padding: "1rem",
+                backfaceVisibility: "hidden",
+                transform: "rotateY(180deg)",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between"
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ fontWeight: 900, fontSize: 18, textAlign: "center" }}>
+                Frame {index + 1}
+              </div>
 
-          {/* BACK: compact entry */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: ORANGE,
-              color: "#fff",
-              borderRadius: 14,
-              padding: "1rem",
-              backfaceVisibility: "hidden",
-              transform: "rotateY(180deg)",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.75rem"
-            }}
-          >
-            <div style={{ fontWeight: 900, fontSize: "1.05rem" }}>
-              Frame {editingFrame != null ? editingFrame + 1 : cardIndex + 1}
-            </div>
+              <div style={{ display: "grid", gap: 10 }}>
+                {/* Roll 1 */}
+                <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontWeight: 800 }}>Roll 1</div>
+                  <select
+                    value={f.r1 === null ? "" : String(f.r1)}
+                    onChange={(e) => {
+                      const v = e.target.value === "" ? null : Number(e.target.value);
+                      setRoll(index, 1, v);
+                    }}
+                    style={{
+                      width: 120,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "none",
+                      fontWeight: 800
+                    }}
+                  >
+                    <option value="">—</option>
+                    {dropdownOptions(10).map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Compact selects */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.6rem" }}>
-              {/* Roll 1 */}
-              <select
-                value={temp.r1 == null ? "" : String(temp.r1)}
-                onChange={(e) => {
-                  const v = e.target.value === "" ? null : clampInt(Number(e.target.value), 0, 10);
-                  setTemp({ r1: v, r2: null, r3: null });
-                }}
-                style={{
-                  height: 44,
-                  borderRadius: 10,
-                  border: "none",
-                  padding: "0 0.75rem",
-                  fontWeight: 700
-                }}
-              >
-                <option value="">Roll 1</option>
-                {Array.from({ length: 11 }, (_, i) => (
-                  <option key={i} value={i}>{i}</option>
-                ))}
-              </select>
+                {/* Roll 2 */}
+                <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontWeight: 800 }}>Roll 2</div>
+                  <select
+                    disabled={!canPickRoll2(index)}
+                    value={f.r2 === null ? "" : String(f.r2)}
+                    onChange={(e) => {
+                      const v = e.target.value === "" ? null : Number(e.target.value);
+                      setRoll(index, 2, v);
+                    }}
+                    style={{
+                      width: 120,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "none",
+                      fontWeight: 800,
+                      opacity: canPickRoll2(index) ? 1 : 0.6
+                    }}
+                  >
+                    <option value="">—</option>
+                    {dropdownOptions(maxPinsForRoll(index, 2)).map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
 
-              {/* Roll 2 */}
-              <select
-                disabled={!canSelectRoll2()}
-                value={temp.r2 == null ? "" : String(temp.r2)}
-                onChange={(e) => {
-                  const v = e.target.value === "" ? null : clampInt(Number(e.target.value), 0, maxPinsForRoll(2));
-                  setTemp((prev) => ({ ...prev, r2: v, r3: null }));
-                }}
-                style={{
-                  height: 44,
-                  borderRadius: 10,
-                  border: "none",
-                  padding: "0 0.75rem",
-                  fontWeight: 700,
-                  opacity: canSelectRoll2() ? 1 : 0.7
-                }}
-              >
-                <option value="">Roll 2</option>
-                {Array.from({ length: maxPinsForRoll(2) + 1 }, (_, i) => (
-                  <option key={i} value={i}>{i}</option>
-                ))}
-              </select>
+                {/* Roll 3 */}
+                <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontWeight: 800 }}>Roll 3</div>
+                  <select
+                    disabled={!canPickRoll3(index)}
+                    value={f.r3 === null ? "" : String(f.r3)}
+                    onChange={(e) => {
+                      const v = e.target.value === "" ? null : Number(e.target.value);
+                      setRoll(index, 3, v);
+                    }}
+                    style={{
+                      width: 120,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "none",
+                      fontWeight: 800,
+                      opacity: canPickRoll3(index) ? 1 : 0.6
+                    }}
+                  >
+                    <option value="">—</option>
+                    {dropdownOptions(maxPinsForRoll(index, 3)).map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-              {/* Roll 3 */}
-              <select
-                disabled={editingFrame == null ? true : !canSelectRoll3(editingFrame)}
-                value={temp.r3 == null ? "" : String(temp.r3)}
-                onChange={(e) => {
-                  const v = e.target.value === "" ? null : clampInt(Number(e.target.value), 0, maxPinsForRoll(3));
-                  setTemp((prev) => ({ ...prev, r3: v }));
-                }}
-                style={{
-                  height: 44,
-                  borderRadius: 10,
-                  border: "none",
-                  padding: "0 0.75rem",
-                  fontWeight: 700,
-                  opacity: editingFrame != null && canSelectRoll3(editingFrame) ? 1 : 0.7
-                }}
-              >
-                <option value="">Roll 3</option>
-                {Array.from({ length: maxPinsForRoll(3) + 1 }, (_, i) => (
-                  <option key={i} value={i}>{i}</option>
-                ))}
-              </select>
-            </div>
+              <div style={{ display: "grid", gap: 10 }}>
+                <button
+                  onClick={submitFrameAndFlip}
+                  disabled={!canSubmitFrame(index)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: "#fff",
+                    color: ORANGE,
+                    fontWeight: 900,
+                    fontSize: 16,
+                    opacity: canSubmitFrame(index) ? 1 : 0.6,
+                    cursor: canSubmitFrame(index) ? "pointer" : "default"
+                  }}
+                >
+                  Save Frame
+                </button>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", marginTop: "0.25rem" }}>
-              <button
-                onClick={saveFrame}
-                style={{
-                  height: 44,
-                  borderRadius: 12,
-                  border: "none",
-                  background: "#fff",
-                  color: ORANGE,
-                  fontWeight: 900,
-                  cursor: "pointer"
-                }}
-              >
-                Save
-              </button>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={submitScore}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(255,255,255,0.8)",
+                      background: "transparent",
+                      color: "#fff",
+                      fontWeight: 800
+                    }}
+                  >
+                    Submit Score
+                  </button>
 
-              <button
-                onClick={() => {
-                  if (editingFrame != null) clearFrameCookies(editingFrame + 1);
-                  setTemp({ r1: null, r2: null, r3: null });
-                }}
-                style={{
-                  height: 44,
-                  borderRadius: 12,
-                  border: "none",
-                  background: "rgba(255,255,255,0.22)",
-                  color: "#fff",
-                  fontWeight: 900,
-                  cursor: "pointer"
-                }}
-              >
-                Reset
-              </button>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", marginTop: "auto" }}>
-              <button
-                onClick={submitScore}
-                style={{
-                  height: 44,
-                  borderRadius: 12,
-                  border: "none",
-                  background: "#2b1d12",
-                  color: "#fff",
-                  fontWeight: 900,
-                  cursor: "pointer"
-                }}
-              >
-                Submit Score
-              </button>
-
-              <button
-                onClick={newGame}
-                style={{
-                  height: 44,
-                  borderRadius: 12,
-                  border: "none",
-                  background: "rgba(43,29,18,0.75)",
-                  color: "#fff",
-                  fontWeight: 900,
-                  cursor: "pointer"
-                }}
-              >
-                New Game
-              </button>
+                  <button
+                    onClick={newGame}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(255,255,255,0.8)",
+                      background: "transparent",
+                      color: "#fff",
+                      fontWeight: 800
+                    }}
+                  >
+                    New Game
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Small spacer so fixed buttons don't overlap footer */}
-      <div style={{ height: 40 }} />
+        {/* Tiny hint row for tap behavior */}
+        <div style={{ textAlign: "center", marginTop: 10, fontSize: 12, opacity: 0.75 }}>
+          Tap the card to edit (current or earlier frames).
+        </div>
+      </div>
     </main>
   );
 }
