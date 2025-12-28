@@ -105,13 +105,13 @@ export default function Home() {
           onClick={prev}
           disabled={index === 0}
           style={{
-            width: 48,
-            height: 48,
+            width: "48px",
+            height: "48px",
             borderRadius: "50%",
             border: "none",
             background: "#e46a2e",
             color: "#fff",
-            fontSize: "1.5rem",
+            fontSize: "1.25rem",
             opacity: index === 0 ? 0.5 : 1,
             cursor: "pointer"
           }}
@@ -143,7 +143,7 @@ export default function Home() {
               inset: 0,
               background: "#fff",
               borderRadius: 12,
-              padding: "1.5rem",
+              padding: "1.25rem",
               backfaceVisibility: "hidden",
               boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
               display: "flex",
@@ -182,8 +182,8 @@ export default function Home() {
           onClick={next}
           disabled={index === milestones.length - 1}
           style={{
-            width: 48,
-            height: 48,
+            width: "48px",
+            height: "48px",
             borderRadius: "50%",
             border: "none",
             background: "#e46a2e",
