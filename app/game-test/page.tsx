@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import dynamic from "next/dynamic";
 
 const GameClient = dynamic(() => import("../components/GameClient"), { ssr: false });
