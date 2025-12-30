@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 const GameClient = dynamic(() => import("../components/GameClient"), { ssr: false });
 
-export default function GamePage() {
+export default function GamePageGameClient() {
   return <GameClient />;
 }
 
