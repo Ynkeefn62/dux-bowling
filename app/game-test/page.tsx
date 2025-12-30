@@ -1,5 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
+const GameClient = dynamic(() => import("../components/GameClient"), { ssr: false });
+
+export default function GameTestPage() {
+  return <GameClient />;
+}
+
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type FrameState = {
