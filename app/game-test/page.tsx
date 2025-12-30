@@ -269,7 +269,7 @@ function range(min: number, max: number) {
   return out;
 }
 
-export default function GamePage() {
+export default function GameTestPage() {
   // game meta (cookie-backed)
   const [gameId, setGameId] = useState(() => {
     const existing = getCookie("game_id");
