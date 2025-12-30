@@ -57,5 +57,7 @@ export default function Home() {
           We appreciate your patience as we build the ultimate experience for Duckpin Bowlers.
         </p>
       </section>
-
+    </main>
+  );
+}
  
