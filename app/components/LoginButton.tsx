@@ -1,20 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/app/lib/supabaseClient";
+import { useEffect, useState } from "react";
 
 const ORANGE = "#e46a2e";
 
 export default function LoginButton() {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  const disabled = useMemo(() => !email.trim(), [email]);
-
-  // Close on Esc
+  // Close modal on Escape
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -22,33 +15,6 @@ export default function LoginButton() {
     if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
-
-  async function sendMagicLink() {
-    setLoading(true);
-    setStatus(null);
-
-    try {
-      const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
-
-      // For both login and signup with email magic link:
-      // Supabase will create the user on first sign-in automatically (if enabled).
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: redirectTo }
-      });
-
-      if (error) throw error;
-
-      setStatus("Check your email for a sign-in link.");
-    } catch (err: any) {
-      setStatus(err?.message ?? "Something went wrong.");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <>
@@ -73,7 +39,7 @@ export default function LoginButton() {
           cursor: "pointer"
         }}
       >
-        {/* white silhouette icon */}
+        {/* White silhouette icon */}
         <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
           <path
             fill="currentColor"
@@ -102,137 +68,42 @@ export default function LoginButton() {
               width: "min(420px, 92vw)",
               background: "#fff",
               borderRadius: 16,
-              padding: "1.25rem",
+              padding: "1.5rem",
               boxShadow: "0 18px 45px rgba(0,0,0,0.25)",
-              fontFamily: "Montserrat, system-ui"
+              fontFamily: "Montserrat, system-ui",
+              textAlign: "center"
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ margin: 0, color: ORANGE }}>
-                {mode === "login" ? "Log in" : "Sign up"}
-              </h2>
-              <button
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  fontSize: "1.3rem",
-                  cursor: "pointer",
-                  color: "#444"
-                }}
-              >
-                ×
-              </button>
-            </div>
+            <h2 style={{ color: ORANGE, marginBottom: "0.75rem" }}>
+              Sign In
+            </h2>
 
-            {/* Toggle */}
-            <div style={{ display: "flex", gap: ".5rem", marginTop: ".75rem" }}>
-              <button
-                onClick={() => {
-                  setMode("login");
-                  setStatus(null);
-                }}
-                style={pill(mode === "login")}
-              >
-                Log in
-              </button>
-              <button
-                onClick={() => {
-                  setMode("signup");
-                  setStatus(null);
-                }}
-                style={pill(mode === "signup")}
-              >
-                Sign up
-              </button>
-            </div>
+            <p style={{ color: "#555", fontSize: "0.95rem" }}>
+              Sign-in is currently unavailable.
+            </p>
 
-            <div style={{ marginTop: "1rem" }}>
-              <label style={{ display: "grid", gap: ".35rem", fontSize: ".9rem", color: "#333" }}>
-                Email
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  type="email"
-                  style={{
-                    padding: ".75rem",
-                    borderRadius: 12,
-                    border: "1px solid #ddd",
-                    outline: "none"
-                  }}
-                />
-              </label>
+            <p style={{ color: "#777", fontSize: "0.85rem", marginTop: "0.5rem" }}>
+              We’re working on secure login for bowlers, alleys, and staff.
+            </p>
 
-              <button
-                onClick={sendMagicLink}
-                disabled={disabled || loading}
-                style={{
-                  width: "100%",
-                  marginTop: "1rem",
-                  padding: ".9rem",
-                  borderRadius: 12,
-                  border: "none",
-                  background: ORANGE,
-                  color: "#fff",
-                  fontWeight: 900,
-                  opacity: disabled || loading ? 0.6 : 1,
-                  cursor: disabled || loading ? "default" : "pointer"
-                }}
-              >
-                {loading ? "Sending…" : mode === "login" ? "Send login link" : "Send sign-up link"}
-              </button>
-
-              <p style={{ marginTop: ".75rem", fontSize: ".85rem", color: "#666" }}>
-                You’ll receive a link by email. No password needed.
-              </p>
-
-              {status && (
-                <div
-                  style={{
-                    marginTop: ".75rem",
-                    padding: ".75rem",
-                    borderRadius: 12,
-                    background: "#f5f0e6",
-                    color: "#5b3b25",
-                    fontSize: ".9rem"
-                  }}
-                >
-                  {status}
-                </div>
-              )}
-
-              {/* Placeholder for later */}
-              <div
-                style={{
-                  marginTop: "1rem",
-                  padding: ".75rem",
-                  borderRadius: 12,
-                  border: "1px dashed #ddd",
-                  color: "#666",
-                  fontSize: ".9rem"
-                }}
-              >
-                Sign-In Currently Unavailable (Social login coming soon)
-              </div>
-            </div>
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                marginTop: "1.25rem",
+                padding: ".75rem 1.5rem",
+                borderRadius: 12,
+                border: "none",
+                background: ORANGE,
+                color: "#fff",
+                fontWeight: 800,
+                cursor: "pointer"
+              }}
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
     </>
   );
-}
-
-function pill(active: boolean): React.CSSProperties {
-  return {
-    flex: 1,
-    padding: ".6rem",
-    borderRadius: 999,
-    border: "1px solid #ddd",
-    background: active ? "#f5f0e6" : "#fff",
-    color: "#333",
-    fontWeight: 800,
-    cursor: "pointer"
-  };
 }
