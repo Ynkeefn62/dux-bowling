@@ -1,71 +1,58 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/app/lib/supabaseClient";
 
 const ORANGE = "#e46a2e";
 
-type Mode = "login" | "signup";
-
 export default function LoginButton() {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // If you want to temporarily disable real auth UI and show "Unavailable",
-  // flip this to true.
-  const SIGNIN_UNAVAILABLE = false;
+  const disabled = useMemo(() => !email.trim(), [email]);
 
-  const title = useMemo(() => (mode === "login" ? "Log in" : "Sign up"), [mode]);
-
+  // Close on Esc
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
+    function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
-    if (open) window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    if (open) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  async function submit() {
-    setMsg(null);
+  async function sendMagicLink() {
+    setLoading(true);
+    setStatus(null);
 
-    if (SIGNIN_UNAVAILABLE) {
-      setMsg("Sign-In Currently Unavailable");
-      return;
-    }
-
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed.includes("@")) {
-      setMsg("Please enter a valid email.");
-      return;
-    }
-
-    setBusy(true);
     try {
-      // Email magic link (works for both "login" and "signup" flows)
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : undefined;
+
+      // For both login and signup with email magic link:
+      // Supabase will create the user on first sign-in automatically (if enabled).
       const { error } = await supabase.auth.signInWithOtp({
-        email: trimmed,
-        options: {
-          // make sure this is allowed in Supabase Redirect URLs
-          emailRedirectTo: "https://www.duxbowling.com"
-        }
+        email,
+        options: { emailRedirectTo: redirectTo }
       });
 
       if (error) throw error;
 
-      setMsg("Check your email for a sign-in link.");
-    } catch (e: any) {
-      setMsg(e?.message ?? "Something went wrong.");
+      setStatus("Check your email for a sign-in link.");
+    } catch (err: any) {
+      setStatus(err?.message ?? "Something went wrong.");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
   return (
     <>
-      {/* Fixed top-right button */}
+      {/* Fixed button top-right */}
       <button
         onClick={() => setOpen(true)}
         aria-label="Login"
@@ -78,18 +65,19 @@ export default function LoginButton() {
           borderRadius: "50%",
           border: "none",
           background: ORANGE,
-          boxShadow: "0 10px 22px rgba(0,0,0,0.16)",
+          color: "#fff",
           display: "grid",
           placeItems: "center",
-          zIndex: 60,
+          zIndex: 1000,
+          boxShadow: "0 10px 25px rgba(0,0,0,0.18)",
           cursor: "pointer"
         }}
       >
-        {/* simple white user silhouette icon */}
+        {/* white silhouette icon */}
         <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
           <path
-            fill="white"
-            d="M12 12c2.76 0 5-2.24 5-5S14.76 2 12 2 7 4.24 7 7s2.24 5 5 5zm0 2c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5z"
+            fill="currentColor"
+            d="M12 12a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 12Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"
           />
         </svg>
       </button>
@@ -102,7 +90,7 @@ export default function LoginButton() {
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.45)",
-            zIndex: 80,
+            zIndex: 1100,
             display: "grid",
             placeItems: "center",
             padding: "1rem"
@@ -112,112 +100,122 @@ export default function LoginButton() {
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "min(420px, 92vw)",
-              borderRadius: 16,
               background: "#fff",
-              boxShadow: "0 16px 40px rgba(0,0,0,0.22)",
-              overflow: "hidden"
+              borderRadius: 16,
+              padding: "1.25rem",
+              boxShadow: "0 18px 45px rgba(0,0,0,0.25)",
+              fontFamily: "Montserrat, system-ui"
             }}
           >
-            <div style={{ padding: "1rem 1rem 0.75rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.1rem" }}>
-                  {title}
-                </div>
-                <button
-                  onClick={() => setOpen(false)}
-                  style={{ border: "none", background: "transparent", fontSize: "1.25rem", cursor: "pointer" }}
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Tabs */}
-              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <TabButton active={mode === "login"} onClick={() => { setMode("login"); setMsg(null); }}>
-                  Log in
-                </TabButton>
-                <TabButton active={mode === "signup"} onClick={() => { setMode("signup"); setMsg(null); }}>
-                  Sign up
-                </TabButton>
-              </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ margin: 0, color: ORANGE }}>
+                {mode === "login" ? "Log in" : "Sign up"}
+              </h2>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  fontSize: "1.3rem",
+                  cursor: "pointer",
+                  color: "#444"
+                }}
+              >
+                ×
+              </button>
             </div>
 
-            <div style={{ padding: "1rem" }}>
-              {SIGNIN_UNAVAILABLE ? (
+            {/* Toggle */}
+            <div style={{ display: "flex", gap: ".5rem", marginTop: ".75rem" }}>
+              <button
+                onClick={() => {
+                  setMode("login");
+                  setStatus(null);
+                }}
+                style={pill(mode === "login")}
+              >
+                Log in
+              </button>
+              <button
+                onClick={() => {
+                  setMode("signup");
+                  setStatus(null);
+                }}
+                style={pill(mode === "signup")}
+              >
+                Sign up
+              </button>
+            </div>
+
+            <div style={{ marginTop: "1rem" }}>
+              <label style={{ display: "grid", gap: ".35rem", fontSize: ".9rem", color: "#333" }}>
+                Email
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  type="email"
+                  style={{
+                    padding: ".75rem",
+                    borderRadius: 12,
+                    border: "1px solid #ddd",
+                    outline: "none"
+                  }}
+                />
+              </label>
+
+              <button
+                onClick={sendMagicLink}
+                disabled={disabled || loading}
+                style={{
+                  width: "100%",
+                  marginTop: "1rem",
+                  padding: ".9rem",
+                  borderRadius: 12,
+                  border: "none",
+                  background: ORANGE,
+                  color: "#fff",
+                  fontWeight: 900,
+                  opacity: disabled || loading ? 0.6 : 1,
+                  cursor: disabled || loading ? "default" : "pointer"
+                }}
+              >
+                {loading ? "Sending…" : mode === "login" ? "Send login link" : "Send sign-up link"}
+              </button>
+
+              <p style={{ marginTop: ".75rem", fontSize: ".85rem", color: "#666" }}>
+                You’ll receive a link by email. No password needed.
+              </p>
+
+              {status && (
                 <div
                   style={{
-                    padding: "1rem",
+                    marginTop: ".75rem",
+                    padding: ".75rem",
                     borderRadius: 12,
-                    background: "#fff7f2",
-                    border: `1px solid rgba(228,106,46,0.35)`,
-                    color: "#7a4a2b",
-                    lineHeight: 1.4
+                    background: "#f5f0e6",
+                    color: "#5b3b25",
+                    fontSize: ".9rem"
                   }}
                 >
-                  <strong>Sign-In Currently Unavailable</strong>
-                  <div style={{ marginTop: 6, fontSize: ".95rem" }}>
-                    We’re still wiring up authentication. Check back soon.
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <label style={{ display: "grid", gap: 6, fontSize: ".9rem", color: "#6a4a34" }}>
-                    Email
-                    <input
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      inputMode="email"
-                      autoComplete="email"
-                      style={{
-                        padding: "0.75rem",
-                        borderRadius: 12,
-                        border: "1px solid #ddd",
-                        outline: "none"
-                      }}
-                    />
-                  </label>
-
-                  <button
-                    onClick={submit}
-                    disabled={busy}
-                    style={{
-                      marginTop: 12,
-                      width: "100%",
-                      padding: "0.85rem",
-                      borderRadius: 14,
-                      border: "none",
-                      background: ORANGE,
-                      color: "#fff",
-                      fontWeight: 900,
-                      cursor: busy ? "default" : "pointer",
-                      opacity: busy ? 0.7 : 1
-                    }}
-                  >
-                    {busy ? "Sending…" : "Send sign-in link"}
-                  </button>
-
-                  <div style={{ marginTop: 10, fontSize: ".85rem", color: "#7a5a45" }}>
-                    We’ll email you a magic link — no password needed.
-                  </div>
-                </>
-              )}
-
-              {msg && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    padding: "0.75rem",
-                    borderRadius: 12,
-                    background: "#f8f8f8",
-                    border: "1px solid #eee",
-                    color: "#333"
-                  }}
-                >
-                  {msg}
+                  {status}
                 </div>
               )}
+
+              {/* Placeholder for later */}
+              <div
+                style={{
+                  marginTop: "1rem",
+                  padding: ".75rem",
+                  borderRadius: 12,
+                  border: "1px dashed #ddd",
+                  color: "#666",
+                  fontSize: ".9rem"
+                }}
+              >
+                Sign-In Currently Unavailable (Social login coming soon)
+              </div>
             </div>
           </div>
         </div>
@@ -226,30 +224,15 @@ export default function LoginButton() {
   );
 }
 
-function TabButton({
-  active,
-  onClick,
-  children
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        flex: 1,
-        padding: "0.6rem 0.75rem",
-        borderRadius: 999,
-        border: "none",
-        cursor: "pointer",
-        fontWeight: 800,
-        background: active ? "#e46a2e" : "#f2f2f2",
-        color: active ? "#fff" : "#333"
-      }}
-    >
-      {children}
-    </button>
-  );
+function pill(active: boolean): React.CSSProperties {
+  return {
+    flex: 1,
+    padding: ".6rem",
+    borderRadius: 999,
+    border: "1px solid #ddd",
+    background: active ? "#f5f0e6" : "#fff",
+    color: "#333",
+    fontWeight: 800,
+    cursor: "pointer"
+  };
 }
