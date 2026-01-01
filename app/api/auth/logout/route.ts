@@ -1,24 +1,17 @@
 import { NextResponse } from "next/server";
-import { clearAuthCookies, getTokensFromCookies, SUPABASE_AUTH_BASE } from "../_helpers";
+import { authHeaders, clearSessionCookies, getAccessTokenFromCookies, getSupabaseAuthUrl } from "@/app/lib/authServer";
 
 export async function POST() {
-  const { access } = getTokensFromCookies();
+  const access = getAccessTokenFromCookies();
 
-  // Best-effort: tell Supabase to revoke session
+  // Tell Supabase to revoke session (best effort)
   if (access) {
-    try {
-      await fetch(`${SUPABASE_AUTH_BASE}/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${access}`
-        }
-      });
-    } catch {
-      // ignore
-    }
+    await fetch(getSupabaseAuthUrl("/logout"), {
+      method: "POST",
+      headers: authHeaders({ Authorization: `Bearer ${access}` })
+    });
   }
 
-  clearAuthCookies();
+  clearSessionCookies();
   return NextResponse.json({ ok: true });
 }
