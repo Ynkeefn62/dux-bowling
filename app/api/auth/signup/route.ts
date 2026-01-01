@@ -1,33 +1,43 @@
 import { NextResponse } from "next/server";
-import { authHeaders, getSupabaseAuthUrl, setSessionCookies } from "@/app/lib/authServer";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function POST(req: Request) {
-  const { email, password, accountType } = await req.json();
+  const { email, password, role } = await req.json().catch(() => ({}));
 
+  if (!SUPABASE_URL || !SUPABASE_ANON) {
+    return NextResponse.json({ error: "Missing Supabase env vars" }, { status: 500 });
+  }
   if (!email || !password) {
     return NextResponse.json({ error: "Email and password required" }, { status: 400 });
   }
 
-  const res = await fetch(getSupabaseAuthUrl("/signup"), {
+  // Optional: include user "role" metadata (bowler/alley/employee) for later routing.
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON,
+      Authorization: `Bearer ${SUPABASE_ANON}`
+    },
     body: JSON.stringify({
       email,
       password,
-      data: { account_type: accountType ?? "bowler" } // stored in auth.users.raw_user_meta_data
+      data: { role: role ?? "bowler" }
     })
   });
 
   const data = await res.json();
 
   if (!res.ok) {
-    return NextResponse.json({ error: data?.msg || data?.error_description || "Signup failed", details: data }, { status: 400 });
+    return NextResponse.json(
+      { error: data?.msg || data?.error_description || data?.error || "Signup failed", details: data },
+      { status: res.status }
+    );
   }
 
-  // If email confirmations are OFF, you may get a session right away.
-  if (data?.access_token && data?.refresh_token) {
-    setSessionCookies(data.access_token, data.refresh_token);
-  }
-
+  // If email confirmations are ON, you may not get a session back immediately.
+  // That’s OK—front-end can tell them to verify email.
   return NextResponse.json({ ok: true, data });
 }
