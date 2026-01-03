@@ -1,21 +1,24 @@
 "use client";
 
-const CREAM = "#f5f0e6";
+const BG = "#121212";          // near-black (better than pure black)
+const PANEL = "#1a1a1a";       // dark panel
+const CARD = "#ffffff";        // white cards
+const TEXT = "#f2f2f2";        // primary light text
+const MUTED = "rgba(242,242,242,0.78)";
 const ORANGE = "#e46a2e";
-const TEXT = "#5b3b25";
-const TEXT_ORANGE = "#c75a1d";
+const ORANGE_SOFT = "rgba(228,106,46,0.14)";
 
 export default function ShopPage() {
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: CREAM,
+        background: BG,
         fontFamily: "Montserrat, system-ui",
         color: TEXT
       }}
     >
-      {/* Subtle background accents (match homepage vibe) */}
+      {/* Background accents */}
       <div
         aria-hidden="true"
         style={{
@@ -24,14 +27,14 @@ export default function ShopPage() {
           pointerEvents: "none",
           zIndex: 0,
           background:
-            "radial-gradient(800px 500px at 15% 10%, rgba(228,106,46,0.18), transparent 55%)," +
-            "radial-gradient(900px 550px at 85% 25%, rgba(199,90,29,0.12), transparent 60%)"
+            "radial-gradient(900px 520px at 18% 10%, rgba(228,106,46,0.22), transparent 58%)," +
+            "radial-gradient(900px 520px at 86% 28%, rgba(228,106,46,0.12), transparent 62%)," +
+            "linear-gradient(180deg, rgba(255,255,255,0.02), transparent 35%, rgba(0,0,0,0.25) 100%)"
         }}
       />
 
-      {/* Page content */}
       <div style={{ position: "relative", zIndex: 1, padding: "2rem 1rem 4rem" }}>
-        {/* Header */}
+        {/* Header / Logo */}
         <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
           <img
             src="/1@300x.png"
@@ -39,23 +42,23 @@ export default function ShopPage() {
             style={{
               maxWidth: 170,
               height: "auto",
-              filter: "drop-shadow(0 14px 26px rgba(0,0,0,0.10))"
+              filter: "drop-shadow(0 18px 40px rgba(0,0,0,0.55))"
             }}
           />
         </div>
 
         <div style={{ maxWidth: 980, margin: "0 auto" }}>
-          {/* Title */}
+          {/* Title / Hero */}
           <div
             style={{
               margin: "0 auto",
               maxWidth: 860,
               borderRadius: 18,
               padding: "2rem 1.5rem",
-              background: "rgba(255,255,255,0.75)",
-              border: "1px solid rgba(255,255,255,0.9)",
-              boxShadow: "0 20px 45px rgba(0,0,0,0.10)",
-              backdropFilter: "blur(8px)"
+              background: "rgba(26,26,26,0.78)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
+              backdropFilter: "blur(10px)"
             }}
           >
             <div
@@ -65,11 +68,12 @@ export default function ShopPage() {
                 gap: ".55rem",
                 padding: ".4rem .75rem",
                 borderRadius: 999,
-                background: "rgba(228,106,46,0.12)",
-                color: TEXT_ORANGE,
+                background: ORANGE_SOFT,
+                color: TEXT,
                 fontWeight: 900,
                 fontSize: ".85rem",
-                letterSpacing: ".02em"
+                letterSpacing: ".02em",
+                border: "1px solid rgba(228,106,46,0.18)"
               }}
             >
               <span
@@ -93,8 +97,7 @@ export default function ShopPage() {
                 color: TEXT
               }}
             >
-              Dux Bowling Merch
-              <span style={{ color: ORANGE }}> (Coming Soon)</span>
+              Dux Bowling Merch <span style={{ color: ORANGE }}>(Coming Soon)</span>
             </h1>
 
             <p
@@ -102,7 +105,7 @@ export default function ShopPage() {
                 margin: 0,
                 fontSize: "clamp(1.02rem, 2vw, 1.2rem)",
                 lineHeight: 1.7,
-                color: TEXT
+                color: MUTED
               }}
             >
               We’re building a shop with branded duckpin gear—designed to look great on the lanes and help
@@ -133,15 +136,15 @@ export default function ShopPage() {
                   key={x.t}
                   style={{
                     gridColumn: "span 12",
-                    background: "#fff",
+                    background: PANEL,
                     borderRadius: 18,
                     padding: "1.25rem",
-                    boxShadow: "0 18px 40px rgba(0,0,0,0.08)",
-                    border: "1px solid rgba(0,0,0,0.04)"
+                    boxShadow: "0 18px 40px rgba(0,0,0,0.50)",
+                    border: "1px solid rgba(255,255,255,0.08)"
                   }}
                 >
                   <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.05rem" }}>{x.t}</div>
-                  <p style={{ margin: ".55rem 0 0", lineHeight: 1.7 }}>{x.d}</p>
+                  <p style={{ margin: ".55rem 0 0", lineHeight: 1.7, color: MUTED }}>{x.d}</p>
                 </div>
               ))}
             </div>
@@ -151,17 +154,18 @@ export default function ShopPage() {
           <section
             style={{
               marginTop: "1.5rem",
-              background: "rgba(228,106,46,0.08)",
+              background: "rgba(26,26,26,0.85)",
               borderRadius: 18,
               padding: "1.5rem",
-              border: "1px solid rgba(228,106,46,0.14)"
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 22px 55px rgba(0,0,0,0.55)"
             }}
           >
             <h3 style={{ margin: 0, color: ORANGE, fontSize: "1.35rem" }}>
               Every purchase supports the mission
             </h3>
 
-            <p style={{ margin: ".6rem 0 0", lineHeight: 1.7 }}>
+            <p style={{ margin: ".6rem 0 0", lineHeight: 1.7, color: MUTED }}>
               Proceeds from merch will go directly toward developing the Mother Dux Pinsetter and the
               scoring + community software that powers the modern duckpin experience.
             </p>
@@ -171,14 +175,12 @@ export default function ShopPage() {
                 marginTop: "1rem",
                 padding: "1rem",
                 borderRadius: 16,
-                background: "rgba(255,255,255,0.70)",
-                boxShadow: "0 10px 22px rgba(0,0,0,0.06)"
+                background: "rgba(0,0,0,0.30)",
+                border: "1px solid rgba(228,106,46,0.18)"
               }}
             >
-              <div style={{ fontWeight: 900, color: TEXT_ORANGE }}>
-                Avatar-linked memorabilia
-              </div>
-              <p style={{ margin: ".45rem 0 0", lineHeight: 1.7 }}>
+              <div style={{ fontWeight: 900, color: TEXT }}>Avatar-linked memorabilia</div>
+              <p style={{ margin: ".45rem 0 0", lineHeight: 1.7, color: MUTED }}>
                 Everything you purchase will also be linked to your Dux Bowling avatar—so your real-world
                 gear becomes part of your digital identity (skins, cosmetics, trophies, and more).
               </p>
@@ -189,18 +191,18 @@ export default function ShopPage() {
           <section
             style={{
               marginTop: "1.5rem",
-              background: "#fff",
+              background: "rgba(26,26,26,0.85)",
               borderRadius: 18,
               padding: "1.5rem",
-              boxShadow: "0 18px 40px rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.04)",
+              boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
+              border: "1px solid rgba(255,255,255,0.08)",
               textAlign: "center"
             }}
           >
             <h3 style={{ margin: "0 0 .5rem", color: ORANGE, fontSize: "1.35rem" }}>
               Shop demo in progress
             </h3>
-            <p style={{ margin: "0 auto", maxWidth: 760, lineHeight: 1.7 }}>
+            <p style={{ margin: "0 auto", maxWidth: 760, lineHeight: 1.7, color: MUTED }}>
               We’re building a demo view of the shop experience and how purchases will connect to avatars.
               More details coming soon.
             </p>
@@ -216,13 +218,13 @@ export default function ShopPage() {
                 background: ORANGE,
                 color: "#fff",
                 fontWeight: 900,
-                boxShadow: "0 14px 28px rgba(0,0,0,0.14)"
+                boxShadow: "0 16px 34px rgba(0,0,0,0.55)"
               }}
             >
               Email andrew@duxbowling.com
             </a>
 
-            <div style={{ marginTop: ".85rem", color: "rgba(91,59,37,0.7)", fontSize: ".92rem" }}>
+            <div style={{ marginTop: ".85rem", color: "rgba(242,242,242,0.75)", fontSize: ".92rem" }}>
               Questions, comments, or suggestions welcome.
             </div>
           </section>
@@ -231,7 +233,7 @@ export default function ShopPage() {
             style={{
               marginTop: "1.75rem",
               textAlign: "center",
-              color: "rgba(91,59,37,0.7)",
+              color: "rgba(242,242,242,0.65)",
               fontSize: ".9rem"
             }}
           >
