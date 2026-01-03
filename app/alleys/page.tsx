@@ -161,6 +161,72 @@ export default function AlleysPage() {
                 </ul>
               </div>
 
+              {/* NEW: What sets our pinsetter apart */}
+              <div
+                style={{
+                  gridColumn: "span 12",
+                  background: "rgba(228,106,46,0.08)",
+                  borderRadius: 18,
+                  padding: "1.25rem",
+                  border: "1px solid rgba(228,106,46,0.14)"
+                }}
+              >
+                <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.05rem" }}>
+                  What sets our pinsetter apart
+                </div>
+
+                <p style={{ margin: ".6rem 0 0", lineHeight: 1.7 }}>
+                  We’re building a pinsetter that improves consistency on the lane while unlocking modern
+                  experiences for bowlers and operators.
+                </p>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(12, 1fr)",
+                    gap: ".9rem",
+                    marginTop: ".9rem"
+                  }}
+                >
+                  {[
+                    {
+                      t: "Precise pin setting",
+                      d: "More consistent setups mean fewer surprises and less bowler frustration. Consistency improves fairness and helps bowlers trust what they’re practicing."
+                    },
+                    {
+                      t: "Custom pin configurations",
+                      d: "Set up specific leave patterns intentionally—enabling new game modes and letting bowlers practice targeted pin combinations (instead of hoping they happen)."
+                    },
+                    {
+                      t: "One-tap reset to last configuration",
+                      d: "A reset button that returns the lane to the pin configuration prior to the last roll—so corrections can happen quickly without manual pin resets."
+                    },
+                    {
+                      t: "Roll-by-roll data capture",
+                      d: "Designed to tie into a backend database so every roll can be logged, analyzed, and used to power stats, diagnostics, and a better overall lane experience."
+                    },
+                    {
+                      t: "Connected bowlers + digital rewards",
+                      d: "Bowlers can link their account to the lane to track progress over time and earn digital rewards for hitting milestones—bringing a modern, motivating layer to duckpins."
+                    }
+                  ].map((x) => (
+                    <div
+                      key={x.t}
+                      style={{
+                        gridColumn: "span 12",
+                        background: "rgba(255,255,255,0.72)",
+                        borderRadius: 14,
+                        padding: "1rem",
+                        boxShadow: "0 10px 22px rgba(0,0,0,0.06)"
+                      }}
+                    >
+                      <div style={{ fontWeight: 900, color: TEXT_ORANGE }}>{x.t}</div>
+                      <div style={{ marginTop: ".25rem", lineHeight: 1.65, color: TEXT }}>{x.d}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Expanded Game Options */}
               <div
                 style={{
@@ -181,14 +247,7 @@ export default function AlleysPage() {
                   and give competitive bowlers new formats to chase.
                 </p>
 
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: ".5rem",
-                    marginTop: ".85rem"
-                  }}
-                >
+                <div style={{ display: "flex", flexWrap: "wrap", gap: ".5rem", marginTop: ".85rem" }}>
                   {[
                     "Standard Duckpin Bowling",
                     "Practice Mode",
@@ -275,22 +334,10 @@ export default function AlleysPage() {
                   }}
                 >
                   {[
-                    {
-                      t: "Uptime first",
-                      d: "A pinsetter has to be dependable. Everything else is second."
-                    },
-                    {
-                      t: "Retrofit-friendly",
-                      d: "Designed to work with existing alleys—not require a rebuild."
-                    },
-                    {
-                      t: "Operator-simple",
-                      d: "Easy for staff to run, troubleshoot, and service."
-                    },
-                    {
-                      t: "Bowler experience",
-                      d: "Better scoring, better engagement, and reasons to return."
-                    }
+                    { t: "Uptime first", d: "A pinsetter has to be dependable. Everything else is second." },
+                    { t: "Retrofit-friendly", d: "Designed to work with existing alleys—not require a rebuild." },
+                    { t: "Operator-simple", d: "Easy for staff to run, troubleshoot, and service." },
+                    { t: "Bowler experience", d: "Better scoring, better engagement, and reasons to return." }
                   ].map((x) => (
                     <div
                       key={x.t}
