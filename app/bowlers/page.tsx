@@ -1,61 +1,57 @@
 "use client";
 
-const CREAM = "#f5f0e6";
-const ORANGE = "#e46a2e";
-const TEXT = "#5b3b25";
-const TEXT_ORANGE = "#c75a1d";
-
 export default function BowlersPage() {
+  const BG = "#121212";
+  const PANEL = "#1a1a1a";
+  const TEXT = "#f2f2f2";
+  const MUTED = "rgba(242,242,242,0.78)";
+  const ORANGE = "#e46a2e";
+
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: CREAM,
+        background: BG,
         fontFamily: "Montserrat, system-ui",
         color: TEXT
       }}
     >
-      {/* Subtle background accents (match homepage vibe) */}
+      {/* Background glow */}
       <div
-        aria-hidden="true"
+        aria-hidden
         style={{
           position: "fixed",
           inset: 0,
           pointerEvents: "none",
-          zIndex: 0,
           background:
-            "radial-gradient(800px 500px at 15% 10%, rgba(228,106,46,0.18), transparent 55%)," +
-            "radial-gradient(900px 550px at 85% 25%, rgba(199,90,29,0.12), transparent 60%)"
+            "radial-gradient(800px 420px at 20% 10%, rgba(228,106,46,0.18), transparent 60%)," +
+            "radial-gradient(700px 420px at 85% 25%, rgba(228,106,46,0.10), transparent 65%)"
         }}
       />
 
-      {/* Page content */}
       <div style={{ position: "relative", zIndex: 1, padding: "2rem 1rem 4rem" }}>
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
           <img
             src="/1@300x.png"
             alt="Dux Bowling"
             style={{
               maxWidth: 170,
               height: "auto",
-              filter: "drop-shadow(0 14px 26px rgba(0,0,0,0.10))"
+              filter: "drop-shadow(0 18px 40px rgba(0,0,0,0.55))"
             }}
           />
         </div>
 
         <div style={{ maxWidth: 980, margin: "0 auto" }}>
-          {/* Title */}
-          <div
+          {/* Hero */}
+          <section
             style={{
-              margin: "0 auto",
-              maxWidth: 860,
+              background: PANEL,
               borderRadius: 18,
-              padding: "2rem 1.5rem",
-              background: "rgba(255,255,255,0.75)",
-              border: "1px solid rgba(255,255,255,0.9)",
-              boxShadow: "0 20px 45px rgba(0,0,0,0.10)",
-              backdropFilter: "blur(8px)"
+              padding: "2rem 1.75rem",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 22px 55px rgba(0,0,0,0.55)"
             }}
           >
             <div
@@ -65,220 +61,168 @@ export default function BowlersPage() {
                 gap: ".55rem",
                 padding: ".4rem .75rem",
                 borderRadius: 999,
-                background: "rgba(228,106,46,0.12)",
-                color: TEXT_ORANGE,
+                background: "rgba(228,106,46,0.15)",
                 fontWeight: 900,
-                fontSize: ".85rem",
-                letterSpacing: ".02em"
+                fontSize: ".85rem"
               }}
             >
-              <span
-                aria-hidden="true"
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 99,
-                  background: ORANGE,
-                  display: "inline-block"
-                }}
-              />
               For Bowlers
             </div>
 
             <h1
               style={{
-                margin: ".9rem 0 .6rem",
+                margin: ".9rem 0 .75rem",
                 fontSize: "clamp(2rem, 4.5vw, 3rem)",
-                lineHeight: 1.05,
-                color: TEXT
+                lineHeight: 1.05
               }}
             >
-              Bowl like an athlete.
-              <span style={{ color: ORANGE }}> Track. Improve. Compete.</span>
+              You’re not just a bowler.
+              <br />
+              <span style={{ color: ORANGE }}>You’re an athlete.</span>
             </h1>
 
-            <p
-              style={{
-                margin: 0,
-                fontSize: "clamp(1.02rem, 2vw, 1.2rem)",
-                lineHeight: 1.7,
-                color: TEXT
-              }}
-            >
-              Dux Bowling is building the modern duckpin experience: smarter scoring, better stats, and a
-              community that makes it fun to chase milestones—whether you’re practicing solo or battling
-              in a league.
+            <p style={{ margin: 0, lineHeight: 1.7, color: MUTED, fontSize: "1.05rem" }}>
+              Duckpin bowling is one of the most challenging forms of bowling—and yet it’s been stuck with
+              outdated tools for decades. We’re building modern software and experiences that treat your
+              performance like it matters.
             </p>
-          </div>
+          </section>
 
-          {/* What bowlers can expect */}
+          {/* Features */}
           <section style={{ marginTop: "1.5rem" }}>
-            <h2 style={{ margin: "0 0 .75rem", color: TEXT, fontSize: "1.35rem" }}>
-              What you can expect
+            <h2 style={{ marginBottom: ".75rem", fontSize: "1.4rem" }}>
+              What bowlers can expect
             </h2>
 
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(12, 1fr)",
+                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
                 gap: "1rem"
               }}
             >
               {[
                 {
-                  t: "Score tracking + analytics",
-                  d: "Track every game and see your progress over time—averages, trends, consistency, and more (with deeper analytics coming)."
+                  title: "Score Tracking & Analytics",
+                  text:
+                    "Automatically track every game you bowl. See trends over time, frame-by-frame breakdowns, and performance insights that go far beyond a paper score sheet."
                 },
                 {
-                  t: "Avatar creation + digital rewards",
-                  d: "Create your bowler identity and earn digital rewards as you hit milestones, achievements, and personal bests."
+                  title: "League & Tournament Support",
+                  text:
+                    "League standings, averages, head-to-head results, and tournament scoring—all in one place."
                 },
                 {
-                  t: "League + tournament standings",
-                  d: "Modern standings, matchups, and scoring that makes it easy to follow your team, your rivals, and your season."
+                  title: "Follow Other Bowlers",
+                  text:
+                    "See how your friends, teammates, and rivals are bowling. Compare stats, track progress, and fuel competition."
                 },
                 {
-                  t: "Follow other bowlers",
-                  d: "Follow friends and competitors, compare stats, and keep up with league action in one place."
-                },
-                {
-                  t: "New game modes",
-                  d: "Beyond standard duckpins—practice formats and new modes designed to make training and competition more fun."
+                  title: "Expanded Game Modes",
+                  text:
+                    "Practice modes, alternative scoring formats, and competitive mini-games designed to make duckpins more engaging for bowlers of all skill levels."
                 }
-              ].map((x) => (
+              ].map((item) => (
                 <div
-                  key={x.t}
+                  key={item.title}
                   style={{
-                    gridColumn: "span 12",
-                    background: "#fff",
-                    borderRadius: 18,
+                    background: PANEL,
+                    borderRadius: 16,
                     padding: "1.25rem",
-                    boxShadow: "0 18px 40px rgba(0,0,0,0.08)",
-                    border: "1px solid rgba(0,0,0,0.04)"
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    boxShadow: "0 18px 45px rgba(0,0,0,0.45)"
                   }}
                 >
-                  <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.05rem" }}>{x.t}</div>
-                  <p style={{ margin: ".55rem 0 0", lineHeight: 1.7 }}>{x.d}</p>
+                  <h3 style={{ margin: "0 0 .5rem", color: ORANGE }}>
+                    {item.title}
+                  </h3>
+                  <p style={{ margin: 0, lineHeight: 1.6, color: MUTED }}>
+                    {item.text}
+                  </p>
                 </div>
               ))}
             </div>
           </section>
 
-          {/* Score tracker available now */}
+          {/* Score tracker CTA */}
           <section
             style={{
-              marginTop: "1.5rem",
-              background: "rgba(228,106,46,0.08)",
+              marginTop: "1.75rem",
+              background: PANEL,
               borderRadius: 18,
-              padding: "1.5rem",
-              border: "1px solid rgba(228,106,46,0.14)"
-            }}
-          >
-            <h3 style={{ margin: 0, color: ORANGE, fontSize: "1.35rem" }}>Start tracking today</h3>
-
-            <p style={{ margin: ".6rem 0 0", lineHeight: 1.7 }}>
-              While we continue developing the Mother Dux Pinsetter, we’ve already built a duckpin score
-              tracker so you can start logging games right now. Sign up and begin tracking your scores
-              through the tracker at{" "}
-              <a href="/game" style={{ color: TEXT_ORANGE, fontWeight: 900, textDecoration: "none" }}>
-                duxbowling.com/game
-              </a>
-              .
-            </p>
-
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: ".75rem",
-                marginTop: "1rem"
-              }}
-            >
-              <a
-                href="/game"
-                style={{
-                  textDecoration: "none",
-                  borderRadius: 999,
-                  padding: ".9rem 1.25rem",
-                  background: ORANGE,
-                  color: "#fff",
-                  fontWeight: 900,
-                  boxShadow: "0 14px 28px rgba(0,0,0,0.14)"
-                }}
-              >
-                Go to Score Tracker
-              </a>
-
-              <a
-                href="/avatar"
-                style={{
-                  textDecoration: "none",
-                  borderRadius: 999,
-                  padding: ".9rem 1.25rem",
-                  border: `2px solid ${ORANGE}`,
-                  background: "transparent",
-                  color: ORANGE,
-                  fontWeight: 900
-                }}
-              >
-                Create Avatar (Preview)
-              </a>
-            </div>
-
-            <p style={{ margin: "1rem 0 0", lineHeight: 1.7 }}>
-              We’re also working on a demo that showcases the full product vision—avatars, achievements,
-              standings, social features, and new game modes.
-            </p>
-          </section>
-
-          {/* Bottom CTA */}
-          <section
-            style={{
-              marginTop: "1.5rem",
-              background: "#fff",
-              borderRadius: 18,
-              padding: "1.5rem",
-              boxShadow: "0 18px 40px rgba(0,0,0,0.08)",
-              border: "1px solid rgba(0,0,0,0.04)",
+              padding: "1.75rem",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
               textAlign: "center"
             }}
           >
-            <h3 style={{ margin: "0 0 .5rem", color: ORANGE, fontSize: "1.35rem" }}>
-              Questions or ideas?
+            <h3 style={{ margin: "0 0 .6rem", color: ORANGE, fontSize: "1.4rem" }}>
+              Start tracking your scores today
             </h3>
-            <p style={{ margin: "0 auto", maxWidth: 760, lineHeight: 1.7 }}>
-              We’re building this with the duckpin community. If you have questions, comments, feature
-              ideas, or want to help shape what we build, reach out anytime.
+
+            <p style={{ margin: "0 auto", maxWidth: 760, lineHeight: 1.7, color: MUTED }}>
+              While we continue developing the pinsetter hardware, we’ve already built a digital
+              score tracker so bowlers can begin logging games, tracking progress, and building a history
+              of their performance.
             </p>
 
             <a
-              href="mailto:andrew@duxbowling.com"
+              href="/game"
               style={{
                 display: "inline-block",
                 marginTop: "1rem",
-                textDecoration: "none",
+                padding: ".9rem 1.4rem",
                 borderRadius: 999,
-                padding: ".9rem 1.25rem",
                 background: ORANGE,
                 color: "#fff",
                 fontWeight: 900,
-                boxShadow: "0 14px 28px rgba(0,0,0,0.14)"
+                textDecoration: "none",
+                boxShadow: "0 16px 34px rgba(0,0,0,0.55)"
               }}
             >
-              Email andrew@duxbowling.com
+              Go to Score Tracker
             </a>
 
-            <div style={{ marginTop: ".85rem", color: "rgba(91,59,37,0.7)", fontSize: ".92rem" }}>
-              Questions, comments, or suggestions welcome.
-            </div>
+            <p
+              style={{
+                marginTop: ".85rem",
+                fontSize: ".9rem",
+                color: "rgba(242,242,242,0.75)"
+              }}
+            >
+              A full demo showcasing all planned features is currently in development.
+            </p>
+          </section>
+
+          {/* Contact */}
+          <section
+            style={{
+              marginTop: "1.5rem",
+              textAlign: "center",
+              color: MUTED
+            }}
+          >
+            <p style={{ marginBottom: ".5rem" }}>
+              Questions, comments, or suggestions?
+            </p>
+            <a
+              href="mailto:andrew@duxbowling.com"
+              style={{
+                color: ORANGE,
+                fontWeight: 900,
+                textDecoration: "none"
+              }}
+            >
+              andrew@duxbowling.com
+            </a>
           </section>
 
           <footer
             style={{
-              marginTop: "1.75rem",
+              marginTop: "2rem",
               textAlign: "center",
-              color: "rgba(91,59,37,0.7)",
-              fontSize: ".9rem"
+              fontSize: ".9rem",
+              color: "rgba(242,242,242,0.55)"
             }}
           >
             © {new Date().getFullYear()} Dux Bowling LLC
