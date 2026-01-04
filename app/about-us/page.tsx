@@ -146,6 +146,32 @@ export default function AboutUsPage() {
               </p>
             </div>
 
+            {/* NEW: Where we are */}
+            <div
+              style={{
+                marginTop: "1.25rem",
+                padding: "1.1rem",
+                borderRadius: 16,
+                background: "rgba(0,0,0,0.30)",
+                border: "1px solid rgba(228,106,46,0.18)"
+              }}
+            >
+              <div style={{ fontWeight: 900, color: TEXT, marginBottom: ".35rem" }}>
+                Where we are
+              </div>
+
+              <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
+                Our engineer has an initial model that now requires us to build a prototype to test the
+                functionality of the pinsetter. Before we progress any further with the prototype, we want
+                to ensure there is ample demand from existing duckpin bowling alleys to justify the expense
+                of moving forward. Additionally, we would like to use this time to continue building out our
+                software to maximize the experience for bowlers and bowling alleys to complement the
+                improvements the new pinsetter will have on the game. As we go through the process, we plan
+                to gather feedback from bowling alleys, bowlers, and potential lenders to provide the best
+                product possible.
+              </p>
+            </div>
+
             <div
               style={{
                 marginTop: "1.25rem",
