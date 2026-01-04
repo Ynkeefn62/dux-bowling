@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Mode = {
   title: string;
@@ -8,7 +8,7 @@ type Mode = {
   description: string;
 };
 
-const BG = "#121212"; // near-black
+const BG = "#121212";
 const TEXT = "#f2f2f2";
 const MUTED = "rgba(242,242,242,0.78)";
 const ORANGE = "#e46a2e";
@@ -31,7 +31,7 @@ const GAME_MODES: Mode[] = [
     title: "S.P.A.R.E.",
     subtitle: "Like H.O.R.S.E., but for bowling.",
     description:
-      "The bowling version of the popular basketball game, H.O.R.S.E. Bowlers take turns selecting custom pin configurations. If they knock down all pins on their first throw, the other bowlers must make the same shot to avoid taking a letter. The last bowler to spell S.P.A.R.E. wins!"
+      "The bowling version of the popular basketball game, H.O.R.S.E. Bowlers take turns selecting custom pin configurations. If they are able to knock down all pins on their first throw then the other bowlers must make the same shot to avoid taking a letter. The last bowler to spell S.P.A.R.E. wins!"
   },
   {
     title: "Strike Derby",
@@ -43,30 +43,75 @@ const GAME_MODES: Mode[] = [
     title: "7/8/9 Pin No-Tap",
     subtitle: "Faster games, more highlights.",
     description:
-      "Same rules as standard duckpin bowling, but if a bowler has 7, 8, or 9 pins (depending on which selection is chosen) remaining after the first ball, it is considered a strike. If the same threshold is reached after the second ball, it is considered a spare."
+      "Same rules as standard duckpin bowling, but if a bowler has 7, 8, or 9 pins (depending on which selection is chosen) remaining after the first or second ball, it is considered a strike or spare, respectively."
   }
 ];
 
 export default function AlleysPage() {
   const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
 
   const isFirst = index === 0;
   const isLast = index === GAME_MODES.length - 1;
-
   const mode = useMemo(() => GAME_MODES[index], [index]);
+
+  // We'll measure the card's center relative to viewport and store it in a CSS var.
+  // This avoids React rerenders on scroll (no lag).
+  const cardWrapRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   function prev() {
     if (isFirst) return;
     setIndex((i) => i - 1);
-    setFlipped(false);
   }
 
   function next() {
     if (isLast) return;
     setIndex((i) => i + 1);
-    setFlipped(false);
   }
+
+  useEffect(() => {
+    const setArrowTopVar = () => {
+      const el = cardWrapRef.current;
+      if (!el) return;
+
+      const rect = el.getBoundingClientRect();
+      const centerY = rect.top + rect.height / 2;
+
+      // Clamp a little so it never goes totally off-screen
+      const clamped = Math.max(80, Math.min(window.innerHeight - 80, centerY));
+
+      document.documentElement.style.setProperty("--dux-arrow-top", `${clamped}px`);
+    };
+
+    const schedule = () => {
+      if (rafRef.current != null) return;
+      rafRef.current = window.requestAnimationFrame(() => {
+        rafRef.current = null;
+        setArrowTopVar();
+      });
+    };
+
+    // Initial positioning
+    setArrowTopVar();
+
+    // Update on scroll/resize without rerendering the page
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+
+    // Update if the card size changes (e.g., text wraps differently on mobile)
+    let ro: ResizeObserver | null = null;
+    if (cardWrapRef.current && "ResizeObserver" in window) {
+      ro = new ResizeObserver(() => schedule());
+      ro.observe(cardWrapRef.current);
+    }
+
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (ro) ro.disconnect();
+      if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   return (
     <main
@@ -228,24 +273,60 @@ export default function AlleysPage() {
             </div>
           </section>
 
-          {/* Game modes carousel */}
+          {/* Sliding cards: Game Modes (no flip) */}
           <section style={{ marginTop: "1.5rem" }}>
             <h2 style={{ margin: "0 0 .5rem", color: TEXT, fontSize: "1.35rem" }}>
               Expanded Game Options
             </h2>
-            <p style={{ margin: "0 0 1rem", color: MUTED, lineHeight: 1.7, maxWidth: 860 }}>
-              Tap the card to flip it. If text is long, scroll inside the card.
-            </p>
 
-            {/* Card + arrows area */}
-            <div
-              style={{
-                position: "relative",
-                maxWidth: 920,
-                margin: "0 auto"
-              }}
-            >
-              {/* Arrows: fixed left/right, always vertically centered (no lag) */}
+            <div style={{ position: "relative", marginTop: "1rem" }}>
+              {/* Card */}
+              <div
+                ref={cardWrapRef}
+                style={{
+                  width: "min(560px, 92vw)",
+                  height: 340,
+                  margin: "0 auto",
+                  background: "rgba(26,26,26,0.9)",
+                  borderRadius: 18,
+                  padding: "1.25rem",
+                  boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: ".55rem",
+                  overflow: "hidden"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: ".75rem" }}>
+                  <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.15rem" }}>
+                    {mode.title}
+                  </div>
+                  <div style={{ fontSize: ".9rem", color: "rgba(242,242,242,0.65)", fontWeight: 800 }}>
+                    {index + 1} / {GAME_MODES.length}
+                  </div>
+                </div>
+
+                <div style={{ color: MUTED, fontWeight: 700 }}>{mode.subtitle}</div>
+
+                {/* Scrollable description area (works on mobile) */}
+                <div
+                  style={{
+                    color: MUTED,
+                    lineHeight: 1.65,
+                    overflowY: "auto",
+                    WebkitOverflowScrolling: "touch",
+                    paddingRight: ".25rem",
+                    borderRadius: 12,
+                    flex: 1,
+                    minHeight: 0 // critical so overflow works inside a flex column
+                  }}
+                >
+                  {mode.description}
+                </div>
+              </div>
+
+              {/* Fixed arrows centered to CARD center (no React rerenders on scroll) */}
               <button
                 onClick={prev}
                 disabled={isFirst}
@@ -253,7 +334,7 @@ export default function AlleysPage() {
                 style={{
                   position: "fixed",
                   left: 12,
-                  top: "50%",
+                  top: "var(--dux-arrow-top, 50%)",
                   transform: "translateY(-50%)",
                   width: 48,
                   height: 48,
@@ -278,7 +359,7 @@ export default function AlleysPage() {
                 style={{
                   position: "fixed",
                   right: 12,
-                  top: "50%",
+                  top: "var(--dux-arrow-top, 50%)",
                   transform: "translateY(-50%)",
                   width: 48,
                   height: 48,
@@ -295,123 +376,6 @@ export default function AlleysPage() {
               >
                 ›
               </button>
-
-              {/* Card */}
-              <div
-                onClick={() => setFlipped((f) => !f)}
-                style={{
-                  width: "min(560px, 92vw)",
-                  height: 320,
-                  margin: "0 auto",
-                  perspective: 1100,
-                  cursor: "pointer"
-                }}
-              >
-                <div
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    height: "100%",
-                    transformStyle: "preserve-3d",
-                    transition: "transform 0.6s",
-                    transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
-                  }}
-                >
-                  {/* FRONT */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background: "rgba(26,26,26,0.9)",
-                      borderRadius: 18,
-                      padding: "1.25rem",
-                      backfaceVisibility: "hidden",
-                      boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      display: "grid",
-                      gridTemplateRows: "auto auto 1fr auto",
-                      gap: ".55rem",
-                      overflow: "hidden"
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: ".75rem"
-                      }}
-                    >
-                      <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.15rem" }}>
-                        {mode.title}
-                      </div>
-                      <div style={{ fontSize: ".9rem", color: "rgba(242,242,242,0.65)", fontWeight: 800 }}>
-                        {index + 1} / {GAME_MODES.length}
-                      </div>
-                    </div>
-
-                    <div style={{ color: MUTED, fontWeight: 700 }}>{mode.subtitle}</div>
-
-                    {/* Scrollable body */}
-                    <div
-                      onClick={(e) => e.stopPropagation()} // allows scrolling inside without flipping
-                      style={{
-                        color: MUTED,
-                        lineHeight: 1.65,
-                        overflowY: "auto",
-                        WebkitOverflowScrolling: "touch",
-                        paddingRight: ".25rem",
-                        borderRadius: 12
-                      }}
-                    >
-                      {mode.description}
-                    </div>
-
-                    <div style={{ color: "rgba(242,242,242,0.65)", fontSize: ".92rem" }}>
-                      Tap outside the text area to flip
-                    </div>
-                  </div>
-
-                  {/* BACK */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background: ORANGE,
-                      color: "#fff",
-                      borderRadius: 18,
-                      padding: "1.25rem",
-                      backfaceVisibility: "hidden",
-                      transform: "rotateY(180deg)",
-                      boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
-                      display: "grid",
-                      placeItems: "center",
-                      textAlign: "center"
-                    }}
-                  >
-                    <div style={{ maxWidth: 520 }}>
-                      <div style={{ fontWeight: 900, fontSize: "1.25rem" }}>
-                        More information on the way
-                      </div>
-                      <div style={{ marginTop: ".5rem", opacity: 0.9, lineHeight: 1.6 }}>
-                        We’ll share rulesets, formats, and operator controls as demos go live.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Small hint */}
-              <div
-                style={{
-                  marginTop: ".85rem",
-                  textAlign: "center",
-                  color: "rgba(242,242,242,0.65)",
-                  fontSize: ".92rem"
-                }}
-              >
-                Tip: Scroll inside the card to read longer modes.
-              </div>
             </div>
           </section>
 
