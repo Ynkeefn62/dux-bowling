@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 type Mode = {
   title: string;
@@ -9,7 +9,6 @@ type Mode = {
 };
 
 const BG = "#121212"; // near-black
-const PANEL = "#1a1a1a";
 const TEXT = "#f2f2f2";
 const MUTED = "rgba(242,242,242,0.78)";
 const ORANGE = "#e46a2e";
@@ -49,16 +48,13 @@ const GAME_MODES: Mode[] = [
 ];
 
 export default function AlleysPage() {
-  // Carousel index + flip
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
   const isFirst = index === 0;
   const isLast = index === GAME_MODES.length - 1;
 
-  // Dynamic arrow vertical positioning (match your homepage pattern)
-  const cardWrapRef = useRef<HTMLDivElement | null>(null);
-  const [arrowTop, setArrowTop] = useState<number | null>(null);
+  const mode = useMemo(() => GAME_MODES[index], [index]);
 
   function prev() {
     if (isFirst) return;
@@ -71,27 +67,6 @@ export default function AlleysPage() {
     setIndex((i) => i + 1);
     setFlipped(false);
   }
-
-  useEffect(() => {
-    const update = () => {
-      if (!cardWrapRef.current) return;
-      const rect = cardWrapRef.current.getBoundingClientRect();
-      setArrowTop(rect.top + rect.height / 2);
-    };
-
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-
-    const t = window.setTimeout(update, 50);
-    return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      window.clearTimeout(t);
-    };
-  }, [index, flipped]);
-
-  const mode = useMemo(() => GAME_MODES[index], [index]);
 
   return (
     <main
@@ -192,14 +167,13 @@ export default function AlleysPage() {
             </p>
           </div>
 
-          {/* Offerings (kept from earlier page, updated theme) */}
+          {/* Offerings */}
           <section style={{ marginTop: "1.5rem" }}>
             <h2 style={{ margin: "0 0 .75rem", color: TEXT, fontSize: "1.35rem" }}>
               What we plan to provide
             </h2>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "1rem" }}>
-              {/* Mother Dux Pinsetter */}
               <div
                 style={{
                   gridColumn: "span 12",
@@ -222,7 +196,6 @@ export default function AlleysPage() {
                 </p>
               </div>
 
-              {/* All In One App */}
               <div
                 style={{
                   gridColumn: "span 12",
@@ -255,172 +228,191 @@ export default function AlleysPage() {
             </div>
           </section>
 
-          {/* Sliding cards: Game Modes */}
+          {/* Game modes carousel */}
           <section style={{ marginTop: "1.5rem" }}>
             <h2 style={{ margin: "0 0 .5rem", color: TEXT, fontSize: "1.35rem" }}>
               Expanded Game Options
             </h2>
             <p style={{ margin: "0 0 1rem", color: MUTED, lineHeight: 1.7, maxWidth: 860 }}>
-              Swipe through modes to see what we’re building. Tap the card to flip it.
+              Tap the card to flip it. If text is long, scroll inside the card.
             </p>
 
-            {/* Center row */}
-            <div style={{ display: "flex", justifyContent: "center" }}>
-              <div ref={cardWrapRef} style={{ position: "relative" }}>
+            {/* Card + arrows area */}
+            <div
+              style={{
+                position: "relative",
+                maxWidth: 920,
+                margin: "0 auto"
+              }}
+            >
+              {/* Arrows: fixed left/right, always vertically centered (no lag) */}
+              <button
+                onClick={prev}
+                disabled={isFirst}
+                aria-label="Previous mode"
+                style={{
+                  position: "fixed",
+                  left: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: ORANGE,
+                  color: "#fff",
+                  fontSize: "1.5rem",
+                  opacity: isFirst ? 0.5 : 1,
+                  cursor: isFirst ? "default" : "pointer",
+                  zIndex: 50,
+                  boxShadow: "0 16px 34px rgba(0,0,0,0.55)"
+                }}
+              >
+                ‹
+              </button>
+
+              <button
+                onClick={next}
+                disabled={isLast}
+                aria-label="Next mode"
+                style={{
+                  position: "fixed",
+                  right: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: ORANGE,
+                  color: "#fff",
+                  fontSize: "1.5rem",
+                  opacity: isLast ? 0.5 : 1,
+                  cursor: isLast ? "default" : "pointer",
+                  zIndex: 50,
+                  boxShadow: "0 16px 34px rgba(0,0,0,0.55)"
+                }}
+              >
+                ›
+              </button>
+
+              {/* Card */}
+              <div
+                onClick={() => setFlipped((f) => !f)}
+                style={{
+                  width: "min(560px, 92vw)",
+                  height: 320,
+                  margin: "0 auto",
+                  perspective: 1100,
+                  cursor: "pointer"
+                }}
+              >
                 <div
-                  onClick={() => setFlipped((f) => !f)}
                   style={{
-                    width: "min(560px, 92vw)",
-                    height: 300,
-                    perspective: 1100,
-                    cursor: "pointer"
+                    position: "relative",
+                    width: "100%",
+                    height: "100%",
+                    transformStyle: "preserve-3d",
+                    transition: "transform 0.6s",
+                    transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
                   }}
                 >
+                  {/* FRONT */}
                   <div
                     style={{
-                      position: "relative",
-                      width: "100%",
-                      height: "100%",
-                      transformStyle: "preserve-3d",
-                      transition: "transform 0.6s",
-                      transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
+                      position: "absolute",
+                      inset: 0,
+                      background: "rgba(26,26,26,0.9)",
+                      borderRadius: 18,
+                      padding: "1.25rem",
+                      backfaceVisibility: "hidden",
+                      boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      display: "grid",
+                      gridTemplateRows: "auto auto 1fr auto",
+                      gap: ".55rem",
+                      overflow: "hidden"
                     }}
                   >
-                    {/* FRONT */}
                     <div
                       style={{
-                        position: "absolute",
-                        inset: 0,
-                        background: "rgba(26,26,26,0.9)",
-                        borderRadius: 18,
-                        padding: "1.25rem",
-                        backfaceVisibility: "hidden",
-                        boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        display: "grid",
-                        gridTemplateRows: "auto auto 1fr auto",
-                        gap: ".55rem"
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: ".75rem"
                       }}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: ".75rem"
-                        }}
-                      >
-                        <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.15rem" }}>
-                          {mode.title}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: ".9rem",
-                            color: "rgba(242,242,242,0.65)",
-                            fontWeight: 800
-                          }}
-                        >
-                          {index + 1} / {GAME_MODES.length}
-                        </div>
+                      <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.15rem" }}>
+                        {mode.title}
                       </div>
-
-                      <div style={{ color: MUTED, fontWeight: 700 }}>{mode.subtitle}</div>
-
-                      <div
-                        style={{
-                          color: MUTED,
-                          lineHeight: 1.65,
-                          overflow: "auto",
-                          paddingRight: ".25rem"
-                        }}
-                      >
-                        {mode.description}
-                      </div>
-
-                      <div style={{ color: "rgba(242,242,242,0.65)", fontSize: ".92rem" }}>
-                        Tap to flip for “More information on the way”
+                      <div style={{ fontSize: ".9rem", color: "rgba(242,242,242,0.65)", fontWeight: 800 }}>
+                        {index + 1} / {GAME_MODES.length}
                       </div>
                     </div>
 
-                    {/* BACK */}
+                    <div style={{ color: MUTED, fontWeight: 700 }}>{mode.subtitle}</div>
+
+                    {/* Scrollable body */}
                     <div
+                      onClick={(e) => e.stopPropagation()} // allows scrolling inside without flipping
                       style={{
-                        position: "absolute",
-                        inset: 0,
-                        background: ORANGE,
-                        color: "#fff",
-                        borderRadius: 18,
-                        padding: "1.25rem",
-                        backfaceVisibility: "hidden",
-                        transform: "rotateY(180deg)",
-                        boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
-                        display: "grid",
-                        placeItems: "center",
-                        textAlign: "center"
+                        color: MUTED,
+                        lineHeight: 1.65,
+                        overflowY: "auto",
+                        WebkitOverflowScrolling: "touch",
+                        paddingRight: ".25rem",
+                        borderRadius: 12
                       }}
                     >
-                      <div>
-                        <div style={{ fontWeight: 900, fontSize: "1.25rem" }}>More information on the way</div>
-                        <div style={{ marginTop: ".5rem", opacity: 0.9 }}>
-                          We’ll share rulesets, formats, and operator controls as demos go live.
-                        </div>
+                      {mode.description}
+                    </div>
+
+                    <div style={{ color: "rgba(242,242,242,0.65)", fontSize: ".92rem" }}>
+                      Tap outside the text area to flip
+                    </div>
+                  </div>
+
+                  {/* BACK */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: ORANGE,
+                      color: "#fff",
+                      borderRadius: 18,
+                      padding: "1.25rem",
+                      backfaceVisibility: "hidden",
+                      transform: "rotateY(180deg)",
+                      boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
+                      display: "grid",
+                      placeItems: "center",
+                      textAlign: "center"
+                    }}
+                  >
+                    <div style={{ maxWidth: 520 }}>
+                      <div style={{ fontWeight: 900, fontSize: "1.25rem" }}>
+                        More information on the way
+                      </div>
+                      <div style={{ marginTop: ".5rem", opacity: 0.9, lineHeight: 1.6 }}>
+                        We’ll share rulesets, formats, and operator controls as demos go live.
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Small hint */}
+              <div
+                style={{
+                  marginTop: ".85rem",
+                  textAlign: "center",
+                  color: "rgba(242,242,242,0.65)",
+                  fontSize: ".92rem"
+                }}
+              >
+                Tip: Scroll inside the card to read longer modes.
+              </div>
             </div>
-
-            {/* Fixed arrows aligned to card center */}
-            <button
-              onClick={prev}
-              disabled={isFirst}
-              aria-label="Previous mode"
-              style={{
-                position: "fixed",
-                left: 12,
-                top: arrowTop ?? "50%",
-                transform: "translateY(-50%)",
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                border: "none",
-                background: ORANGE,
-                color: "#fff",
-                fontSize: "1.5rem",
-                opacity: isFirst ? 0.5 : 1,
-                cursor: isFirst ? "default" : "pointer",
-                zIndex: 50,
-                boxShadow: "0 16px 34px rgba(0,0,0,0.55)"
-              }}
-            >
-              ‹
-            </button>
-
-            <button
-              onClick={next}
-              disabled={isLast}
-              aria-label="Next mode"
-              style={{
-                position: "fixed",
-                right: 12,
-                top: arrowTop ?? "50%",
-                transform: "translateY(-50%)",
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                border: "none",
-                background: ORANGE,
-                color: "#fff",
-                fontSize: "1.5rem",
-                opacity: isLast ? 0.5 : 1,
-                cursor: isLast ? "default" : "pointer",
-                zIndex: 50,
-                boxShadow: "0 16px 34px rgba(0,0,0,0.55)"
-              }}
-            >
-              ›
-            </button>
           </section>
 
           {/* Bottom CTA */}
