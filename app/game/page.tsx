@@ -2,16 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type ChopSplit = "Chop" | "Split" | null;
+type Mark = "C" | "S" | null;
 
 type FrameState = {
   lane: number | null;
   r1: number | null;
   r2: number | null;
   r3: number | null;
-  r1_cs: ChopSplit;
-  r2_cs: ChopSplit;
-  r3_cs: ChopSplit;
+  m1: Mark; // chop/split marker for roll1
+  m2: Mark; // roll2
+  m3: Mark; // roll3
 };
 
 const ORANGE = "#e46a2e";
@@ -22,38 +22,27 @@ const TEXT = "#f2f2f2";
 const MUTED = "rgba(242,242,242,0.75)";
 
 const LOCATIONS = ["Walkersville Bowling Center", "Mount Airy Bowling Lanes"] as const;
-const EVENT_TYPES = ["Scrimmage", "League", "Tournament"] as const;
-
-// In dev schema you seeded "Traditional Duckpin"
-const DEV_GAME_TYPE_NAME = "Traditional Duckpin";
+const GAME_TYPES = ["Scrimmage", "League", "Tournament"] as const;
 
 function isBrowser() {
-  return typeof document !== "undefined";
+  return typeof window !== "undefined" && typeof document !== "undefined";
 }
 
 function setCookie(name: string, value: string, days = 30) {
   if (!isBrowser()) return;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(
-    value
-  )}; expires=${expires}; path=/; SameSite=Lax`;
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
 }
-
 function getCookie(name: string) {
   if (!isBrowser()) return null;
   const key = encodeURIComponent(name) + "=";
   const parts = document.cookie.split(";").map((s) => s.trim());
-  for (const p of parts) {
-    if (p.startsWith(key)) return decodeURIComponent(p.slice(key.length));
-  }
+  for (const p of parts) if (p.startsWith(key)) return decodeURIComponent(p.slice(key.length));
   return null;
 }
-
 function deleteCookie(name: string) {
   if (!isBrowser()) return;
-  document.cookie = `${encodeURIComponent(
-    name
-  )}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+  document.cookie = `${encodeURIComponent(name)}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
 }
 
 function todayISO() {
@@ -64,27 +53,49 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function emptyFrames(): FrameState[] {
-  return Array.from({ length: 10 }, () => ({
-    lane: null,
-    r1: null,
-    r2: null,
-    r3: null,
-    r1_cs: null,
-    r2_cs: null,
-    r3_cs: null
-  }));
+function range(min: number, max: number) {
+  const out: number[] = [];
+  for (let i = min; i <= max; i++) out.push(i);
+  return out;
 }
 
-function csKey(frameNum: number, roll: 1 | 2 | 3) {
-  return `frame${frameNum}_roll_${roll}_chop_split`;
+function readMarkCookie(raw: string | null): Mark {
+  if (raw === "C") return "C";
+  if (raw === "S") return "S";
+  return null;
+}
+
+function initFramesFromCookiesClient(): FrameState[] {
+  const frames: FrameState[] = [];
+  for (let f = 1; f <= 10; f++) {
+    const lane = getCookie(`frame${f}_lane`);
+    const r1 = getCookie(`frame${f}_roll1`);
+    const r2 = getCookie(`frame${f}_roll2`);
+    const r3 = getCookie(`frame${f}_roll3`);
+
+    const m1 = readMarkCookie(getCookie(`frame${f}_roll1_mark`));
+    const m2 = readMarkCookie(getCookie(`frame${f}_roll2_mark`));
+    const m3 = readMarkCookie(getCookie(`frame${f}_roll3_mark`));
+
+    frames.push({
+      lane: lane ? Number(lane) : null,
+      r1: r1 !== null ? Number(r1) : null,
+      r2: r2 !== null ? Number(r2) : null,
+      r3: r3 !== null ? Number(r3) : null,
+      m1,
+      m2,
+      m3
+    });
+  }
+  return frames;
 }
 
 function clearAllGameCookies() {
   deleteCookie("game_id");
+  deleteCookie("dev_game_id");
   deleteCookie("game_date");
   deleteCookie("game_location");
-  deleteCookie("game_event_type");
+  deleteCookie("game_type");
   deleteCookie("game_number");
 
   for (let f = 1; f <= 10; f++) {
@@ -92,10 +103,9 @@ function clearAllGameCookies() {
     deleteCookie(`frame${f}_roll1`);
     deleteCookie(`frame${f}_roll2`);
     deleteCookie(`frame${f}_roll3`);
-
-    deleteCookie(csKey(f, 1));
-    deleteCookie(csKey(f, 2));
-    deleteCookie(csKey(f, 3));
+    deleteCookie(`frame${f}_roll1_mark`);
+    deleteCookie(`frame${f}_roll2_mark`);
+    deleteCookie(`frame${f}_roll3_mark`);
   }
 }
 
@@ -104,22 +114,23 @@ function resetFrameCookies(frameNumber: number) {
   deleteCookie(`frame${frameNumber}_roll1`);
   deleteCookie(`frame${frameNumber}_roll2`);
   deleteCookie(`frame${frameNumber}_roll3`);
-
-  deleteCookie(csKey(frameNumber, 1));
-  deleteCookie(csKey(frameNumber, 2));
-  deleteCookie(csKey(frameNumber, 3));
+  deleteCookie(`frame${frameNumber}_roll1_mark`);
+  deleteCookie(`frame${frameNumber}_roll2_mark`);
+  deleteCookie(`frame${frameNumber}_roll3_mark`);
 }
 
 function frameComplete(frame: FrameState, frameNumber: number) {
   const { r1, r2, r3 } = frame;
+
   if (frameNumber < 10) {
     if (r1 === null) return false;
     if (r1 === 10) return true; // strike ends frame (1–9)
     if (r2 === null) return false;
-    if (r1 + r2 === 10) return true; // spare in 2
+    if (r1 + r2 === 10) return true; // spare in 2 ends frame (1–9)
     return r3 !== null; // otherwise need 3rd roll
   }
-  // 10th frame always expects 3 rolls in your UI (as implemented previously)
+
+  // 10th frame: always 3 rolls in your tracker (no extra)
   return r1 !== null && r2 !== null && r3 !== null;
 }
 
@@ -134,13 +145,14 @@ function firstIncompleteFrame(frames: FrameState[]) {
  * Duckpin scoring per your rules:
  * - Strike bonus = next 2 rolls
  * - Spare bonus ONLY if 10 in 2 rolls (not if 10 in 3)
- * - 10th frame: no bonuses beyond frame, max 3 rolls
+ * - 10th frame: no bonuses beyond, max 3 rolls
  */
 function computeCumulative(frames: FrameState[]) {
   const cum: (number | null)[] = Array(10).fill(null);
 
-  // Build roll stream
   const rollStream: number[] = [];
+
+  // frames 1-9 build stream
   for (let i = 0; i < 9; i++) {
     const f = frames[i];
     if (f.r1 === null) break;
@@ -151,8 +163,8 @@ function computeCumulative(frames: FrameState[]) {
     }
 
     if (f.r2 === null) break;
-    const two = (f.r1 ?? 0) + (f.r2 ?? 0);
 
+    const two = (f.r1 ?? 0) + (f.r2 ?? 0);
     if (two === 10) {
       rollStream.push(f.r1, f.r2);
       continue;
@@ -162,7 +174,7 @@ function computeCumulative(frames: FrameState[]) {
     rollStream.push(f.r1, f.r2, f.r3);
   }
 
-  // 10th frame rolls always counted (no bonus)
+  // add 10th (no bonus beyond)
   const t = frames[9];
   if (t.r1 !== null && t.r2 !== null && t.r3 !== null) {
     rollStream.push(t.r1, t.r2, t.r3);
@@ -210,18 +222,14 @@ function computeCumulative(frames: FrameState[]) {
   return cum;
 }
 
-function isStrike(frame: FrameState) {
+function isStrike(frame: FrameState, frameNumber: number) {
+  // display strike if first roll is 10 (including 10th frame)
   return frame.r1 === 10;
 }
-function isSpareInTwo(frame: FrameState) {
+
+function isSpareInTwo(frame: FrameState, frameNumber: number) {
   if (frame.r1 === null || frame.r2 === null) return false;
   return frame.r1 !== 10 && frame.r1 + frame.r2 === 10;
-}
-
-function range(min: number, max: number) {
-  const out: number[] = [];
-  for (let i = min; i <= max; i++) out.push(i);
-  return out;
 }
 
 // 10th frame dropdown options per your rules
@@ -230,164 +238,164 @@ function optionsForRoll10th(r1: number | null, r2: number | null, roll: 1 | 2 | 
   if (r1 === null) return [];
 
   if (roll === 2) {
-    if (r1 === 10) return range(0, 10); // reset pins
-    return range(0, Math.max(0, 10 - r1));
+    if (r1 === 10) return range(0, 10); // reset rack after strike
+    return range(0, Math.max(0, 10 - r1)); // remaining
   }
 
+  // roll 3
   if (r2 === null) return [];
 
   if (r1 === 10) {
+    // second was on a full rack
     if (r2 === 10) return range(0, 10); // reset again
-    return range(0, Math.max(0, 10 - r2));
+    return range(0, Math.max(0, 10 - r2)); // remaining from second rack
   }
 
-  const remainingAfter2 = Math.max(0, 10 - r1 - r2);
+  // first not strike
+  if (r1 + r2 === 10) {
+    // spare-in-2 => reset rack for third
+    return range(0, 10);
+  }
 
-  if (r1 + r2 === 10) return range(0, 10); // spare-in-2 resets
-  return range(0, remainingAfter2); // otherwise remaining pins only
+  // otherwise only remaining pins
+  return range(0, Math.max(0, 10 - r1 - r2));
 }
 
-// frames 1-9
+// frames 1-9 options
 function optionsForRollStandard(r1: number | null, r2: number | null, roll: 1 | 2 | 3) {
   if (roll === 1) return range(0, 10);
   if (r1 === null) return [];
   if (roll === 2) {
-    if (r1 === 10) return []; // strike ends
+    if (r1 === 10) return [];
     return range(0, Math.max(0, 10 - r1));
   }
   if (r2 === null) return [];
   if (r1 === 10) return [];
-  if (r1 + r2 === 10) return []; // spare-in-2 ends
+  if (r1 + r2 === 10) return [];
   return range(0, Math.max(0, 10 - r1 - r2));
 }
 
+async function getMeUserId(): Promise<string | null> {
+  try {
+    const r = await fetch("/api/auth/me", { cache: "no-store" });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function GamePage() {
+  // delay cookie reads to client mount to avoid SSR “document is not defined”
   const [mounted, setMounted] = useState(false);
 
-  // auth state (from your server auth)
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [me, setMe] = useState<{ id: string; email?: string | null; firstName?: string | null; lastName?: string | null; username?: string | null } | null>(null);
-
+  // meta
   const [gameId, setGameId] = useState<string>("");
   const [gameDate, setGameDate] = useState<string>(todayISO());
-  const [location, setLocation] = useState<string>(LOCATIONS[0]);
-  const [eventType, setEventType] = useState<(typeof EVENT_TYPES)[number]>(EVENT_TYPES[0]);
+  const [location, setLocation] = useState<(typeof LOCATIONS)[number]>(LOCATIONS[0]);
+  const [gameType, setGameType] = useState<(typeof GAME_TYPES)[number]>(GAME_TYPES[0]);
   const [gameNumber, setGameNumber] = useState<number>(1);
 
-  const [frames, setFrames] = useState<FrameState[]>(() => emptyFrames());
+  // dev game id (used for syncing dev tables)
+  const [devGameId, setDevGameId] = useState<string>("");
+
+  // frames
+  const [frames, setFrames] = useState<FrameState[]>(
+    Array.from({ length: 10 }, () => ({
+      lane: null,
+      r1: null,
+      r2: null,
+      r3: null,
+      m1: null,
+      m2: null,
+      m3: null
+    }))
+  );
+
+  // carousel state
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
+  // arrows
   const cardRef = useRef<HTMLDivElement | null>(null);
-  const [arrowTop, setArrowTop] = useState<number>(200);
+  const [arrowTop, setArrowTop] = useState<number>(280);
 
-  // Load auth status
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/auth/me", { cache: "no-store" });
-        if (!res.ok) {
-          setLoggedIn(false);
-          setMe(null);
-          return;
-        }
-        const data = await res.json();
-        if (data?.user?.id) {
-          setLoggedIn(true);
-          setMe({
-            id: data.user.id,
-            email: data.user.email ?? null,
-            firstName: data.user.user_metadata?.first_name ?? null,
-            lastName: data.user.user_metadata?.last_name ?? null,
-            username: data.user.user_metadata?.username ?? null
-          });
-        } else {
-          setLoggedIn(false);
-          setMe(null);
-        }
-      } catch {
-        setLoggedIn(false);
-        setMe(null);
-      }
-    })();
-  }, []);
-
-  // Load cookies on mount
   useEffect(() => {
     setMounted(true);
 
-    const existingId = getCookie("game_id");
-    const id = existingId || (typeof crypto !== "undefined" ? crypto.randomUUID() : String(Date.now()));
-    setCookie("game_id", id);
+    // game id cookie
+    const existing = getCookie("game_id");
+    let id = existing ?? "";
+    if (!id) {
+      // crypto is only in browser
+      id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).toString();
+      setCookie("game_id", id);
+    }
     setGameId(id);
 
-    const gd = getCookie("game_date") ?? todayISO();
-    const gl = getCookie("game_location") ?? LOCATIONS[0];
-    const et = (getCookie("game_event_type") as any) ?? EVENT_TYPES[0];
-    const gn = Number(getCookie("game_number") ?? "1");
+    // dev game id cookie (created elsewhere in your flow; if missing we’ll just skip syncing)
+    const dev = getCookie("dev_game_id") ?? "";
+    setDevGameId(dev);
 
-    setGameDate(gd);
-    setLocation(gl);
-    setEventType(EVENT_TYPES.includes(et) ? et : EVENT_TYPES[0]);
-    setGameNumber(gn);
+    // meta cookies
+    setGameDate(getCookie("game_date") ?? todayISO());
+    setLocation(((getCookie("game_location") as any) ?? LOCATIONS[0]) as any);
+    setGameType(((getCookie("game_type") as any) ?? GAME_TYPES[0]) as any);
+    setGameNumber(Number(getCookie("game_number") ?? "1"));
 
-    const loaded = emptyFrames();
-    for (let f = 1; f <= 10; f++) {
-      const lane = getCookie(`frame${f}_lane`);
-      const r1 = getCookie(`frame${f}_roll1`);
-      const r2 = getCookie(`frame${f}_roll2`);
-      const r3 = getCookie(`frame${f}_roll3`);
+    // frames cookies
+    const fr = initFramesFromCookiesClient();
+    setFrames(fr);
 
-      const r1cs = getCookie(csKey(f, 1));
-      const r2cs = getCookie(csKey(f, 2));
-      const r3cs = getCookie(csKey(f, 3));
-
-      loaded[f - 1] = {
-        lane: lane ? Number(lane) : null,
-        r1: r1 !== null ? Number(r1) : null,
-        r2: r2 !== null ? Number(r2) : null,
-        r3: r3 !== null ? Number(r3) : null,
-        r1_cs: r1cs === "Chop" || r1cs === "Split" ? (r1cs as ChopSplit) : null,
-        r2_cs: r2cs === "Chop" || r2cs === "Split" ? (r2cs as ChopSplit) : null,
-        r3_cs: r3cs === "Chop" || r3cs === "Split" ? (r3cs as ChopSplit) : null
-      };
-    }
-
-    setFrames(loaded);
-    setIndex(firstIncompleteFrame(loaded));
+    const fi = firstIncompleteFrame(fr);
+    setIndex(fi);
   }, []);
 
-  // Persist meta cookies
+  // persist meta cookies
   useEffect(() => {
     if (!mounted) return;
     setCookie("game_date", gameDate);
     setCookie("game_location", location);
-    setCookie("game_event_type", eventType);
+    setCookie("game_type", gameType);
     setCookie("game_number", String(gameNumber));
-  }, [mounted, gameDate, location, eventType, gameNumber]);
+  }, [mounted, gameDate, location, gameType, gameNumber]);
 
-  // Arrow alignment
+  // center arrows on card without lag (RAF-throttled)
   useEffect(() => {
     if (!mounted) return;
 
+    let raf = 0;
     const update = () => {
+      raf = 0;
       const el = cardRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setArrowTop(Math.max(80, r.top + r.height / 2));
+      const y = r.top + r.height / 2;
+      setArrowTop(Math.max(90, Math.min(window.innerHeight - 90, y)));
     };
 
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    const t = window.setTimeout(update, 30);
+    const schedule = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(update);
+    };
+
+    // initial update (even before you scroll)
+    schedule();
+
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+
+    const ro = new ResizeObserver(schedule);
+    if (cardRef.current) ro.observe(cardRef.current);
 
     return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      window.clearTimeout(t);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (raf) window.cancelAnimationFrame(raf);
+      ro.disconnect();
     };
-  }, [mounted]);
+  }, [mounted, index]);
 
   const cumulative = useMemo(() => computeCumulative(frames), [frames]);
 
@@ -398,7 +406,6 @@ export default function GamePage() {
   const isLast = index === 9;
 
   const currentAllowedIndex = firstIncompleteFrame(frames);
-  const canEditThisFrame = index <= currentAllowedIndex;
   const isFutureFrame = index > currentAllowedIndex;
 
   function goPrev() {
@@ -406,7 +413,6 @@ export default function GamePage() {
     setFlipped(false);
     setIndex((i) => Math.max(0, i - 1));
   }
-
   function goNext() {
     if (isLast) return;
     setFlipped(false);
@@ -420,15 +426,13 @@ export default function GamePage() {
       return copy;
     });
 
-    if (!mounted) return;
-
+    // cookies
     const fnum = frameIdx + 1;
 
     if (patch.lane !== undefined) {
       if (patch.lane === null) deleteCookie(`frame${fnum}_lane`);
       else setCookie(`frame${fnum}_lane`, String(patch.lane));
     }
-
     if (patch.r1 !== undefined) {
       if (patch.r1 === null) deleteCookie(`frame${fnum}_roll1`);
       else setCookie(`frame${fnum}_roll1`, String(patch.r1));
@@ -442,31 +446,18 @@ export default function GamePage() {
       else setCookie(`frame${fnum}_roll3`, String(patch.r3));
     }
 
-    if (patch.r1_cs !== undefined) {
-      if (patch.r1_cs === null) deleteCookie(csKey(fnum, 1));
-      else setCookie(csKey(fnum, 1), patch.r1_cs);
+    if (patch.m1 !== undefined) {
+      if (patch.m1 === null) deleteCookie(`frame${fnum}_roll1_mark`);
+      else setCookie(`frame${fnum}_roll1_mark`, patch.m1);
     }
-    if (patch.r2_cs !== undefined) {
-      if (patch.r2_cs === null) deleteCookie(csKey(fnum, 2));
-      else setCookie(csKey(fnum, 2), patch.r2_cs);
+    if (patch.m2 !== undefined) {
+      if (patch.m2 === null) deleteCookie(`frame${fnum}_roll2_mark`);
+      else setCookie(`frame${fnum}_roll2_mark`, patch.m2);
     }
-    if (patch.r3_cs !== undefined) {
-      if (patch.r3_cs === null) deleteCookie(csKey(fnum, 3));
-      else setCookie(csKey(fnum, 3), patch.r3_cs);
+    if (patch.m3 !== undefined) {
+      if (patch.m3 === null) deleteCookie(`frame${fnum}_roll3_mark`);
+      else setCookie(`frame${fnum}_roll3_mark`, patch.m3);
     }
-  }
-
-  function startEditFrame() {
-    resetFrameCookies(currentFrameNumber);
-    setFrameValue(index, {
-      lane: currentFrame.lane ?? null,
-      r1: null,
-      r2: null,
-      r3: null,
-      r1_cs: null,
-      r2_cs: null,
-      r3_cs: null
-    });
   }
 
   function rollOptions(roll: 1 | 2 | 3) {
@@ -476,7 +467,7 @@ export default function GamePage() {
   }
 
   function rollEnabled(roll: 1 | 2 | 3) {
-    if (!canEditThisFrame || isFutureFrame) return false;
+    if (isFutureFrame) return false;
 
     const { r1, r2 } = currentFrame;
 
@@ -488,11 +479,12 @@ export default function GamePage() {
       return true;
     }
 
+    // roll 3
     if (r1 === null || r2 === null) return false;
 
     if (currentFrameNumber < 10) {
       if (r1 === 10) return false;
-      if (r1 + r2 === 10) return false;
+      if (r1 + r2 === 10) return false; // spare-in-2 ends in frames 1-9
       return true;
     }
 
@@ -501,143 +493,156 @@ export default function GamePage() {
 
   function onRollChange(roll: 1 | 2 | 3, val: number | null) {
     if (roll === 1) {
-      setFrameValue(index, {
-        r1: val,
-        r2: null,
-        r3: null,
-        r1_cs: null,
-        r2_cs: null,
-        r3_cs: null
-      });
+      // changing roll1 resets roll2+roll3 and marks for those rolls
+      setFrameValue(index, { r1: val, r2: null, r3: null, m2: null, m3: null });
       return;
     }
     if (roll === 2) {
-      setFrameValue(index, { r2: val, r3: null, r2_cs: null, r3_cs: null });
+      // changing roll2 resets roll3 and mark3
+      setFrameValue(index, { r2: val, r3: null, m3: null });
       return;
     }
-    setFrameValue(index, { r3: val, r3_cs: null });
+    setFrameValue(index, { r3: val });
   }
 
-  function onChopSplitChange(roll: 1 | 2 | 3, val: ChopSplit) {
-    if (roll === 1) setFrameValue(index, { r1_cs: val });
-    if (roll === 2) setFrameValue(index, { r2_cs: val });
-    if (roll === 3) setFrameValue(index, { r3_cs: val });
+  function setMark(roll: 1 | 2 | 3, val: Mark) {
+    if (roll === 1) setFrameValue(index, { m1: val });
+    if (roll === 2) setFrameValue(index, { m2: val });
+    if (roll === 3) setFrameValue(index, { m3: val });
   }
 
-  async function syncFramesToDev(framesToSend: number[]) {
-    if (!loggedIn || !me?.id) return;
+  async function syncFrameToDevTables(frameIdx: number) {
+    // only if logged in + have dev_game_id cookie
+    const userId = await getMeUserId();
+    if (!userId) return;
 
-    const payloadFrames = framesToSend.map((fnum) => {
-      const f = frames[fnum - 1];
-      return {
-        frameNumber: fnum,
-        laneNumber: f.lane,
-        rolls: [
-          { rollNumber: 1 as const, pinsKnocked: f.r1, chopSplit: f.r1_cs },
-          { rollNumber: 2 as const, pinsKnocked: f.r2, chopSplit: f.r2_cs },
-          { rollNumber: 3 as const, pinsKnocked: f.r3, chopSplit: f.r3_cs }
-        ]
-      };
-    });
+    const dev = devGameId || getCookie("dev_game_id") || "";
+    if (!dev) {
+      // dev_game_id is created elsewhere in your flow; skipping if missing
+      return;
+    }
 
-    const res = await fetch("/api/dev/record-game", {
+    const fnum = frameIdx + 1;
+    const fr = frames[frameIdx];
+
+    await fetch("/api/dev/sync-frame", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        user: {
-          id: me.id,
-          email: me.email ?? null,
-          firstName: me.firstName ?? null,
-          lastName: me.lastName ?? null,
-          username: me.username ?? null
-        },
-        game: {
-          gameId,
-          playedAtISO: gameDate, // server coerces to timestamp
-          locationName: location,
-          eventTypeName: eventType,
-          gameTypeName: DEV_GAME_TYPE_NAME,
-          gameNumber
-        },
-        frames: payloadFrames
+        dev_game_id: dev,
+        frame_number: fnum,
+        lane: fr.lane ?? null,
+        r1: fr.r1 ?? null,
+        r2: fr.r2 ?? null,
+        r3: fr.r3 ?? null,
+        r1_mark: fr.m1 ?? null,
+        r2_mark: fr.m2 ?? null,
+        r3_mark: fr.m3 ?? null
       })
     });
-
-    if (!res.ok) {
-      // Keep UX simple; you can add toast later
-      console.error("Dev sync failed:", await res.text());
-    }
   }
 
-  async function submitFrame() {
-    // 1) Only flip back on confirm (your requested behavior)
+  async function resetThisFrame() {
+    // reset cookies + state fully for this frame so they must re-enter r1 -> r2 -> r3
+    resetFrameCookies(currentFrameNumber);
+    setFrameValue(index, { lane: null, r1: null, r2: null, r3: null, m1: null, m2: null, m3: null });
+
+    // delete old dev rows for this frame (sync-frame deletes then reinserts nothing)
+    const userId = await getMeUserId();
+    if (!userId) return;
+
+    const dev = devGameId || getCookie("dev_game_id") || "";
+    if (!dev) return;
+
+    await fetch("/api/dev/sync-frame", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dev_game_id: dev,
+        frame_number: currentFrameNumber,
+        lane: null,
+        r1: null,
+        r2: null,
+        r3: null,
+        r1_mark: null,
+        r2_mark: null,
+        r3_mark: null
+      })
+    });
+  }
+
+  async function confirmFrame() {
+    if (!frameComplete(currentFrame, currentFrameNumber) || isFutureFrame) return;
+
+    // sync to dev tables (also deletes stale rows for that frame)
+    await syncFrameToDevTables(index);
+
+    // flip back ONLY on confirm
     setFlipped(false);
 
-    // 2) Sync this frame to dev tables (only if logged in)
-    await syncFramesToDev([currentFrameNumber]);
-
-    // 3) Advance to next frame if appropriate
+    // advance if it was the current incomplete frame
     const nowAllowed = firstIncompleteFrame(frames);
-    if (index === nowAllowed && frameComplete(frames[index], currentFrameNumber) && index < 9) {
-      setIndex(index + 1);
-    }
+    if (index === nowAllowed && index < 9) setIndex(index + 1);
   }
 
   const allComplete = useMemo(() => {
-    for (let i = 0; i < 10; i++) {
-      if (!frameComplete(frames[i], i + 1)) return false;
-    }
+    for (let i = 0; i < 10; i++) if (!frameComplete(frames[i], i + 1)) return false;
     return true;
   }, [frames]);
 
   function newGame() {
     clearAllGameCookies();
 
-    const id = typeof crypto !== "undefined" ? crypto.randomUUID() : String(Date.now());
+    const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).toString();
     setCookie("game_id", id);
     setGameId(id);
 
+    setDevGameId(""); // dev_game_id will be created by your login/dev flow later
     setGameDate(todayISO());
     setLocation(LOCATIONS[0]);
-    setEventType(EVENT_TYPES[0]);
+    setGameType(GAME_TYPES[0]);
     setGameNumber(1);
 
-    setFrames(emptyFrames());
+    const empty: FrameState[] = Array.from({ length: 10 }, () => ({
+      lane: null,
+      r1: null,
+      r2: null,
+      r3: null,
+      m1: null,
+      m2: null,
+      m3: null
+    }));
+    setFrames(empty);
     setIndex(0);
     setFlipped(false);
   }
 
-  async function submitScore() {
+  function submitScore() {
     if (!allComplete) return;
-
-    // final sync of everything (only if logged in)
-    await syncFramesToDev([1,2,3,4,5,6,7,8,9,10]);
-
+    // For now, just clear cookies and reset
     clearAllGameCookies();
     alert("Score submitted!");
     newGame();
   }
 
-  // Front display
-  const strike = isStrike(currentFrame);
-  const spare2 = isSpareInTwo(currentFrame);
+  // display helpers
+  const strike = isStrike(currentFrame, currentFrameNumber);
+  const spare2 = isSpareInTwo(currentFrame, currentFrameNumber);
   const cumScore = cumulative[index];
 
   const r1Text = strike ? "X" : currentFrame.r1 !== null ? String(currentFrame.r1) : "";
   const r2Text = spare2 ? "/" : currentFrame.r2 !== null ? String(currentFrame.r2) : "";
   const r3Text = currentFrame.r3 !== null ? String(currentFrame.r3) : "";
 
-  const badge = (v: ChopSplit) => (v === "Chop" ? "C" : v === "Split" ? "S" : "");
-  const r1Badge = badge(currentFrame.r1_cs);
-  const r2Badge = badge(currentFrame.r2_cs);
-  const r3Badge = badge(currentFrame.r3_cs);
+  const m1 = currentFrame.m1;
+  const m2 = currentFrame.m2;
+  const m3 = currentFrame.m3;
 
-  const cardWidth = "min(560px, 94vw)";
-
-  function openBackIfAllowed() {
-    if (isFutureFrame) return;
-    if (!canEditThisFrame) return;
-    setFlipped(true);
+  if (!mounted) {
+    // tiny guard to avoid hydration weirdness
+    return (
+      <main style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "Montserrat, system-ui" }} />
+    );
   }
 
   return (
@@ -647,7 +652,7 @@ export default function GamePage() {
         background: BG,
         fontFamily: "Montserrat, system-ui",
         color: TEXT,
-        padding: "2rem 1rem 2.75rem"
+        padding: "2rem 1rem 3rem"
       }}
     >
       {/* Background glow */}
@@ -665,8 +670,8 @@ export default function GamePage() {
         }}
       />
 
-      <div style={{ position: "relative", zIndex: 1 }}>
-        {/* Header */}
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 920, margin: "0 auto" }}>
+        {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
           <img
             src="/1@300x.png"
@@ -679,82 +684,89 @@ export default function GamePage() {
           />
         </div>
 
-        {/* Login hint */}
-        <div style={{ maxWidth: 820, margin: "0 auto 0.8rem", color: MUTED, fontSize: ".9rem", textAlign: "center" }}>
-          {loggedIn ? "Logged in — saving dev game data." : "Not logged in — dev game data will not be saved."}
-        </div>
+        <header style={{ textAlign: "center", marginBottom: "1rem" }}>
+          <h1 style={{ margin: 0, color: ORANGE, fontWeight: 950, letterSpacing: "-0.02em" }}>
+            Game Tracker
+          </h1>
+          <p style={{ margin: ".5rem 0 0", color: MUTED, lineHeight: 1.6 }}>
+            Track your duckpin score in real time.
+          </p>
+        </header>
 
         {/* Meta inputs */}
-        <section
-          style={{
-            maxWidth: 820,
-            margin: "0 auto 1rem",
-            background: PANEL,
-            borderRadius: 18,
-            padding: "1rem",
-            border: `1px solid ${BORDER}`,
-            boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
-            backdropFilter: "blur(10px)"
-          }}
-        >
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".85rem" }}>
-            <Label text="Date">
-              <input type="date" value={gameDate} max={todayISO()} onChange={(e) => setGameDate(e.target.value)} style={inputDark} />
-            </Label>
+        <Panel style={{ marginBottom: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".75rem" }}>
+            <label style={labelStyle}>
+              Date
+              <input
+                type="date"
+                value={gameDate}
+                max={todayISO()}
+                onChange={(e) => setGameDate(e.target.value)}
+                style={inputStyle}
+              />
+            </label>
 
-            <Label text="Location">
-              <select value={location} onChange={(e) => setLocation(e.target.value)} style={inputDark}>
+            <label style={labelStyle}>
+              Location
+              <select value={location} onChange={(e) => setLocation(e.target.value as any)} style={inputStyle}>
                 {LOCATIONS.map((l) => (
                   <option key={l} value={l}>
                     {l}
                   </option>
                 ))}
               </select>
-            </Label>
+            </label>
 
-            <Label text="Game Type">
-              <select value={eventType} onChange={(e) => setEventType(e.target.value as any)} style={inputDark}>
-                {EVENT_TYPES.map((t) => (
+            <label style={labelStyle}>
+              Game Type
+              <select value={gameType} onChange={(e) => setGameType(e.target.value as any)} style={inputStyle}>
+                {GAME_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
                 ))}
               </select>
-            </Label>
+            </label>
 
-            <Label text="Game Number">
-              <select value={gameNumber} onChange={(e) => setGameNumber(Number(e.target.value))} style={inputDark}>
+            <label style={labelStyle}>
+              Game Number
+              <select value={gameNumber} onChange={(e) => setGameNumber(Number(e.target.value))} style={inputStyle}>
                 {Array.from({ length: 10 }).map((_, i) => (
                   <option key={i + 1} value={i + 1}>
                     {i + 1}
                   </option>
                 ))}
               </select>
-            </Label>
+            </label>
           </div>
-        </section>
 
-        {/* Fixed arrows */}
+          <div style={{ marginTop: ".75rem", color: MUTED, fontSize: ".85rem" }}>
+            Game ID: <span style={{ color: TEXT, fontWeight: 900 }}>{gameId.slice(0, 8)}</span>
+          </div>
+        </Panel>
+
+        {/* Fixed arrows aligned to card center */}
         <button
           onClick={goPrev}
           disabled={isFirst}
           aria-label="Previous frame"
           style={{
             position: "fixed",
-            left: 16,
+            left: 12,
             top: arrowTop,
             transform: "translateY(-50%)",
-            width: 46,
-            height: 46,
+            width: 48,
+            height: 48,
             borderRadius: "50%",
             border: "none",
             background: ORANGE,
             color: "#fff",
-            fontSize: "1.4rem",
+            fontSize: "1.5rem",
             opacity: isFirst ? 0.5 : 1,
             cursor: isFirst ? "default" : "pointer",
             zIndex: 50,
-            boxShadow: "0 18px 40px rgba(0,0,0,0.45)"
+            boxShadow: "0 18px 40px rgba(0,0,0,0.55)"
           }}
         >
           ‹
@@ -766,34 +778,33 @@ export default function GamePage() {
           aria-label="Next frame"
           style={{
             position: "fixed",
-            right: 16,
+            right: 12,
             top: arrowTop,
             transform: "translateY(-50%)",
-            width: 46,
-            height: 46,
+            width: 48,
+            height: 48,
             borderRadius: "50%",
             border: "none",
             background: ORANGE,
             color: "#fff",
-            fontSize: "1.4rem",
+            fontSize: "1.5rem",
             opacity: isLast ? 0.5 : 1,
             cursor: isLast ? "default" : "pointer",
             zIndex: 50,
-            boxShadow: "0 18px 40px rgba(0,0,0,0.45)"
+            boxShadow: "0 18px 40px rgba(0,0,0,0.55)"
           }}
         >
           ›
         </button>
 
         {/* Card */}
-        <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", justifyContent: "center" }}>
+        <div style={{ display: "flex", justifyContent: "center" }}>
           <div
             ref={cardRef}
             style={{
-              width: cardWidth,
-              height: 320,
+              width: "min(640px, 94vw)",
+              height: 340,
               perspective: 1100,
-              cursor: isFutureFrame ? "not-allowed" : "pointer",
               opacity: isFutureFrame ? 0.6 : 1
             }}
           >
@@ -809,205 +820,144 @@ export default function GamePage() {
             >
               {/* FRONT */}
               <div
-                onClick={openBackIfAllowed}
+                onClick={() => {
+                  if (isFutureFrame) return;
+                  setFlipped(true); // only flip to back by tapping front
+                }}
                 style={{
                   position: "absolute",
                   inset: 0,
                   background: PANEL,
+                  border: `1px solid ${BORDER}`,
                   borderRadius: 18,
                   padding: "1rem",
                   backfaceVisibility: "hidden",
-                  border: `1px solid ${BORDER}`,
                   boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
+                  backdropFilter: "blur(10px)",
+                  cursor: isFutureFrame ? "not-allowed" : "pointer",
                   display: "grid",
                   gridTemplateRows: "auto 1fr auto",
-                  gap: ".85rem",
-                  backdropFilter: "blur(10px)"
+                  gap: ".75rem"
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: ".75rem" }}>
-                  <div style={{ fontWeight: 900, color: ORANGE }}>Frame {currentFrameNumber}</div>
-                  <div style={{ fontSize: ".88rem", color: MUTED }}>
-                    Game ID: <span style={{ color: TEXT, fontWeight: 800 }}>{gameId ? gameId.slice(0, 8) : "—"}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontWeight: 950, color: ORANGE, letterSpacing: "-0.02em" }}>
+                    Frame {currentFrameNumber}
+                  </div>
+                  <div style={{ fontSize: ".85rem", color: MUTED }}>
+                    Cumulative
                   </div>
                 </div>
 
+                {/* Classic-ish score box */}
                 <div
                   style={{
                     border: `2px solid ${ORANGE}`,
                     borderRadius: 14,
                     overflow: "hidden",
                     display: "grid",
-                    gridTemplateRows: "72px 1fr",
+                    gridTemplateRows: "84px 1fr",
                     background: "rgba(0,0,0,0.18)"
                   }}
                 >
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: `2px solid ${ORANGE}` }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      borderBottom: `2px solid ${ORANGE}`
+                    }}
+                  >
                     {/* Roll 1 */}
-                    <div
-                      style={{
-                        position: "relative",
-                        borderRight: `2px solid ${ORANGE}`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "1.35rem",
-                        fontWeight: 900,
-                        background: strike ? ORANGE : "transparent",
-                        color: strike ? "#fff" : ORANGE
-                      }}
-                    >
-                      {r1Text}
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: 8,
-                          bottom: 6,
-                          fontSize: ".8rem",
-                          fontWeight: 950,
-                          color: strike ? "rgba(255,255,255,0.92)" : ORANGE,
-                          opacity: r1Badge ? 1 : 0
-                        }}
-                        aria-hidden="true"
-                      >
-                        {r1Badge}
-                      </div>
-                    </div>
+                    <RollCell
+                      value={r1Text}
+                      isStrike={strike}
+                      mark={m1}
+                      rightBorder
+                    />
 
                     {/* Roll 2 */}
-                    <div
-                      style={{
-                        position: "relative",
-                        borderRight: `2px solid ${ORANGE}`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "1.35rem",
-                        fontWeight: 900,
-                        color: ORANGE
-                      }}
-                    >
-                      {spare2 && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            background: `linear-gradient(135deg, transparent 50%, rgba(228,106,46,0.35) 50%)`
-                          }}
-                        />
-                      )}
-                      <span style={{ position: "relative" }}>{r2Text}</span>
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: 8,
-                          bottom: 6,
-                          fontSize: ".8rem",
-                          fontWeight: 950,
-                          color: ORANGE,
-                          opacity: r2Badge ? 1 : 0
-                        }}
-                        aria-hidden="true"
-                      >
-                        {r2Badge}
-                      </div>
-                    </div>
+                    <RollCell
+                      value={r2Text}
+                      spareTriangle={spare2}
+                      mark={m2}
+                      rightBorder
+                    />
 
                     {/* Roll 3 */}
-                    <div
-                      style={{
-                        position: "relative",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "1.35rem",
-                        fontWeight: 900,
-                        color: ORANGE
-                      }}
-                    >
-                      {r3Text}
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: 8,
-                          bottom: 6,
-                          fontSize: ".8rem",
-                          fontWeight: 950,
-                          color: ORANGE,
-                          opacity: r3Badge ? 1 : 0
-                        }}
-                        aria-hidden="true"
-                      >
-                        {r3Badge}
-                      </div>
-                    </div>
+                    <RollCell value={r3Text} mark={m3} />
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ fontSize: "2.2rem", fontWeight: 950, color: TEXT }}>{cumScore ?? "—"}</div>
+                    <div style={{ fontSize: "2.3rem", fontWeight: 950, color: ORANGE }}>
+                      {cumScore ?? "—"}
+                    </div>
                   </div>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: ".9rem", color: MUTED }}>
                   <div>
-                    Lane: <strong style={{ color: TEXT }}>{currentFrame.lane ?? "—"}</strong>
+                    Lane: <span style={{ color: TEXT, fontWeight: 900 }}>{currentFrame.lane ?? "—"}</span>
                   </div>
-                  <div>{isFutureFrame ? "Complete prior frames first" : "Tap to enter/edit"}</div>
+                  <div style={{ color: MUTED }}>
+                    {isFutureFrame ? "Complete earlier frames first" : "Tap to enter scores"}
+                  </div>
                 </div>
               </div>
 
-              {/* BACK (only closes on Confirm) */}
+              {/* BACK (entry) */}
               <div
+                // DO NOT flip back by tapping background — only Confirm flips back
+                onClick={(e) => e.stopPropagation()}
                 style={{
                   position: "absolute",
                   inset: 0,
                   background: PANEL,
-                  color: TEXT,
+                  border: `1px solid ${BORDER}`,
                   borderRadius: 18,
                   padding: "1rem",
                   backfaceVisibility: "hidden",
                   transform: "rotateY(180deg)",
-                  border: `1px solid ${BORDER}`,
                   boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
+                  backdropFilter: "blur(10px)",
                   display: "grid",
                   gridTemplateRows: "auto 1fr auto",
-                  gap: ".85rem",
-                  backdropFilter: "blur(10px)"
+                  gap: ".75rem"
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontWeight: 950, color: ORANGE }}>Frame {currentFrameNumber}</div>
+                  <div style={{ fontWeight: 950, color: ORANGE, letterSpacing: "-0.02em" }}>
+                    Frame {currentFrameNumber}
+                  </div>
                   <button
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      if (!canEditThisFrame || isFutureFrame) return;
-                      startEditFrame();
+                      if (isFutureFrame) return;
+                      await resetThisFrame();
                     }}
-                    disabled={!canEditThisFrame || isFutureFrame}
+                    disabled={isFutureFrame}
                     style={{
                       border: `1px solid ${BORDER}`,
                       borderRadius: 999,
                       padding: ".45rem .8rem",
-                      background: "rgba(255,255,255,0.08)",
+                      background: "rgba(0,0,0,0.22)",
                       color: TEXT,
                       fontWeight: 900,
-                      opacity: !canEditThisFrame || isFutureFrame ? 0.5 : 1,
-                      cursor: !canEditThisFrame || isFutureFrame ? "default" : "pointer"
+                      opacity: isFutureFrame ? 0.5 : 1,
+                      cursor: isFutureFrame ? "default" : "pointer"
                     }}
                   >
                     Reset frame
                   </button>
                 </div>
 
-                <div style={{ display: "grid", gap: ".85rem" }}>
-                  <Label text="Lane (optional)">
+                <div style={{ display: "grid", gap: ".75rem" }}>
+                  {/* Lane */}
+                  <label style={labelStyle}>
+                    Lane (optional)
                     <select
                       value={currentFrame.lane ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value ? Number(e.target.value) : null;
-                        setFrameValue(index, { lane: val });
-                      }}
-                      style={inputDark}
+                      onChange={(e) => setFrameValue(index, { lane: e.target.value ? Number(e.target.value) : null })}
+                      style={inputStyle}
                     >
                       <option value="">—</option>
                       {Array.from({ length: 12 }).map((_, i) => (
@@ -1016,56 +966,59 @@ export default function GamePage() {
                         </option>
                       ))}
                     </select>
-                  </Label>
+                  </label>
 
+                  {/* Rolls + Chop/Split */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: ".75rem" }}>
-                    <RollBlock
-                      title="Roll 1"
+                    <RollEntry
+                      label="Roll 1"
+                      value={currentFrame.r1}
                       enabled={rollEnabled(1)}
-                      rollValue={currentFrame.r1}
-                      onRollChange={(v) => onRollChange(1, v)}
                       options={rollOptions(1)}
-                      csValue={currentFrame.r1_cs}
-                      onCSChange={(v) => onChopSplitChange(1, v)}
+                      onChange={(v) => onRollChange(1, v)}
+                      mark={currentFrame.m1}
+                      onMarkChange={(m) => setMark(1, m)}
                     />
-                    <RollBlock
-                      title="Roll 2"
+
+                    <RollEntry
+                      label="Roll 2"
+                      value={currentFrame.r2}
                       enabled={rollEnabled(2)}
-                      rollValue={currentFrame.r2}
-                      onRollChange={(v) => onRollChange(2, v)}
                       options={rollOptions(2)}
-                      csValue={currentFrame.r2_cs}
-                      onCSChange={(v) => onChopSplitChange(2, v)}
+                      onChange={(v) => onRollChange(2, v)}
+                      mark={currentFrame.m2}
+                      onMarkChange={(m) => setMark(2, m)}
                     />
-                    <RollBlock
-                      title="Roll 3"
+
+                    <RollEntry
+                      label="Roll 3"
+                      value={currentFrame.r3}
                       enabled={rollEnabled(3)}
-                      rollValue={currentFrame.r3}
-                      onRollChange={(v) => onRollChange(3, v)}
                       options={rollOptions(3)}
-                      csValue={currentFrame.r3_cs}
-                      onCSChange={(v) => onChopSplitChange(3, v)}
+                      onChange={(v) => onRollChange(3, v)}
+                      mark={currentFrame.m3}
+                      onMarkChange={(m) => setMark(3, m)}
                     />
                   </div>
                 </div>
 
                 <button
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    submitFrame();
+                    await confirmFrame();
                   }}
                   disabled={!frameComplete(currentFrame, currentFrameNumber) || isFutureFrame}
                   style={{
                     width: "100%",
                     border: "none",
                     borderRadius: 14,
-                    padding: ".9rem",
+                    padding: ".95rem",
                     fontWeight: 950,
                     background: ORANGE,
                     color: "#fff",
-                    opacity: !frameComplete(currentFrame, currentFrameNumber) || isFutureFrame ? 0.55 : 1,
-                    cursor: !frameComplete(currentFrame, currentFrameNumber) || isFutureFrame ? "default" : "pointer",
-                    boxShadow: "0 18px 40px rgba(0,0,0,0.35)"
+                    opacity: (!frameComplete(currentFrame, currentFrameNumber) || isFutureFrame) ? 0.6 : 1,
+                    cursor: (!frameComplete(currentFrame, currentFrameNumber) || isFutureFrame) ? "default" : "pointer",
+                    boxShadow: "0 18px 40px rgba(0,0,0,0.55)"
                   }}
                 >
                   Confirm
@@ -1076,19 +1029,19 @@ export default function GamePage() {
         </div>
 
         {/* Bottom actions */}
-        <div style={{ maxWidth: 820, margin: "1.25rem auto 0", display: "grid", gap: ".75rem" }}>
+        <div style={{ marginTop: "1.25rem", display: "grid", gap: ".75rem" }}>
           <button
             onClick={submitScore}
             disabled={!allComplete}
             style={{
               width: "100%",
               border: "none",
-              borderRadius: 16,
-              padding: "1rem",
+              borderRadius: 18,
+              padding: "1.05rem",
               fontWeight: 950,
               background: ORANGE,
               color: "#fff",
-              opacity: allComplete ? 1 : 0.55,
+              opacity: allComplete ? 1 : 0.6,
               cursor: allComplete ? "pointer" : "default",
               boxShadow: "0 22px 55px rgba(0,0,0,0.55)"
             }}
@@ -1101,100 +1054,183 @@ export default function GamePage() {
             style={{
               width: "100%",
               border: `1px solid ${BORDER}`,
-              borderRadius: 16,
-              padding: "1rem",
+              borderRadius: 18,
+              padding: "1.05rem",
               fontWeight: 950,
-              background: PANEL,
-              color: TEXT,
-              boxShadow: "0 22px 55px rgba(0,0,0,0.45)"
+              background: "rgba(0,0,0,0.22)",
+              color: TEXT
             }}
           >
             New Game
           </button>
+
+          {/* (Optional) tiny dev hint */}
+          <div style={{ textAlign: "center", color: MUTED, fontSize: ".8rem" }}>
+            {devGameId ? "Dev sync enabled (dev_game_id found)." : "Dev sync will run when dev_game_id exists & you’re logged in."}
+          </div>
         </div>
       </div>
     </main>
   );
 }
 
-function Label({ text, children }: { text: string; children: React.ReactNode }) {
+function Panel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <label
+    <div
       style={{
-        display: "grid",
-        gap: ".35rem",
-        fontSize: ".9rem",
-        color: "rgba(242,242,242,0.85)",
-        fontWeight: 900
+        background: PANEL,
+        border: `1px solid ${BORDER}`,
+        borderRadius: 18,
+        padding: "1rem",
+        boxShadow: "0 22px 55px rgba(0,0,0,0.55)",
+        backdropFilter: "blur(10px)",
+        ...style
       }}
     >
-      {text}
       {children}
-    </label>
+    </div>
   );
 }
 
-const inputDark: React.CSSProperties = {
-  padding: ".7rem",
-  borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.12)",
-  background: "rgba(0,0,0,0.25)",
-  color: "#f2f2f2",
-  outline: "none",
-  fontFamily: "Montserrat, system-ui"
+const labelStyle: React.CSSProperties = {
+  display: "grid",
+  gap: ".35rem",
+  fontSize: ".9rem",
+  color: MUTED,
+  fontWeight: 900
 };
 
-function RollBlock({
-  title,
-  enabled,
-  rollValue,
-  onRollChange,
-  options,
-  csValue,
-  onCSChange
+const inputStyle: React.CSSProperties = {
+  padding: ".7rem .75rem",
+  borderRadius: 14,
+  border: `1px solid ${BORDER}`,
+  background: "rgba(0,0,0,0.22)",
+  color: TEXT,
+  outline: "none"
+};
+
+function RollCell({
+  value,
+  rightBorder,
+  spareTriangle,
+  isStrike,
+  mark
 }: {
-  title: string;
-  enabled: boolean;
-  rollValue: number | null;
-  onRollChange: (v: number | null) => void;
-  options: number[];
-  csValue: ChopSplit;
-  onCSChange: (v: ChopSplit) => void;
+  value: string;
+  rightBorder?: boolean;
+  spareTriangle?: boolean;
+  isStrike?: boolean;
+  mark: Mark;
 }) {
   return (
-    <div style={{ display: "grid", gap: ".45rem" }}>
-      <div style={{ fontSize: ".85rem", fontWeight: 950, color: "rgba(242,242,242,0.9)" }}>{title}</div>
+    <div
+      style={{
+        position: "relative",
+        borderRight: rightBorder ? `2px solid ${ORANGE}` : undefined,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "1.35rem",
+        fontWeight: 950,
+        background: isStrike ? ORANGE : "transparent",
+        color: isStrike ? "#fff" : ORANGE
+      }}
+    >
+      {spareTriangle && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: `linear-gradient(135deg, transparent 50%, rgba(228,106,46,0.35) 50%)`
+          }}
+        />
+      )}
 
-      <select
-        value={rollValue ?? ""}
-        disabled={!enabled}
-        onChange={(e) => onRollChange(e.target.value === "" ? null : Number(e.target.value))}
-        style={{
-          ...inputDark,
-          opacity: enabled ? 1 : 0.55
-        }}
-      >
-        <option value="">—</option>
-        {options.map((v) => (
-          <option key={v} value={v}>
-            {v}
-          </option>
-        ))}
-      </select>
+      {/* C / S marker */}
+      {mark && (
+        <div
+          style={{
+            position: "absolute",
+            top: 6,
+            left: 8,
+            fontSize: ".75rem",
+            fontWeight: 950,
+            color: isStrike ? "#fff" : ORANGE,
+            opacity: 0.95
+          }}
+        >
+          {mark}
+        </div>
+      )}
 
-      <select
-        value={csValue ?? ""}
-        disabled={!enabled || rollValue === null}
-        onChange={(e) => onCSChange(e.target.value === "" ? null : (e.target.value as "Chop" | "Split"))}
-        style={{
-          ...inputDark,
-          opacity: !enabled || rollValue === null ? 0.55 : 1
-        }}
-      >
-        <option value="">—</option>
-        <option value="Chop">Chop</option>
-        <option value="Split">Split</option>
-      </select>
+      <span style={{ position: "relative" }}>{value}</span>
+    </div>
+  );
+}
+
+function RollEntry({
+  label,
+  value,
+  enabled,
+  options,
+  onChange,
+  mark,
+  onMarkChange
+}: {
+  label: string;
+  value: number | null;
+  enabled: boolean;
+  options: number[];
+  onChange: (v: number | null) => void;
+  mark: Mark;
+  onMarkChange: (m: Mark) => void;
+}) {
+  return (
+    <div style={{ display: "grid", gap: ".5rem" }}>
+      <label style={{ display: "grid", gap: ".25rem", fontSize: ".85rem", fontWeight: 950, color: MUTED }}>
+        {label}
+        <select
+          value={value ?? ""}
+          disabled={!enabled}
+          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+          style={{
+            padding: ".65rem .7rem",
+            borderRadius: 14,
+            border: `1px solid ${BORDER}`,
+            background: "rgba(0,0,0,0.22)",
+            color: TEXT,
+            outline: "none",
+            opacity: enabled ? 1 : 0.55
+          }}
+        >
+          <option value="">—</option>
+          {options.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label style={{ display: "grid", gap: ".25rem", fontSize: ".8rem", fontWeight: 950, color: MUTED }}>
+        Chop / Split
+        <select
+          value={mark ?? ""}
+          onChange={(e) => onMarkChange((e.target.value === "" ? null : (e.target.value as any)) as Mark)}
+          style={{
+            padding: ".55rem .7rem",
+            borderRadius: 14,
+            border: `1px solid ${BORDER}`,
+            background: "rgba(0,0,0,0.22)",
+            color: TEXT,
+            outline: "none"
+          }}
+        >
+          <option value="">—</option>
+          <option value="C">Chop</option>
+          <option value="S">Split</option>
+        </select>
+      </label>
     </div>
   );
 }
