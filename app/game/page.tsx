@@ -22,7 +22,10 @@ const TEXT = "#f2f2f2";
 const MUTED = "rgba(242,242,242,0.75)";
 
 const LOCATIONS = ["Walkersville Bowling Center", "Mount Airy Bowling Lanes"] as const;
-const GAME_TYPES = ["Scrimmage", "League", "Tournament"] as const;
+const EVENT_TYPES = ["Scrimmage", "League", "Tournament"] as const;
+
+// In dev schema you seeded "Traditional Duckpin"
+const DEV_GAME_TYPE_NAME = "Traditional Duckpin";
 
 function isBrowser() {
   return typeof document !== "undefined";
@@ -73,11 +76,15 @@ function emptyFrames(): FrameState[] {
   }));
 }
 
+function csKey(frameNum: number, roll: 1 | 2 | 3) {
+  return `frame${frameNum}_roll_${roll}_chop_split`;
+}
+
 function clearAllGameCookies() {
   deleteCookie("game_id");
   deleteCookie("game_date");
   deleteCookie("game_location");
-  deleteCookie("game_type");
+  deleteCookie("game_event_type");
   deleteCookie("game_number");
 
   for (let f = 1; f <= 10; f++) {
@@ -86,9 +93,9 @@ function clearAllGameCookies() {
     deleteCookie(`frame${f}_roll2`);
     deleteCookie(`frame${f}_roll3`);
 
-    deleteCookie(`frame${f}_roll_1_chop_split`);
-    deleteCookie(`frame${f}_roll_2_chop_split`);
-    deleteCookie(`frame${f}_roll_3_chop_split`);
+    deleteCookie(csKey(f, 1));
+    deleteCookie(csKey(f, 2));
+    deleteCookie(csKey(f, 3));
   }
 }
 
@@ -98,20 +105,21 @@ function resetFrameCookies(frameNumber: number) {
   deleteCookie(`frame${frameNumber}_roll2`);
   deleteCookie(`frame${frameNumber}_roll3`);
 
-  deleteCookie(`frame${frameNumber}_roll_1_chop_split`);
-  deleteCookie(`frame${frameNumber}_roll_2_chop_split`);
-  deleteCookie(`frame${frameNumber}_roll_3_chop_split`);
+  deleteCookie(csKey(frameNumber, 1));
+  deleteCookie(csKey(frameNumber, 2));
+  deleteCookie(csKey(frameNumber, 3));
 }
 
 function frameComplete(frame: FrameState, frameNumber: number) {
   const { r1, r2, r3 } = frame;
   if (frameNumber < 10) {
     if (r1 === null) return false;
-    if (r1 === 10) return true;
+    if (r1 === 10) return true; // strike ends frame (1–9)
     if (r2 === null) return false;
-    if (r1 + r2 === 10) return true;
-    return r3 !== null;
+    if (r1 + r2 === 10) return true; // spare in 2
+    return r3 !== null; // otherwise need 3rd roll
   }
+  // 10th frame always expects 3 rolls in your UI (as implemented previously)
   return r1 !== null && r2 !== null && r3 !== null;
 }
 
@@ -130,8 +138,9 @@ function firstIncompleteFrame(frames: FrameState[]) {
  */
 function computeCumulative(frames: FrameState[]) {
   const cum: (number | null)[] = Array(10).fill(null);
-  const rollStream: number[] = [];
 
+  // Build roll stream
+  const rollStream: number[] = [];
   for (let i = 0; i < 9; i++) {
     const f = frames[i];
     if (f.r1 === null) break;
@@ -142,8 +151,8 @@ function computeCumulative(frames: FrameState[]) {
     }
 
     if (f.r2 === null) break;
-
     const two = (f.r1 ?? 0) + (f.r2 ?? 0);
+
     if (two === 10) {
       rollStream.push(f.r1, f.r2);
       continue;
@@ -153,6 +162,7 @@ function computeCumulative(frames: FrameState[]) {
     rollStream.push(f.r1, f.r2, f.r3);
   }
 
+  // 10th frame rolls always counted (no bonus)
   const t = frames[9];
   if (t.r1 !== null && t.r2 !== null && t.r3 !== null) {
     rollStream.push(t.r1, t.r2, t.r3);
@@ -164,6 +174,7 @@ function computeCumulative(frames: FrameState[]) {
   for (let frame = 0; frame < 10; frame++) {
     const fnum = frame + 1;
     const f = frames[frame];
+
     if (!frameComplete(f, fnum)) break;
 
     if (fnum === 10) {
@@ -213,51 +224,54 @@ function range(min: number, max: number) {
   return out;
 }
 
+// 10th frame dropdown options per your rules
 function optionsForRoll10th(r1: number | null, r2: number | null, roll: 1 | 2 | 3) {
   if (roll === 1) return range(0, 10);
   if (r1 === null) return [];
 
   if (roll === 2) {
-    if (r1 === 10) return range(0, 10);
+    if (r1 === 10) return range(0, 10); // reset pins
     return range(0, Math.max(0, 10 - r1));
   }
 
   if (r2 === null) return [];
 
   if (r1 === 10) {
-    if (r2 === 10) return range(0, 10);
+    if (r2 === 10) return range(0, 10); // reset again
     return range(0, Math.max(0, 10 - r2));
   }
 
   const remainingAfter2 = Math.max(0, 10 - r1 - r2);
-  if (r1 + r2 === 10) return range(0, 10);
-  return range(0, remainingAfter2);
+
+  if (r1 + r2 === 10) return range(0, 10); // spare-in-2 resets
+  return range(0, remainingAfter2); // otherwise remaining pins only
 }
 
+// frames 1-9
 function optionsForRollStandard(r1: number | null, r2: number | null, roll: 1 | 2 | 3) {
   if (roll === 1) return range(0, 10);
   if (r1 === null) return [];
   if (roll === 2) {
-    if (r1 === 10) return [];
+    if (r1 === 10) return []; // strike ends
     return range(0, Math.max(0, 10 - r1));
   }
   if (r2 === null) return [];
   if (r1 === 10) return [];
-  if (r1 + r2 === 10) return [];
+  if (r1 + r2 === 10) return []; // spare-in-2 ends
   return range(0, Math.max(0, 10 - r1 - r2));
-}
-
-function csKey(frameNum: number, roll: 1 | 2 | 3) {
-  return `frame${frameNum}_roll_${roll}_chop_split`;
 }
 
 export default function GamePage() {
   const [mounted, setMounted] = useState(false);
 
+  // auth state (from your server auth)
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [me, setMe] = useState<{ id: string; email?: string | null; firstName?: string | null; lastName?: string | null; username?: string | null } | null>(null);
+
   const [gameId, setGameId] = useState<string>("");
   const [gameDate, setGameDate] = useState<string>(todayISO());
   const [location, setLocation] = useState<string>(LOCATIONS[0]);
-  const [gameType, setGameType] = useState<string>(GAME_TYPES[0]);
+  const [eventType, setEventType] = useState<(typeof EVENT_TYPES)[number]>(EVENT_TYPES[0]);
   const [gameNumber, setGameNumber] = useState<number>(1);
 
   const [frames, setFrames] = useState<FrameState[]>(() => emptyFrames());
@@ -266,6 +280,37 @@ export default function GamePage() {
 
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [arrowTop, setArrowTop] = useState<number>(200);
+
+  // Load auth status
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          setLoggedIn(false);
+          setMe(null);
+          return;
+        }
+        const data = await res.json();
+        if (data?.user?.id) {
+          setLoggedIn(true);
+          setMe({
+            id: data.user.id,
+            email: data.user.email ?? null,
+            firstName: data.user.user_metadata?.first_name ?? null,
+            lastName: data.user.user_metadata?.last_name ?? null,
+            username: data.user.user_metadata?.username ?? null
+          });
+        } else {
+          setLoggedIn(false);
+          setMe(null);
+        }
+      } catch {
+        setLoggedIn(false);
+        setMe(null);
+      }
+    })();
+  }, []);
 
   // Load cookies on mount
   useEffect(() => {
@@ -278,12 +323,12 @@ export default function GamePage() {
 
     const gd = getCookie("game_date") ?? todayISO();
     const gl = getCookie("game_location") ?? LOCATIONS[0];
-    const gt = getCookie("game_type") ?? GAME_TYPES[0];
+    const et = (getCookie("game_event_type") as any) ?? EVENT_TYPES[0];
     const gn = Number(getCookie("game_number") ?? "1");
 
     setGameDate(gd);
     setLocation(gl);
-    setGameType(gt);
+    setEventType(EVENT_TYPES.includes(et) ? et : EVENT_TYPES[0]);
     setGameNumber(gn);
 
     const loaded = emptyFrames();
@@ -317,11 +362,11 @@ export default function GamePage() {
     if (!mounted) return;
     setCookie("game_date", gameDate);
     setCookie("game_location", location);
-    setCookie("game_type", gameType);
+    setCookie("game_event_type", eventType);
     setCookie("game_number", String(gameNumber));
-  }, [mounted, gameDate, location, gameType, gameNumber]);
+  }, [mounted, gameDate, location, eventType, gameNumber]);
 
-  // Arrow vertical alignment to card center
+  // Arrow alignment
   useEffect(() => {
     if (!mounted) return;
 
@@ -479,10 +524,59 @@ export default function GamePage() {
     if (roll === 3) setFrameValue(index, { r3_cs: val });
   }
 
-  function submitFrame() {
-    // ✅ ONLY place we flip back to front
+  async function syncFramesToDev(framesToSend: number[]) {
+    if (!loggedIn || !me?.id) return;
+
+    const payloadFrames = framesToSend.map((fnum) => {
+      const f = frames[fnum - 1];
+      return {
+        frameNumber: fnum,
+        laneNumber: f.lane,
+        rolls: [
+          { rollNumber: 1 as const, pinsKnocked: f.r1, chopSplit: f.r1_cs },
+          { rollNumber: 2 as const, pinsKnocked: f.r2, chopSplit: f.r2_cs },
+          { rollNumber: 3 as const, pinsKnocked: f.r3, chopSplit: f.r3_cs }
+        ]
+      };
+    });
+
+    const res = await fetch("/api/dev/record-game", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user: {
+          id: me.id,
+          email: me.email ?? null,
+          firstName: me.firstName ?? null,
+          lastName: me.lastName ?? null,
+          username: me.username ?? null
+        },
+        game: {
+          gameId,
+          playedAtISO: gameDate, // server coerces to timestamp
+          locationName: location,
+          eventTypeName: eventType,
+          gameTypeName: DEV_GAME_TYPE_NAME,
+          gameNumber
+        },
+        frames: payloadFrames
+      })
+    });
+
+    if (!res.ok) {
+      // Keep UX simple; you can add toast later
+      console.error("Dev sync failed:", await res.text());
+    }
+  }
+
+  async function submitFrame() {
+    // 1) Only flip back on confirm (your requested behavior)
     setFlipped(false);
 
+    // 2) Sync this frame to dev tables (only if logged in)
+    await syncFramesToDev([currentFrameNumber]);
+
+    // 3) Advance to next frame if appropriate
     const nowAllowed = firstIncompleteFrame(frames);
     if (index === nowAllowed && frameComplete(frames[index], currentFrameNumber) && index < 9) {
       setIndex(index + 1);
@@ -505,7 +599,7 @@ export default function GamePage() {
 
     setGameDate(todayISO());
     setLocation(LOCATIONS[0]);
-    setGameType(GAME_TYPES[0]);
+    setEventType(EVENT_TYPES[0]);
     setGameNumber(1);
 
     setFrames(emptyFrames());
@@ -513,8 +607,12 @@ export default function GamePage() {
     setFlipped(false);
   }
 
-  function submitScore() {
+  async function submitScore() {
     if (!allComplete) return;
+
+    // final sync of everything (only if logged in)
+    await syncFramesToDev([1,2,3,4,5,6,7,8,9,10]);
+
     clearAllGameCookies();
     alert("Score submitted!");
     newGame();
@@ -529,10 +627,10 @@ export default function GamePage() {
   const r2Text = spare2 ? "/" : currentFrame.r2 !== null ? String(currentFrame.r2) : "";
   const r3Text = currentFrame.r3 !== null ? String(currentFrame.r3) : "";
 
-  const csBadge = (v: ChopSplit) => (v === "Chop" ? "C" : v === "Split" ? "S" : "");
-  const r1Badge = csBadge(currentFrame.r1_cs);
-  const r2Badge = csBadge(currentFrame.r2_cs);
-  const r3Badge = csBadge(currentFrame.r3_cs);
+  const badge = (v: ChopSplit) => (v === "Chop" ? "C" : v === "Split" ? "S" : "");
+  const r1Badge = badge(currentFrame.r1_cs);
+  const r2Badge = badge(currentFrame.r2_cs);
+  const r3Badge = badge(currentFrame.r3_cs);
 
   const cardWidth = "min(560px, 94vw)";
 
@@ -581,6 +679,11 @@ export default function GamePage() {
           />
         </div>
 
+        {/* Login hint */}
+        <div style={{ maxWidth: 820, margin: "0 auto 0.8rem", color: MUTED, fontSize: ".9rem", textAlign: "center" }}>
+          {loggedIn ? "Logged in — saving dev game data." : "Not logged in — dev game data will not be saved."}
+        </div>
+
         {/* Meta inputs */}
         <section
           style={{
@@ -596,13 +699,7 @@ export default function GamePage() {
         >
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".85rem" }}>
             <Label text="Date">
-              <input
-                type="date"
-                value={gameDate}
-                max={todayISO()}
-                onChange={(e) => setGameDate(e.target.value)}
-                style={inputDark}
-              />
+              <input type="date" value={gameDate} max={todayISO()} onChange={(e) => setGameDate(e.target.value)} style={inputDark} />
             </Label>
 
             <Label text="Location">
@@ -616,8 +713,8 @@ export default function GamePage() {
             </Label>
 
             <Label text="Game Type">
-              <select value={gameType} onChange={(e) => setGameType(e.target.value)} style={inputDark}>
-                {GAME_TYPES.map((t) => (
+              <select value={eventType} onChange={(e) => setEventType(e.target.value as any)} style={inputDark}>
+                {EVENT_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
@@ -710,7 +807,7 @@ export default function GamePage() {
                 transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
               }}
             >
-              {/* FRONT (clicking front opens back; back never auto-closes) */}
+              {/* FRONT */}
               <div
                 onClick={openBackIfAllowed}
                 style={{
@@ -731,8 +828,7 @@ export default function GamePage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: ".75rem" }}>
                   <div style={{ fontWeight: 900, color: ORANGE }}>Frame {currentFrameNumber}</div>
                   <div style={{ fontSize: ".88rem", color: MUTED }}>
-                    Game ID:{" "}
-                    <span style={{ color: TEXT, fontWeight: 800 }}>{gameId ? gameId.slice(0, 8) : "—"}</span>
+                    Game ID: <span style={{ color: TEXT, fontWeight: 800 }}>{gameId ? gameId.slice(0, 8) : "—"}</span>
                   </div>
                 </div>
 
@@ -860,7 +956,7 @@ export default function GamePage() {
                 </div>
               </div>
 
-              {/* BACK (does NOT close on click; only Confirm closes it) */}
+              {/* BACK (only closes on Confirm) */}
               <div
                 style={{
                   position: "absolute",
