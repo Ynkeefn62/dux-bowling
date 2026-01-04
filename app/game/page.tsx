@@ -86,7 +86,6 @@ function clearAllGameCookies() {
     deleteCookie(`frame${f}_roll2`);
     deleteCookie(`frame${f}_roll3`);
 
-    // chop/split cookies (requested format)
     deleteCookie(`frame${f}_roll_1_chop_split`);
     deleteCookie(`frame${f}_roll_2_chop_split`);
     deleteCookie(`frame${f}_roll_3_chop_split`);
@@ -108,12 +107,11 @@ function frameComplete(frame: FrameState, frameNumber: number) {
   const { r1, r2, r3 } = frame;
   if (frameNumber < 10) {
     if (r1 === null) return false;
-    if (r1 === 10) return true; // strike ends frame (1–9)
+    if (r1 === 10) return true;
     if (r2 === null) return false;
-    if (r1 + r2 === 10) return true; // spare in 2
-    return r3 !== null; // otherwise need 3rd roll
+    if (r1 + r2 === 10) return true;
+    return r3 !== null;
   }
-  // 10th frame: always exactly 3 rolls entered for this tracker
   return r1 !== null && r2 !== null && r3 !== null;
 }
 
@@ -132,7 +130,6 @@ function firstIncompleteFrame(frames: FrameState[]) {
  */
 function computeCumulative(frames: FrameState[]) {
   const cum: (number | null)[] = Array(10).fill(null);
-
   const rollStream: number[] = [];
 
   for (let i = 0; i < 9; i++) {
@@ -167,7 +164,6 @@ function computeCumulative(frames: FrameState[]) {
   for (let frame = 0; frame < 10; frame++) {
     const fnum = frame + 1;
     const f = frames[frame];
-
     if (!frameComplete(f, fnum)) break;
 
     if (fnum === 10) {
@@ -217,13 +213,12 @@ function range(min: number, max: number) {
   return out;
 }
 
-// 10th frame dropdown options per your rules
 function optionsForRoll10th(r1: number | null, r2: number | null, roll: 1 | 2 | 3) {
   if (roll === 1) return range(0, 10);
   if (r1 === null) return [];
 
   if (roll === 2) {
-    if (r1 === 10) return range(0, 10); // reset pins
+    if (r1 === 10) return range(0, 10);
     return range(0, Math.max(0, 10 - r1));
   }
 
@@ -235,11 +230,10 @@ function optionsForRoll10th(r1: number | null, r2: number | null, roll: 1 | 2 | 
   }
 
   const remainingAfter2 = Math.max(0, 10 - r1 - r2);
-  if (r1 + r2 === 10) return range(0, 10); // spare-in-2 => fresh rack
+  if (r1 + r2 === 10) return range(0, 10);
   return range(0, remainingAfter2);
 }
 
-// frames 1-9 options
 function optionsForRollStandard(r1: number | null, r2: number | null, roll: 1 | 2 | 3) {
   if (roll === 1) return range(0, 10);
   if (r1 === null) return [];
@@ -267,7 +261,6 @@ export default function GamePage() {
   const [gameNumber, setGameNumber] = useState<number>(1);
 
   const [frames, setFrames] = useState<FrameState[]>(() => emptyFrames());
-
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
@@ -355,6 +348,7 @@ export default function GamePage() {
 
   const currentFrameNumber = index + 1;
   const currentFrame = frames[index];
+
   const isFirst = index === 0;
   const isLast = index === 9;
 
@@ -367,6 +361,7 @@ export default function GamePage() {
     setFlipped(false);
     setIndex((i) => Math.max(0, i - 1));
   }
+
   function goNext() {
     if (isLast) return;
     setFlipped(false);
@@ -485,6 +480,7 @@ export default function GamePage() {
   }
 
   function submitFrame() {
+    // ✅ ONLY place we flip back to front
     setFlipped(false);
 
     const nowAllowed = firstIncompleteFrame(frames);
@@ -512,8 +508,7 @@ export default function GamePage() {
     setGameType(GAME_TYPES[0]);
     setGameNumber(1);
 
-    const empty = emptyFrames();
-    setFrames(empty);
+    setFrames(emptyFrames());
     setIndex(0);
     setFlipped(false);
   }
@@ -540,6 +535,12 @@ export default function GamePage() {
   const r3Badge = csBadge(currentFrame.r3_cs);
 
   const cardWidth = "min(560px, 94vw)";
+
+  function openBackIfAllowed() {
+    if (isFutureFrame) return;
+    if (!canEditThisFrame) return;
+    setFlipped(true);
+  }
 
   return (
     <main
@@ -691,7 +692,6 @@ export default function GamePage() {
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", justifyContent: "center" }}>
           <div
             ref={cardRef}
-            onClick={() => setFlipped((v) => !v)}
             style={{
               width: cardWidth,
               height: 320,
@@ -710,8 +710,9 @@ export default function GamePage() {
                 transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)"
               }}
             >
-              {/* FRONT */}
+              {/* FRONT (clicking front opens back; back never auto-closes) */}
               <div
+                onClick={openBackIfAllowed}
                 style={{
                   position: "absolute",
                   inset: 0,
@@ -745,7 +746,6 @@ export default function GamePage() {
                     background: "rgba(0,0,0,0.18)"
                   }}
                 >
-                  {/* top row */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: `2px solid ${ORANGE}` }}>
                     {/* Roll 1 */}
                     <div
@@ -847,11 +847,8 @@ export default function GamePage() {
                     </div>
                   </div>
 
-                  {/* cumulative */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ fontSize: "2.2rem", fontWeight: 950, color: TEXT }}>
-                      {cumScore ?? "—"}
-                    </div>
+                    <div style={{ fontSize: "2.2rem", fontWeight: 950, color: TEXT }}>{cumScore ?? "—"}</div>
                   </div>
                 </div>
 
@@ -859,11 +856,11 @@ export default function GamePage() {
                   <div>
                     Lane: <strong style={{ color: TEXT }}>{currentFrame.lane ?? "—"}</strong>
                   </div>
-                  <div>Tap to enter/edit</div>
+                  <div>{isFutureFrame ? "Complete prior frames first" : "Tap to enter/edit"}</div>
                 </div>
               </div>
 
-              {/* BACK */}
+              {/* BACK (does NOT close on click; only Confirm closes it) */}
               <div
                 style={{
                   position: "absolute",
@@ -914,7 +911,6 @@ export default function GamePage() {
                         const val = e.target.value ? Number(e.target.value) : null;
                         setFrameValue(index, { lane: val });
                       }}
-                      onClick={(e) => e.stopPropagation()}
                       style={inputDark}
                     >
                       <option value="">—</option>
@@ -1027,7 +1023,15 @@ export default function GamePage() {
 
 function Label({ text, children }: { text: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "grid", gap: ".35rem", fontSize: ".9rem", color: "rgba(242,242,242,0.85)", fontWeight: 900 }}>
+    <label
+      style={{
+        display: "grid",
+        gap: ".35rem",
+        fontSize: ".9rem",
+        color: "rgba(242,242,242,0.85)",
+        fontWeight: 900
+      }}
+    >
       {text}
       {children}
     </label>
