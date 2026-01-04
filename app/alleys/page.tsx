@@ -54,8 +54,6 @@ export default function AlleysPage() {
   const isLast = index === GAME_MODES.length - 1;
   const mode = useMemo(() => GAME_MODES[index], [index]);
 
-  // We'll measure the card's center relative to viewport and store it in a CSS var.
-  // This avoids React rerenders on scroll (no lag).
   const cardWrapRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -70,35 +68,36 @@ export default function AlleysPage() {
   }
 
   useEffect(() => {
-    const setArrowTopVar = () => {
+    const setVars = () => {
       const el = cardWrapRef.current;
       if (!el) return;
 
       const rect = el.getBoundingClientRect();
       const centerY = rect.top + rect.height / 2;
 
-      // Clamp a little so it never goes totally off-screen
-      const clamped = Math.max(80, Math.min(window.innerHeight - 80, centerY));
+      // Put arrow top exactly at the card center (even if offscreen).
+      document.documentElement.style.setProperty("--dux-arrow-top", `${centerY}px`);
 
-      document.documentElement.style.setProperty("--dux-arrow-top", `${clamped}px`);
+      // Only show arrows when the card is within/near the viewport
+      const buffer = 140; // show a bit before card fully enters view
+      const inRange = rect.bottom > -buffer && rect.top < window.innerHeight + buffer;
+      document.documentElement.style.setProperty("--dux-arrows-visible", inRange ? "1" : "0");
     };
 
     const schedule = () => {
       if (rafRef.current != null) return;
       rafRef.current = window.requestAnimationFrame(() => {
         rafRef.current = null;
-        setArrowTopVar();
+        setVars();
       });
     };
 
-    // Initial positioning
-    setArrowTopVar();
+    // Run immediately after render
+    setVars();
 
-    // Update on scroll/resize without rerendering the page
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
 
-    // Update if the card size changes (e.g., text wraps differently on mobile)
     let ro: ResizeObserver | null = null;
     if (cardWrapRef.current && "ResizeObserver" in window) {
       ro = new ResizeObserver(() => schedule());
@@ -111,7 +110,7 @@ export default function AlleysPage() {
       if (ro) ro.disconnect();
       if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [index]); // re-evaluate when the card content changes
 
   return (
     <main
@@ -232,7 +231,6 @@ export default function AlleysPage() {
                 <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.05rem" }}>
                   Mother Dux Pinsetter
                 </div>
-
                 <p style={{ margin: ".6rem 0 0", lineHeight: 1.7, color: MUTED }}>
                   Precise measurements, costs, and timing are still being determined. We want to work with
                   bowling alleys to identify the best transition path to new pinsetters—including options like
@@ -273,19 +271,19 @@ export default function AlleysPage() {
             </div>
           </section>
 
-          {/* Sliding cards: Game Modes (no flip) */}
+          {/* Game modes carousel */}
           <section style={{ marginTop: "1.5rem" }}>
             <h2 style={{ margin: "0 0 .5rem", color: TEXT, fontSize: "1.35rem" }}>
               Expanded Game Options
             </h2>
 
             <div style={{ position: "relative", marginTop: "1rem" }}>
-              {/* Card */}
+              {/* Bigger card (responsive) */}
               <div
                 ref={cardWrapRef}
                 style={{
-                  width: "min(560px, 92vw)",
-                  height: 340,
+                  width: "min(680px, 94vw)",
+                  height: "min(520px, 72vh)",
                   margin: "0 auto",
                   background: "rgba(26,26,26,0.9)",
                   borderRadius: 18,
@@ -309,24 +307,23 @@ export default function AlleysPage() {
 
                 <div style={{ color: MUTED, fontWeight: 700 }}>{mode.subtitle}</div>
 
-                {/* Scrollable description area (works on mobile) */}
+                {/* Scrollable description area */}
                 <div
                   style={{
                     color: MUTED,
                     lineHeight: 1.65,
                     overflowY: "auto",
                     WebkitOverflowScrolling: "touch",
-                    paddingRight: ".25rem",
-                    borderRadius: 12,
+                    paddingRight: ".35rem",
                     flex: 1,
-                    minHeight: 0 // critical so overflow works inside a flex column
+                    minHeight: 0 // critical for scroll inside flex container
                   }}
                 >
                   {mode.description}
                 </div>
               </div>
 
-              {/* Fixed arrows centered to CARD center (no React rerenders on scroll) */}
+              {/* Arrows: fixed left/right, anchored to CARD center via CSS var */}
               <button
                 onClick={prev}
                 disabled={isFirst}
@@ -346,7 +343,12 @@ export default function AlleysPage() {
                   opacity: isFirst ? 0.5 : 1,
                   cursor: isFirst ? "default" : "pointer",
                   zIndex: 50,
-                  boxShadow: "0 16px 34px rgba(0,0,0,0.55)"
+                  boxShadow: "0 16px 34px rgba(0,0,0,0.55)",
+                  // hide until near card area
+                  visibility: "var(--dux-arrows-visible, 0)" as any,
+                  // fallback for browsers that don’t like visibility var:
+                  // we also fade it
+                  transition: "opacity 150ms ease"
                 }}
               >
                 ‹
@@ -371,7 +373,9 @@ export default function AlleysPage() {
                   opacity: isLast ? 0.5 : 1,
                   cursor: isLast ? "default" : "pointer",
                   zIndex: 50,
-                  boxShadow: "0 16px 34px rgba(0,0,0,0.55)"
+                  boxShadow: "0 16px 34px rgba(0,0,0,0.55)",
+                  visibility: "var(--dux-arrows-visible, 0)" as any,
+                  transition: "opacity 150ms ease"
                 }}
               >
                 ›
