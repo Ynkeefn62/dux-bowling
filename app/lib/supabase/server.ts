@@ -16,7 +16,7 @@ export function supabaseAnonServer() {
 
 export function supabaseAdminServer() {
   const url = must("NEXT_PUBLIC_SUPABASE_URL");
-  const service = must("NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY");
+  const service = must("SUPABASE_SERVICE_ROLE_KEY");
   return createClient(url, service, {
     auth: { persistSession: false, autoRefreshToken: false }
   });
