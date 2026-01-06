@@ -8,7 +8,7 @@ function mustEnv(name: string) {
 
 // Minimal PostgREST helper (server-only)
 async function sb(path: string, init: RequestInit) {
-  const url = mustEnv("SUPABASE_URL").replace(/\/$/, "");
+  const url = mustEnv("NEXT_PUBLIC_SUPABASE_URL").replace(/\/$/, "");
   const key = mustEnv("SUPABASE_SERVICE_ROLE_KEY");
 
   const res = await fetch(`${url}/rest/v1/${path}`, {
