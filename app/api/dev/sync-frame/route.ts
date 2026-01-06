@@ -12,7 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 function supabaseFromCookies() {
   const cookieStore = cookies();
 
-  return createServerClient(
+  return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
