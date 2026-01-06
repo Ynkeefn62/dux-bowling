@@ -2,16 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+type Mark = "C" | "S" | null;
+
 type FrameState = {
   lane: number | null;
   r1: number | null;
   r2: number | null;
   r3: number | null;
-
-  // optional roll markers (null | "C" | "S")
-  m1: "C" | "S" | null;
-  m2: "C" | "S" | null;
-  m3: "C" | "S" | null;
+  m1: Mark;
+  m2: Mark;
+  m3: Mark;
 };
 
 const ORANGE = "#e46a2e";
@@ -22,11 +22,17 @@ const INK = "#24160f";
 const LOCATIONS = ["Walkersville Bowling Center", "Mount Airy Bowling Lanes"] as const;
 const GAME_TYPES = ["Scrimmage", "League", "Tournament"] as const;
 
+function isBrowser() {
+  return typeof window !== "undefined" && typeof document !== "undefined";
+}
+
 function setCookie(name: string, value: string, days = 30) {
+  if (!isBrowser()) return;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
   document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
 }
 function getCookie(name: string) {
+  if (!isBrowser()) return null;
   const key = encodeURIComponent(name) + "=";
   const parts = document.cookie.split(";").map((s) => s.trim());
   for (const p of parts) {
@@ -35,6 +41,7 @@ function getCookie(name: string) {
   return null;
 }
 function deleteCookie(name: string) {
+  if (!isBrowser()) return;
   document.cookie = `${encodeURIComponent(name)}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
 }
 
@@ -46,92 +53,104 @@ function todayISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function initFramesFromCookies(): FrameState[] {
-  const frames: FrameState[] = [];
-  for (let f = 1; f <= 10; f++) {
-    const lane = getCookie(`frame${f}_lane`);
-    const r1 = getCookie(`frame${f}_roll1`);
-    const r2 = getCookie(`frame${f}_roll2`);
-    const r3 = getCookie(`frame${f}_roll3`);
-
-    const m1 = getCookie(`frame${f}_roll_1_chop_split`);
-    const m2 = getCookie(`frame${f}_roll_2_chop_split`);
-    const m3 = getCookie(`frame${f}_roll_3_chop_split`);
-
-    frames.push({
-      lane: lane ? Number(lane) : null,
-      r1: r1 !== null ? Number(r1) : null,
-      r2: r2 !== null ? Number(r2) : null,
-      r3: r3 !== null ? Number(r3) : null,
-      m1: m1 === "C" || m1 === "S" ? m1 : null,
-      m2: m2 === "C" || m2 === "S" ? m2 : null,
-      m3: m3 === "C" || m3 === "S" ? m3 : null
-    });
-  }
-  return frames;
-}
-
-function clearAllGameCookies() {
-  deleteCookie("game_id");
-  deleteCookie("dev_game_id");
-  deleteCookie("game_date");
-  deleteCookie("game_location");
-  deleteCookie("game_type");
-  deleteCookie("game_number");
-
-  for (let f = 1; f <= 10; f++) {
-    deleteCookie(`frame${f}_lane`);
-    deleteCookie(`frame${f}_roll1`);
-    deleteCookie(`frame${f}_roll2`);
-    deleteCookie(`frame${f}_roll3`);
-    deleteCookie(`frame${f}_roll_1_chop_split`);
-    deleteCookie(`frame${f}_roll_2_chop_split`);
-    deleteCookie(`frame${f}_roll_3_chop_split`);
-  }
-}
-
-function resetFrameCookies(frameNumber: number) {
-  deleteCookie(`frame${frameNumber}_lane`);
-  deleteCookie(`frame${frameNumber}_roll1`);
-  deleteCookie(`frame${frameNumber}_roll2`);
-  deleteCookie(`frame${frameNumber}_roll3`);
-  deleteCookie(`frame${frameNumber}_roll_1_chop_split`);
-  deleteCookie(`frame${frameNumber}_roll_2_chop_split`);
-  deleteCookie(`frame${frameNumber}_roll_3_chop_split`);
+function emptyFrames(): FrameState[] {
+  return Array.from({ length: 10 }, () => ({
+    lane: null,
+    r1: null,
+    r2: null,
+    r3: null,
+    m1: null,
+    m2: null,
+    m3: null
+  }));
 }
 
 function frameComplete(frame: FrameState, frameNumber: number) {
   const { r1, r2, r3 } = frame;
+
   if (frameNumber < 10) {
     if (r1 === null) return false;
-    if (r1 === 10) return true; // strike ends frame (1–9)
+    if (r1 === 10) return true; // strike ends frame 1-9
     if (r2 === null) return false;
-    if (r1 + r2 === 10) return true; // spare in 2
+    if (r1 + r2 === 10) return true; // spare in 2 ends 1-9
     return r3 !== null; // otherwise need 3rd roll
   }
-  // 10th frame: always up to 3 rolls; completion requires all 3 entered
+
+  // 10th: always exactly 3 rolls in our UI
   return r1 !== null && r2 !== null && r3 !== null;
 }
 
 function firstIncompleteFrame(frames: FrameState[]) {
   for (let i = 0; i < 10; i++) {
-    if (!frameComplete(frames[i], i + 1)) return i; // 0-based
+    if (!frameComplete(frames[i], i + 1)) return i;
   }
-  return 9; // all complete → current is last
+  return 9;
+}
+
+function range(min: number, max: number) {
+  const out: number[] = [];
+  for (let i = min; i <= max; i++) out.push(i);
+  return out;
+}
+
+// 10th frame roll options per your rules
+function optionsForRoll10th(r1: number | null, r2: number | null, roll: 1 | 2 | 3) {
+  if (roll === 1) return range(0, 10);
+  if (r1 === null) return [];
+
+  if (roll === 2) {
+    // If strike on roll1 => fresh rack for roll2
+    if (r1 === 10) return range(0, 10);
+    // Otherwise remaining pins
+    return range(0, Math.max(0, 10 - r1));
+  }
+
+  // Roll 3
+  if (r2 === null) return [];
+
+  // If roll1 strike => roll2 has its own rack
+  if (r1 === 10) {
+    // If roll2 strike => fresh rack for roll3
+    if (r2 === 10) return range(0, 10);
+    // Otherwise remaining pins from roll2 rack
+    return range(0, Math.max(0, 10 - r2));
+  }
+
+  // If roll1 not strike:
+  // If spare-in-2 => fresh rack for roll3
+  if (r1 + r2 === 10) return range(0, 10);
+
+  // Otherwise only remaining pins
+  return range(0, Math.max(0, 10 - r1 - r2));
+}
+
+// frames 1-9 roll options
+function optionsForRollStandard(r1: number | null, r2: number | null, roll: 1 | 2 | 3) {
+  if (roll === 1) return range(0, 10);
+  if (r1 === null) return [];
+
+  if (roll === 2) {
+    if (r1 === 10) return []; // strike ends frame
+    return range(0, Math.max(0, 10 - r1));
+  }
+
+  if (r2 === null) return [];
+  if (r1 === 10) return [];
+  if (r1 + r2 === 10) return []; // spare in 2 ends frame
+  return range(0, Math.max(0, 10 - r1 - r2));
 }
 
 /**
- * Duckpin scoring rules:
+ * Duckpin scoring:
  * - Strike bonus = next 2 rolls
- * - Spare bonus ONLY if 10 in 2 rolls (not if 10 in 3)
- * - 10th frame: no bonuses beyond frame, max 3 rolls
+ * - Spare bonus only if 10 in 2 rolls (not 10 in 3)
+ * - 10th frame has no bonuses beyond itself
  */
 function computeCumulative(frames: FrameState[]) {
   const cum: (number | null)[] = Array(10).fill(null);
 
-  // Build roll stream for frames 1-9 (10th handled separately)
+  // Build a roll stream for frames 1-9 only (so bonuses can reference "next rolls")
   const rollStream: number[] = [];
-  const frameRollCounts: number[] = [];
 
   for (let i = 0; i < 9; i++) {
     const f = frames[i];
@@ -139,22 +158,19 @@ function computeCumulative(frames: FrameState[]) {
 
     if (f.r1 === 10) {
       rollStream.push(10);
-      frameRollCounts.push(1);
       continue;
     }
 
     if (f.r2 === null) break;
 
-    const two = (f.r1 ?? 0) + (f.r2 ?? 0);
+    const two = f.r1 + f.r2;
     if (two === 10) {
       rollStream.push(f.r1, f.r2);
-      frameRollCounts.push(2);
       continue;
     }
 
     if (f.r3 === null) break;
     rollStream.push(f.r1, f.r2, f.r3);
-    frameRollCounts.push(3);
   }
 
   let total = 0;
@@ -172,6 +188,7 @@ function computeCumulative(frames: FrameState[]) {
       break;
     }
 
+    // strike
     if (f.r1 === 10) {
       const b1 = rollStream[rollIndex + 1] ?? 0;
       const b2 = rollStream[rollIndex + 2] ?? 0;
@@ -181,8 +198,8 @@ function computeCumulative(frames: FrameState[]) {
       continue;
     }
 
+    // spare in 2
     const two = (f.r1 ?? 0) + (f.r2 ?? 0);
-
     if (two === 10) {
       const bonus = rollStream[rollIndex + 2] ?? 0;
       total += 10 + bonus;
@@ -191,6 +208,7 @@ function computeCumulative(frames: FrameState[]) {
       continue;
     }
 
+    // open or 10-in-3 (no spare bonus)
     total += (f.r1 ?? 0) + (f.r2 ?? 0) + (f.r3 ?? 0);
     cum[frame] = total;
     rollIndex += 3;
@@ -207,123 +225,111 @@ function isSpareInTwo(frame: FrameState) {
   return frame.r1 !== 10 && frame.r1 + frame.r2 === 10;
 }
 
-function range(min: number, max: number) {
-  const out: number[] = [];
-  for (let i = min; i <= max; i++) out.push(i);
-  return out;
-}
-
-// 10th frame dropdown options per your rules
-function optionsForRoll10th(r1: number | null, r2: number | null, roll: 1 | 2 | 3) {
-  if (roll === 1) return range(0, 10);
-  if (r1 === null) return [];
-
-  if (roll === 2) {
-    if (r1 === 10) return range(0, 10); // reset rack
-    return range(0, Math.max(0, 10 - r1)); // remaining
-  }
-
-  if (r2 === null) return [];
-
-  if (r1 === 10) {
-    if (r2 === 10) return range(0, 10); // reset again
-    return range(0, Math.max(0, 10 - r2)); // remaining from roll2 rack
-  }
-
-  // r1 not strike
-  if (r1 + r2 === 10) return range(0, 10); // spare-in-2 => reset rack
-  return range(0, Math.max(0, 10 - r1 - r2)); // remaining
-}
-
-// frames 1-9 options
-function optionsForRollStandard(r1: number | null, r2: number | null, roll: 1 | 2 | 3) {
-  if (roll === 1) return range(0, 10);
-  if (r1 === null) return [];
-
-  if (roll === 2) {
-    if (r1 === 10) return [];
-    return range(0, Math.max(0, 10 - r1));
-  }
-
-  // roll 3
-  if (r2 === null) return [];
-  if (r1 === 10) return [];
-  if (r1 + r2 === 10) return [];
-  return range(0, Math.max(0, 10 - r1 - r2));
-}
-
-function markLabel(v: "C" | "S" | null) {
-  if (v === "C") return "Chop";
-  if (v === "S") return "Split";
-  return "—";
-}
-
 export default function GamePage() {
-  // game ids (cookie-backed)
-  const [gameId, setGameId] = useState(() => {
-    const existing = getCookie("game_id");
-    if (existing) return existing;
-    const id = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
-    setCookie("game_id", String(id));
-    return String(id);
-  });
+  /**
+   * IMPORTANT:
+   * - We do NOT read cookies during initial render (server prerender safe).
+   * - We hydrate from cookies inside a useEffect.
+   */
+  const [hydrated, setHydrated] = useState(false);
 
-  const [devGameId, setDevGameId] = useState<string | null>(() => getCookie("dev_game_id"));
+  const [gameId, setGameId] = useState<string>(""); // cookie-backed after hydration
+  const [devGameId, setDevGameId] = useState<string>(""); // cookie-backed after hydration
 
-  const [gameDate, setGameDate] = useState(() => getCookie("game_date") ?? todayISO());
-  const [location, setLocation] = useState(() => getCookie("game_location") ?? LOCATIONS[0]);
-  const [gameType, setGameType] = useState(() => getCookie("game_type") ?? GAME_TYPES[0]);
-  const [gameNumber, setGameNumber] = useState(() => Number(getCookie("game_number") ?? "1"));
+  const [gameDate, setGameDate] = useState<string>(todayISO());
+  const [location, setLocation] = useState<string>(LOCATIONS[0]);
+  const [gameType, setGameType] = useState<string>(GAME_TYPES[0]);
+  const [gameNumber, setGameNumber] = useState<number>(1);
 
-  // frames (cookie-backed)
-  const [frames, setFrames] = useState<FrameState[]>(() => initFramesFromCookies());
+  const [frames, setFrames] = useState<FrameState[]>(() => emptyFrames());
 
-  // UI state
-  const [index, setIndex] = useState(() => firstIncompleteFrame(initFramesFromCookies()));
+  const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
-  // arrow vertical alignment to card center
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [arrowTop, setArrowTop] = useState<number>(220);
 
-  // ✅ Auto-create dev_game_id if missing (requested update)
+  // Hydrate from cookies on the client only
   useEffect(() => {
-    const existing = getCookie("dev_game_id");
-    if (existing) {
-      setDevGameId(existing);
-      return;
+    if (!isBrowser()) return;
+
+    const gid = getCookie("game_id") ?? (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+    setCookie("game_id", String(gid));
+    setGameId(String(gid));
+
+    const dg = getCookie("dev_game_id") ?? (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+    setCookie("dev_game_id", String(dg));
+    setDevGameId(String(dg));
+
+    const d = getCookie("game_date") ?? todayISO();
+    const loc = getCookie("game_location") ?? LOCATIONS[0];
+    const gt = getCookie("game_type") ?? GAME_TYPES[0];
+    const gn = Number(getCookie("game_number") ?? "1");
+
+    setGameDate(d);
+    setLocation(loc);
+    setGameType(gt);
+    setGameNumber(Number.isFinite(gn) ? gn : 1);
+
+    // frames
+    const loaded = emptyFrames();
+    for (let f = 1; f <= 10; f++) {
+      const lane = getCookie(`frame${f}_lane`);
+      const r1 = getCookie(`frame${f}_roll1`);
+      const r2 = getCookie(`frame${f}_roll2`);
+      const r3 = getCookie(`frame${f}_roll3`);
+
+      const m1 = getCookie(`frame${f}_roll_1_chop_split`);
+      const m2 = getCookie(`frame${f}_roll_2_chop_split`);
+      const m3 = getCookie(`frame${f}_roll_3_chop_split`);
+
+      loaded[f - 1] = {
+        lane: lane ? Number(lane) : null,
+        r1: r1 !== null ? Number(r1) : null,
+        r2: r2 !== null ? Number(r2) : null,
+        r3: r3 !== null ? Number(r3) : null,
+        m1: m1 === "C" || m1 === "S" ? (m1 as any) : null,
+        m2: m2 === "C" || m2 === "S" ? (m2 as any) : null,
+        m3: m3 === "C" || m3 === "S" ? (m3 as any) : null
+      };
     }
-    const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).toString();
-    setCookie("dev_game_id", id);
-    setDevGameId(id);
+
+    setFrames(loaded);
+    setIndex(firstIncompleteFrame(loaded));
+    setHydrated(true);
   }, []);
 
-  // persist meta cookies
+  // Persist meta cookies when changed (after hydration)
   useEffect(() => {
+    if (!hydrated) return;
     setCookie("game_date", gameDate);
     setCookie("game_location", location);
     setCookie("game_type", gameType);
     setCookie("game_number", String(gameNumber));
-  }, [gameDate, location, gameType, gameNumber]);
+  }, [hydrated, gameDate, location, gameType, gameNumber]);
 
-  // keep arrows aligned to card center without lag
+  // Keep arrows aligned to card center (no lag)
   useEffect(() => {
+    if (!hydrated) return;
+
     const update = () => {
       const el = cardRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
       setArrowTop(Math.max(80, r.top + r.height / 2));
     };
+
     update();
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
-    const t = window.setTimeout(update, 40);
+    const t = window.setTimeout(update, 60);
+
     return () => {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
       window.clearTimeout(t);
     };
-  }, [index, flipped]);
+  }, [hydrated, index, flipped]);
 
   const cumulative = useMemo(() => computeCumulative(frames), [frames]);
 
@@ -339,13 +345,13 @@ export default function GamePage() {
 
   function goPrev() {
     if (isFirst) return;
-    setFlipped(false);
     setIndex((i) => Math.max(0, i - 1));
+    setFlipped(false);
   }
   function goNext() {
     if (isLast) return;
-    setFlipped(false);
     setIndex((i) => Math.min(9, i + 1));
+    setFlipped(false);
   }
 
   function setFrameValue(frameIdx: number, patch: Partial<FrameState>) {
@@ -355,40 +361,45 @@ export default function GamePage() {
       return copy;
     });
 
+    if (!hydrated) return;
+
     const fnum = frameIdx + 1;
 
     if (patch.lane !== undefined) {
-      if (patch.lane === null) deleteCookie(`frame${fnum}_lane`);
-      else setCookie(`frame${fnum}_lane`, String(patch.lane));
+      patch.lane === null ? deleteCookie(`frame${fnum}_lane`) : setCookie(`frame${fnum}_lane`, String(patch.lane));
     }
     if (patch.r1 !== undefined) {
-      if (patch.r1 === null) deleteCookie(`frame${fnum}_roll1`);
-      else setCookie(`frame${fnum}_roll1`, String(patch.r1));
+      patch.r1 === null ? deleteCookie(`frame${fnum}_roll1`) : setCookie(`frame${fnum}_roll1`, String(patch.r1));
     }
     if (patch.r2 !== undefined) {
-      if (patch.r2 === null) deleteCookie(`frame${fnum}_roll2`);
-      else setCookie(`frame${fnum}_roll2`, String(patch.r2));
+      patch.r2 === null ? deleteCookie(`frame${fnum}_roll2`) : setCookie(`frame${fnum}_roll2`, String(patch.r2));
     }
     if (patch.r3 !== undefined) {
-      if (patch.r3 === null) deleteCookie(`frame${fnum}_roll3`);
-      else setCookie(`frame${fnum}_roll3`, String(patch.r3));
+      patch.r3 === null ? deleteCookie(`frame${fnum}_roll3`) : setCookie(`frame${fnum}_roll3`, String(patch.r3));
     }
-
     if (patch.m1 !== undefined) {
-      if (patch.m1 === null) deleteCookie(`frame${fnum}_roll_1_chop_split`);
-      else setCookie(`frame${fnum}_roll_1_chop_split`, patch.m1);
+      patch.m1 === null ? deleteCookie(`frame${fnum}_roll_1_chop_split`) : setCookie(`frame${fnum}_roll_1_chop_split`, patch.m1);
     }
     if (patch.m2 !== undefined) {
-      if (patch.m2 === null) deleteCookie(`frame${fnum}_roll_2_chop_split`);
-      else setCookie(`frame${fnum}_roll_2_chop_split`, patch.m2);
+      patch.m2 === null ? deleteCookie(`frame${fnum}_roll_2_chop_split`) : setCookie(`frame${fnum}_roll_2_chop_split`, patch.m2);
     }
     if (patch.m3 !== undefined) {
-      if (patch.m3 === null) deleteCookie(`frame${fnum}_roll_3_chop_split`);
-      else setCookie(`frame${fnum}_roll_3_chop_split`, patch.m3);
+      patch.m3 === null ? deleteCookie(`frame${fnum}_roll_3_chop_split`) : setCookie(`frame${fnum}_roll_3_chop_split`, patch.m3);
     }
   }
 
+  function resetFrameCookies(frameNumber: number) {
+    deleteCookie(`frame${frameNumber}_lane`);
+    deleteCookie(`frame${frameNumber}_roll1`);
+    deleteCookie(`frame${frameNumber}_roll2`);
+    deleteCookie(`frame${frameNumber}_roll3`);
+    deleteCookie(`frame${frameNumber}_roll_1_chop_split`);
+    deleteCookie(`frame${frameNumber}_roll_2_chop_split`);
+    deleteCookie(`frame${frameNumber}_roll_3_chop_split`);
+  }
+
   function startEditFrame() {
+    if (!hydrated) return;
     resetFrameCookies(currentFrameNumber);
     setFrameValue(index, { lane: currentFrame.lane ?? null, r1: null, r2: null, r3: null, m1: null, m2: null, m3: null });
   }
@@ -405,41 +416,48 @@ export default function GamePage() {
     const { r1, r2 } = currentFrame;
 
     if (roll === 1) return true;
+
     if (roll === 2) {
       if (r1 === null) return false;
       if (currentFrameNumber < 10 && r1 === 10) return false;
       return true;
     }
+
+    // roll 3
     if (r1 === null || r2 === null) return false;
+
     if (currentFrameNumber < 10) {
       if (r1 === 10) return false;
       if (r1 + r2 === 10) return false;
       return true;
     }
-    return true; // 10th: allow roll3 once roll2 exists
+
+    return true; // 10th: always allow roll3 once roll2 exists
   }
 
   function onRollChange(roll: 1 | 2 | 3, val: number | null) {
     if (roll === 1) {
-      setFrameValue(index, { r1: val, r2: null, r3: null, m1: currentFrame.m1 ?? null, m2: null, m3: null });
+      setFrameValue(index, { r1: val, r2: null, r3: null, m2: null, m3: null });
       return;
     }
     if (roll === 2) {
-      setFrameValue(index, { r2: val, r3: null, m2: currentFrame.m2 ?? null, m3: null });
+      setFrameValue(index, { r2: val, r3: null, m3: null });
       return;
     }
     setFrameValue(index, { r3: val });
   }
 
   function onMarkChange(roll: 1 | 2 | 3, v: "" | "C" | "S") {
-    const val: "C" | "S" | null = v === "" ? null : v;
+    const val: Mark = v === "" ? null : (v as any);
     if (roll === 1) setFrameValue(index, { m1: val });
     if (roll === 2) setFrameValue(index, { m2: val });
     if (roll === 3) setFrameValue(index, { m3: val });
   }
 
   function submitFrame() {
+    // only flip back on confirm
     setFlipped(false);
+
     const nowAllowed = firstIncompleteFrame(frames);
     if (index === nowAllowed && frameComplete(frames[index], currentFrameNumber) && index < 9) {
       setIndex(index + 1);
@@ -453,32 +471,38 @@ export default function GamePage() {
     return true;
   }, [frames]);
 
+  function clearAllGameCookies() {
+    deleteCookie("game_id");
+    deleteCookie("dev_game_id");
+    deleteCookie("game_date");
+    deleteCookie("game_location");
+    deleteCookie("game_type");
+    deleteCookie("game_number");
+
+    for (let f = 1; f <= 10; f++) {
+      resetFrameCookies(f);
+    }
+  }
+
   function newGame() {
+    if (!hydrated) return;
+
     clearAllGameCookies();
 
-    const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).toString();
-    setCookie("game_id", id);
-    setGameId(id);
+    const gid = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+    const dg = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 
-    // also recreate dev_game_id
-    const dev = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).toString();
-    setCookie("dev_game_id", dev);
-    setDevGameId(dev);
+    setCookie("game_id", String(gid));
+    setCookie("dev_game_id", String(dg));
+    setGameId(String(gid));
+    setDevGameId(String(dg));
 
     setGameDate(todayISO());
     setLocation(LOCATIONS[0]);
     setGameType(GAME_TYPES[0]);
     setGameNumber(1);
 
-    const empty: FrameState[] = Array.from({ length: 10 }, () => ({
-      lane: null,
-      r1: null,
-      r2: null,
-      r3: null,
-      m1: null,
-      m2: null,
-      m3: null
-    }));
+    const empty = emptyFrames();
     setFrames(empty);
     setIndex(0);
     setFlipped(false);
@@ -486,13 +510,11 @@ export default function GamePage() {
 
   function submitScore() {
     if (!allComplete) return;
-    // For now: clear cookies and reset
-    clearAllGameCookies();
     alert("Score submitted!");
     newGame();
   }
 
-  // Display helpers for scorecard front
+  // Display helpers
   const strike = isStrike(currentFrame);
   const spare2 = isSpareInTwo(currentFrame);
   const cumScore = cumulative[index];
@@ -501,25 +523,29 @@ export default function GamePage() {
   const r2Text = spare2 ? "/" : currentFrame.r2 !== null ? String(currentFrame.r2) : "";
   const r3Text = currentFrame.r3 !== null ? String(currentFrame.r3) : "";
 
+  // While hydration happens, show a stable shell (prevents layout flicker)
+  if (!hydrated) {
+    return (
+      <main style={{ minHeight: "100vh", background: CREAM, fontFamily: "Montserrat, system-ui", padding: "2rem 1rem", color: INK }}>
+        <div style={{ textAlign: "center" }}>
+          <img src="/1@300x.png" alt="Dux Bowling" style={{ maxWidth: 160, width: "100%" }} />
+          <p style={{ marginTop: "1.25rem", color: TEXT_ORANGE, fontWeight: 800 }}>Loading game…</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: CREAM,
-        fontFamily: "Montserrat, system-ui",
-        padding: "2rem 1rem 2.5rem",
-        color: INK
-      }}
-    >
+    <main style={{ minHeight: "100vh", background: CREAM, fontFamily: "Montserrat, system-ui", padding: "2rem 1rem 2.5rem", color: INK }}>
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
         <img src="/1@300x.png" alt="Dux Bowling" style={{ maxWidth: 160, width: "100%" }} />
       </div>
 
-      {/* Game meta inputs */}
+      {/* Meta */}
       <section
         style={{
-          maxWidth: 760,
+          maxWidth: 780,
           margin: "0 auto 1.25rem",
           background: "#fff",
           borderRadius: 16,
@@ -541,11 +567,7 @@ export default function GamePage() {
 
           <label style={{ display: "grid", gap: ".25rem", fontSize: ".9rem", color: INK }}>
             Location
-            <select
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              style={{ padding: ".6rem", borderRadius: 12, border: "1px solid #ddd" }}
-            >
+            <select value={location} onChange={(e) => setLocation(e.target.value)} style={{ padding: ".6rem", borderRadius: 12, border: "1px solid #ddd" }}>
               {LOCATIONS.map((l) => (
                 <option key={l} value={l}>
                   {l}
@@ -556,11 +578,7 @@ export default function GamePage() {
 
           <label style={{ display: "grid", gap: ".25rem", fontSize: ".9rem", color: INK }}>
             Game Type
-            <select
-              value={gameType}
-              onChange={(e) => setGameType(e.target.value)}
-              style={{ padding: ".6rem", borderRadius: 12, border: "1px solid #ddd" }}
-            >
+            <select value={gameType} onChange={(e) => setGameType(e.target.value)} style={{ padding: ".6rem", borderRadius: 12, border: "1px solid #ddd" }}>
               {GAME_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {t}
@@ -571,11 +589,7 @@ export default function GamePage() {
 
           <label style={{ display: "grid", gap: ".25rem", fontSize: ".9rem", color: INK }}>
             Game Number
-            <select
-              value={gameNumber}
-              onChange={(e) => setGameNumber(Number(e.target.value))}
-              style={{ padding: ".6rem", borderRadius: 12, border: "1px solid #ddd" }}
-            >
+            <select value={gameNumber} onChange={(e) => setGameNumber(Number(e.target.value))} style={{ padding: ".6rem", borderRadius: 12, border: "1px solid #ddd" }}>
               {Array.from({ length: 10 }).map((_, i) => (
                 <option key={i + 1} value={i + 1}>
                   {i + 1}
@@ -585,10 +599,8 @@ export default function GamePage() {
           </label>
         </div>
 
-        {/* small dev ids line (optional) */}
         <div style={{ marginTop: ".75rem", fontSize: ".85rem", color: "#6a4b3a" }}>
-          Game ID: <strong>{gameId.slice(0, 8)}</strong> · Dev Game ID:{" "}
-          <strong>{devGameId ? devGameId.slice(0, 8) : "—"}</strong>
+          Game ID: <strong>{String(gameId).slice(0, 8)}</strong> · Dev Game ID: <strong>{String(devGameId).slice(0, 8)}</strong>
         </div>
       </section>
 
@@ -642,15 +654,15 @@ export default function GamePage() {
       </button>
 
       {/* Card */}
-      <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", justifyContent: "center" }}>
+      <div style={{ maxWidth: 780, margin: "0 auto", display: "flex", justifyContent: "center" }}>
         <div
           ref={cardRef}
           onClick={() => {
             if (!isFutureFrame) setFlipped((v) => !v);
           }}
           style={{
-            width: "min(640px, 94vw)",
-            height: 320,
+            width: "min(680px, 94vw)",
+            height: 340,
             perspective: 1100,
             cursor: isFutureFrame ? "not-allowed" : "pointer",
             opacity: isFutureFrame ? 0.6 : 1
@@ -688,19 +700,17 @@ export default function GamePage() {
                 </div>
               </div>
 
-              {/* Score box */}
               <div
                 style={{
                   border: `2px solid ${ORANGE}`,
                   borderRadius: 14,
                   overflow: "hidden",
                   display: "grid",
-                  gridTemplateRows: "84px 1fr"
+                  gridTemplateRows: "92px 1fr"
                 }}
               >
-                {/* top row roll boxes */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: `2px solid ${ORANGE}` }}>
-                  {/* Roll 1 */}
+                  {/* R1 */}
                   <div
                     style={{
                       position: "relative",
@@ -708,7 +718,7 @@ export default function GamePage() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "1.4rem",
+                      fontSize: "1.5rem",
                       fontWeight: 900,
                       background: strike ? ORANGE : "transparent",
                       color: strike ? "#fff" : ORANGE
@@ -722,7 +732,7 @@ export default function GamePage() {
                     )}
                   </div>
 
-                  {/* Roll 2 */}
+                  {/* R2 */}
                   <div
                     style={{
                       position: "relative",
@@ -730,20 +740,12 @@ export default function GamePage() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "1.4rem",
+                      fontSize: "1.5rem",
                       fontWeight: 900,
                       color: ORANGE
                     }}
                   >
-                    {spare2 && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          background: `linear-gradient(135deg, transparent 50%, rgba(228,106,46,0.35) 50%)`
-                        }}
-                      />
-                    )}
+                    {spare2 && <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, transparent 50%, rgba(228,106,46,0.35) 50%)` }} />}
                     <span style={{ position: "relative" }}>{r2Text}</span>
                     {currentFrame.m2 && (
                       <span style={{ position: "absolute", bottom: 6, right: 8, fontSize: ".85rem", fontWeight: 900, color: ORANGE }}>
@@ -752,18 +754,8 @@ export default function GamePage() {
                     )}
                   </div>
 
-                  {/* Roll 3 */}
-                  <div
-                    style={{
-                      position: "relative",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "1.4rem",
-                      fontWeight: 900,
-                      color: ORANGE
-                    }}
-                  >
+                  {/* R3 */}
+                  <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", fontWeight: 900, color: ORANGE }}>
                     {r3Text}
                     {currentFrame.m3 && (
                       <span style={{ position: "absolute", bottom: 6, right: 8, fontSize: ".85rem", fontWeight: 900, color: ORANGE }}>
@@ -773,9 +765,8 @@ export default function GamePage() {
                   </div>
                 </div>
 
-                {/* bottom row big cumulative */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ fontSize: "2.3rem", fontWeight: 900, color: ORANGE }}>{cumScore ?? "—"}</div>
+                  <div style={{ fontSize: "2.35rem", fontWeight: 900, color: ORANGE }}>{cumScore ?? "—"}</div>
                 </div>
               </div>
 
@@ -786,7 +777,7 @@ export default function GamePage() {
               </div>
             </div>
 
-            {/* BACK: entry */}
+            {/* BACK */}
             <div
               style={{
                 position: "absolute",
@@ -800,17 +791,15 @@ export default function GamePage() {
                 boxShadow: "0 12px 30px rgba(0,0,0,0.08)",
                 display: "grid",
                 gridTemplateRows: "auto 1fr auto",
-                gap: ".75rem"
+                gap: ".75rem",
+                overflow: "hidden"
               }}
               onClick={(e) => e.stopPropagation()}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ fontWeight: 900 }}>Frame {currentFrameNumber}</div>
                 <button
-                  onClick={() => {
-                    if (!canEditThisFrame || isFutureFrame) return;
-                    startEditFrame();
-                  }}
+                  onClick={startEditFrame}
                   disabled={!canEditThisFrame || isFutureFrame}
                   style={{
                     border: "none",
@@ -827,8 +816,7 @@ export default function GamePage() {
                 </button>
               </div>
 
-              <div style={{ display: "grid", gap: ".8rem" }}>
-                {/* Lane */}
+              <div style={{ display: "grid", gap: ".75rem", overflow: "auto", paddingRight: ".25rem" }}>
                 <label style={{ display: "grid", gap: ".25rem", fontSize: ".9rem" }}>
                   Lane (optional)
                   <select
@@ -845,8 +833,8 @@ export default function GamePage() {
                   </select>
                 </label>
 
-                {/* Rolls + markers */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: ".7rem" }}>
+                  {/* Roll 1 */}
                   <div style={{ display: "grid", gap: ".4rem" }}>
                     <label style={{ display: "grid", gap: ".25rem", fontSize: ".85rem" }}>
                       Roll 1
@@ -867,11 +855,7 @@ export default function GamePage() {
 
                     <label style={{ display: "grid", gap: ".25rem", fontSize: ".8rem" }}>
                       Marker
-                      <select
-                        value={currentFrame.m1 ?? ""}
-                        onChange={(e) => onMarkChange(1, e.target.value as any)}
-                        style={{ padding: ".5rem", borderRadius: 12, border: "none" }}
-                      >
+                      <select value={currentFrame.m1 ?? ""} onChange={(e) => onMarkChange(1, e.target.value as any)} style={{ padding: ".5rem", borderRadius: 12, border: "none" }}>
                         <option value="">—</option>
                         <option value="C">Chop</option>
                         <option value="S">Split</option>
@@ -879,6 +863,7 @@ export default function GamePage() {
                     </label>
                   </div>
 
+                  {/* Roll 2 */}
                   <div style={{ display: "grid", gap: ".4rem" }}>
                     <label style={{ display: "grid", gap: ".25rem", fontSize: ".85rem" }}>
                       Roll 2
@@ -899,11 +884,7 @@ export default function GamePage() {
 
                     <label style={{ display: "grid", gap: ".25rem", fontSize: ".8rem" }}>
                       Marker
-                      <select
-                        value={currentFrame.m2 ?? ""}
-                        onChange={(e) => onMarkChange(2, e.target.value as any)}
-                        style={{ padding: ".5rem", borderRadius: 12, border: "none" }}
-                      >
+                      <select value={currentFrame.m2 ?? ""} onChange={(e) => onMarkChange(2, e.target.value as any)} style={{ padding: ".5rem", borderRadius: 12, border: "none" }}>
                         <option value="">—</option>
                         <option value="C">Chop</option>
                         <option value="S">Split</option>
@@ -911,6 +892,7 @@ export default function GamePage() {
                     </label>
                   </div>
 
+                  {/* Roll 3 */}
                   <div style={{ display: "grid", gap: ".4rem" }}>
                     <label style={{ display: "grid", gap: ".25rem", fontSize: ".85rem" }}>
                       Roll 3
@@ -931,21 +913,13 @@ export default function GamePage() {
 
                     <label style={{ display: "grid", gap: ".25rem", fontSize: ".8rem" }}>
                       Marker
-                      <select
-                        value={currentFrame.m3 ?? ""}
-                        onChange={(e) => onMarkChange(3, e.target.value as any)}
-                        style={{ padding: ".5rem", borderRadius: 12, border: "none" }}
-                      >
+                      <select value={currentFrame.m3 ?? ""} onChange={(e) => onMarkChange(3, e.target.value as any)} style={{ padding: ".5rem", borderRadius: 12, border: "none" }}>
                         <option value="">—</option>
                         <option value="C">Chop</option>
                         <option value="S">Split</option>
                       </select>
                     </label>
                   </div>
-                </div>
-
-                <div style={{ fontSize: ".85rem", opacity: 0.9 }}>
-                  Selected: {markLabel(currentFrame.m1)} / {markLabel(currentFrame.m2)} / {markLabel(currentFrame.m3)}
                 </div>
               </div>
 
@@ -955,8 +929,8 @@ export default function GamePage() {
                 style={{
                   width: "100%",
                   border: "none",
-                  borderRadius: 14,
-                  padding: ".9rem",
+                  borderRadius: 16,
+                  padding: ".95rem",
                   fontWeight: 900,
                   background: "#fff",
                   color: ORANGE,
@@ -972,7 +946,7 @@ export default function GamePage() {
       </div>
 
       {/* Bottom actions */}
-      <div style={{ maxWidth: 760, margin: "1.25rem auto 0", display: "grid", gap: ".75rem" }}>
+      <div style={{ maxWidth: 780, margin: "1.25rem auto 0", display: "grid", gap: ".75rem" }}>
         <button
           onClick={submitScore}
           disabled={!allComplete}
