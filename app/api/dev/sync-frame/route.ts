@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createServerClient } from "@/app/lib/supabase/server";
+import { createClient } from "@/app/lib/supabase/server";
 
 /**
  * Requires env vars:
