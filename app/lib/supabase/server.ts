@@ -7,16 +7,16 @@ function must(name: string) {
 }
 
 export function supabaseAnonServer() {
-  const url = must("SUPABASE_URL");
-  const anon = must("SUPABASE_ANON_KEY");
+  const url = must("NEXT_PUBLIC_SUPABASE_URL");
+  const anon = must("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   return createClient(url, anon, {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
 
 export function supabaseAdminServer() {
-  const url = must("SUPABASE_URL");
-  const service = must("SUPABASE_SERVICE_ROLE_KEY");
+  const url = must("NEXT_PUBLIC_SUPABASE_URL");
+  const service = must("NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY");
   return createClient(url, service, {
     auth: { persistSession: false, autoRefreshToken: false }
   });
