@@ -1,57 +1,25 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
-function mustEnv(name: string) {
-  const v = process.env[name];
-  if (!v) throw new Error(`${name} is required`);
-  return v;
+function supabaseAdmin() {
+  const url = process.env.SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  if (!url || !key) throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// Minimal PostgREST helper (server-only)
-async function sb(path: string, init: RequestInit) {
-  const url = mustEnv("SUPABASE_URL").replace(/\/$/, "");
-  const key = mustEnv("SUPABASE_SERVICE_ROLE_KEY");
-
-  const res = await fetch(`${url}/rest/v1/${path}`, {
-    ...init,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      ...(init.headers || {})
-    },
-    cache: "no-store"
-  });
-
-  const text = await res.text();
-  let json: any = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = text;
-  }
-
-  if (!res.ok) return { ok: false as const, status: res.status, json };
-  return { ok: true as const, status: res.status, json };
+// If you built your own auth routes, you should be setting a cookie.
+// This reads a typical cookie name; update if yours differs.
+function getAccessTokenFromCookies() {
+  const jar = cookies();
+  return (
+    jar.get("sb-access-token")?.value ||
+    jar.get("access_token")?.value ||
+    jar.get("supabase_access_token")?.value ||
+    null
+  );
 }
-
-type Body = {
-  // required
-  dev_game_id: string;
-  frame_number: number;
-
-  // optional
-  lane: number | null;
-
-  // rolls (counts as “pins knocked” amount; we assume pins fall in order)
-  r1: number | null;
-  r2: number | null;
-  r3: number | null;
-
-  // chop/split markers for each roll ("C" | "S" | null)
-  r1_mark: "C" | "S" | null;
-  r2_mark: "C" | "S" | null;
-  r3_mark: "C" | "S" | null;
-};
 
 function range(min: number, max: number) {
   const out: number[] = [];
@@ -59,128 +27,248 @@ function range(min: number, max: number) {
   return out;
 }
 
-// Assumption requested:
-// if you knock down N pins, they are the first N eligible pins in order.
-function buildPins(
-  eligible: number[],
-  knockedCount: number
-): { pins_eligible: number[]; pins_knocked: number[]; nextEligible: number[] } {
-  const k = Math.max(0, Math.min(knockedCount, eligible.length));
-  const pins_knocked = eligible.slice(0, k);
-  const nextEligible = eligible.slice(k);
-  return { pins_eligible: eligible, pins_knocked, nextEligible };
+function buildPinsEligibleAndDown(r1: number | null, r2: number | null, r3: number | null, frameNumber: number) {
+  // Pins are 1..10 each rack; you said “assume they fall in order”.
+  // For frames 1-9:
+  // - Strike ends frame (r1=10)
+  // - Spare in two ends frame (r1+r2=10)
+  // - Else r3 allowed only up to remaining
+  //
+  // For 10th:
+  // - If strike on r1 => reset rack for r2
+  // - If spare in two (r1+r2=10) => reset rack for r3
+  // - Otherwise r3 only remaining
+
+  const rolls: Array<{
+    roll_number: 1 | 2 | 3;
+    eligible: number[];
+    down: number[];
+  }> = [];
+
+  const takeFirstN = (arr: number[], n: number) => arr.slice(0, Math.max(0, Math.min(n, arr.length)));
+
+  // helper for a single rack sequence
+  const applyOnRack = (rackPins: number[], a: number | null, b: number | null, c: number | null) => {
+    let remaining = [...rackPins];
+
+    // r1
+    if (a !== null) {
+      const down1 = takeFirstN(remaining, a);
+      rolls.push({ roll_number: 1, eligible: [...rackPins], down: down1 });
+      remaining = remaining.slice(down1.length);
+    } else {
+      return;
+    }
+
+    // r2
+    if (b !== null) {
+      const down2 = takeFirstN(remaining, b);
+      rolls.push({ roll_number: 2, eligible: [...remaining], down: down2 });
+      remaining = remaining.slice(down2.length);
+    } else {
+      return;
+    }
+
+    // r3
+    if (c !== null) {
+      const down3 = takeFirstN(remaining, c);
+      rolls.push({ roll_number: 3, eligible: [...remaining], down: down3 });
+    }
+  };
+
+  // Frames 1-9 are one rack only
+  if (frameNumber < 10) {
+    const rack = range(1, 10);
+    if (r1 === null) return rolls;
+
+    if (r1 === 10) {
+      rolls.push({ roll_number: 1, eligible: rack, down: rack });
+      return rolls;
+    }
+
+    if (r2 === null) {
+      const down1 = rack.slice(0, Math.max(0, Math.min(r1, 10)));
+      rolls.push({ roll_number: 1, eligible: rack, down: down1 });
+      return rolls;
+    }
+
+    // eligible for roll2 is remaining after r1
+    const eligible2 = rack.slice(Math.min(r1, 10));
+    const down1 = rack.slice(0, Math.min(r1, 10));
+    const down2 = eligible2.slice(0, Math.min(r2, eligible2.length));
+
+    rolls.push({ roll_number: 1, eligible: rack, down: down1 });
+    rolls.push({ roll_number: 2, eligible: eligible2, down: down2 });
+
+    if (r1 + r2 === 10) return rolls; // spare-in-2 ends
+
+    if (r3 !== null) {
+      const eligible3 = eligible2.slice(down2.length);
+      const down3 = eligible3.slice(0, Math.min(r3, eligible3.length));
+      rolls.push({ roll_number: 3, eligible: eligible3, down: down3 });
+    }
+    return rolls;
+  }
+
+  // 10th frame: possible rack resets
+  const rack = range(1, 10);
+  if (r1 === null) return rolls;
+
+  // roll1 always uses full rack
+  const down1 = rack.slice(0, Math.min(r1, 10));
+  rolls.push({ roll_number: 1, eligible: rack, down: down1 });
+
+  if (r2 === null) return rolls;
+
+  if (r1 === 10) {
+    // reset for roll2
+    const down2 = rack.slice(0, Math.min(r2, 10));
+    rolls.push({ roll_number: 2, eligible: rack, down: down2 });
+
+    if (r3 === null) return rolls;
+
+    if (r2 === 10) {
+      // reset again for roll3
+      const down3 = rack.slice(0, Math.min(r3, 10));
+      rolls.push({ roll_number: 3, eligible: rack, down: down3 });
+      return rolls;
+    }
+
+    // remaining from roll2 rack
+    const eligible3 = rack.slice(Math.min(r2, 10));
+    const down3 = eligible3.slice(0, Math.min(r3, eligible3.length));
+    rolls.push({ roll_number: 3, eligible: eligible3, down: down3 });
+    return rolls;
+  }
+
+  // r1 not strike
+  const eligible2 = rack.slice(Math.min(r1, 10));
+  const down2 = eligible2.slice(0, Math.min(r2, eligible2.length));
+  // overwrite roll2 with correct eligible (we already inserted roll2 above? no, only roll1 so far)
+  rolls[0] = { roll_number: 1, eligible: rack, down: down1 };
+  rolls.push({ roll_number: 2, eligible: eligible2, down: down2 });
+
+  if (r3 === null) return rolls;
+
+  if (r1 + r2 === 10) {
+    // spare-in-2 => reset rack for roll3
+    const down3 = rack.slice(0, Math.min(r3, 10));
+    rolls.push({ roll_number: 3, eligible: rack, down: down3 });
+    return rolls;
+  }
+
+  const eligible3 = eligible2.slice(down2.length);
+  const down3 = eligible3.slice(0, Math.min(r3, eligible3.length));
+  rolls.push({ roll_number: 3, eligible: eligible3, down: down3 });
+  return rolls;
 }
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as Body;
-
-    if (!body?.dev_game_id) {
-      return NextResponse.json({ ok: false, error: "dev_game_id required" }, { status: 400 });
-    }
-    if (!body?.frame_number || body.frame_number < 1 || body.frame_number > 10) {
-      return NextResponse.json({ ok: false, error: "frame_number 1..10 required" }, { status: 400 });
+    const token = getAccessTokenFromCookies();
+    if (!token) {
+      return NextResponse.json({ error: "Not logged in" }, { status: 401 });
     }
 
-    // 1) Find or create dev_frame row
-    const frFind = await sb(
-      `dev_frames?dev_game_id=eq.${encodeURIComponent(body.dev_game_id)}&frame_number=eq.${body.frame_number}&select=dev_frame_id`,
-      { method: "GET" }
+    const body = await req.json();
+    const {
+      dev_game_id,
+      frame_number,
+      lane,
+      r1,
+      r2,
+      r3,
+      r1_mark,
+      r2_mark,
+      r3_mark
+    } = body ?? {};
+
+    if (!dev_game_id || !frame_number) {
+      return NextResponse.json({ error: "Missing dev_game_id or frame_number" }, { status: 400 });
+    }
+
+    const sb = supabaseAdmin();
+
+    // Identify user from token
+    const { data: userRes, error: userErr } = await sb.auth.getUser(token);
+    if (userErr || !userRes?.user?.id) {
+      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    }
+    const user_id = userRes.user.id;
+
+    // Ensure a dev_game row exists for this user/game (minimal)
+    // dev_games columns assumed: id (uuid/text), user_id, created_at, date, location, game_type, game_number
+    // If your schema differs, adjust accordingly.
+    await sb
+      .from("dev_games")
+      .upsert(
+        [{ game_id: dev_game_id, user_id }],
+        { onConflict: "game_id" }
+      );
+
+    // Find or create frame row
+    // dev_frames columns assumed: frame_id (uuid), game_id, frame_number, lane, created_at
+    // We'll delete old frame+rolls for this frame_number so edits don't leave stale rows.
+    const { data: oldFrames } = await sb
+      .from("dev_frames")
+      .select("frame_id")
+      .eq("game_id", dev_game_id)
+      .eq("frame_number", frame_number);
+
+    const oldFrameIds = (oldFrames ?? []).map((x: any) => x.frame_id);
+
+    if (oldFrameIds.length > 0) {
+      await sb.from("dev_rolls").delete().in("frame_id", oldFrameIds);
+      await sb.from("dev_frames").delete().in("frame_id", oldFrameIds);
+    }
+
+    // If everything is null, we treat this as “delete/reset only”
+    const allNull = r1 == null && r2 == null && r3 == null && lane == null && r1_mark == null && r2_mark == null && r3_mark == null;
+    if (allNull) {
+      return NextResponse.json({ ok: true, deleted: true });
+    }
+
+    // Insert new frame
+    const { data: frameIns, error: frameErr } = await sb
+      .from("dev_frames")
+      .insert([{ game_id: dev_game_id, frame_number, lane: lane ?? null }])
+      .select("frame_id")
+      .single();
+
+    if (frameErr) throw frameErr;
+
+    const frame_id = (frameIns as any).frame_id;
+
+    // Build rolls
+    const rolls = buildPinsEligibleAndDown(
+      r1 ?? null,
+      r2 ?? null,
+      r3 ?? null,
+      Number(frame_number)
     );
-    if (!frFind.ok) return NextResponse.json({ ok: false, step: "find_frame", detail: frFind.json }, { status: 500 });
 
-    let dev_frame_id: string | null = frFind.json?.[0]?.dev_frame_id ?? null;
+    // Attach marks
+    const markByRoll: Record<number, string | null> = {
+      1: r1_mark ?? null,
+      2: r2_mark ?? null,
+      3: r3_mark ?? null
+    };
 
-    if (!dev_frame_id) {
-      const frIns = await sb(`dev_frames`, {
-        method: "POST",
-        headers: { Prefer: "return=representation" },
-        body: JSON.stringify({
-          dev_game_id: body.dev_game_id,
-          frame_number: body.frame_number
-        })
-      });
-      if (!frIns.ok) return NextResponse.json({ ok: false, step: "insert_frame", detail: frIns.json }, { status: 500 });
-      dev_frame_id = frIns.json?.[0]?.dev_frame_id ?? null;
+    const toInsert = rolls.map((x) => ({
+      frame_id,
+      roll_number: x.roll_number,
+      pins_eligible: x.eligible,
+      pins_knocked_down: x.down,
+      chop_split: markByRoll[x.roll_number] // column name assumed
+    }));
+
+    if (toInsert.length > 0) {
+      const { error: rollErr } = await sb.from("dev_rolls").insert(toInsert);
+      if (rollErr) throw rollErr;
     }
 
-    if (!dev_frame_id) {
-      return NextResponse.json({ ok: false, error: "Unable to determine dev_frame_id" }, { status: 500 });
-    }
-
-    // 2) Hard-delete ALL existing rolls for this frame (this fixes “stale rows”)
-    const del = await sb(`dev_rolls?dev_frame_id=eq.${encodeURIComponent(dev_frame_id)}`, {
-      method: "DELETE",
-      headers: { Prefer: "return=minimal" }
-    });
-    if (!del.ok) {
-      return NextResponse.json({ ok: false, step: "delete_rolls", detail: del.json }, { status: 500 });
-    }
-
-    // 3) Re-insert only the current rolls (non-null)
-    const inserts: any[] = [];
-
-    let eligible = range(1, 10);
-
-    const roll1 = body.r1;
-    if (roll1 !== null) {
-      const built = buildPins(eligible, roll1);
-      eligible = built.nextEligible;
-
-      inserts.push({
-        dev_frame_id,
-        roll_number: 1,
-        pins_eligible: built.pins_eligible,
-        pins_knocked: built.pins_knocked,
-        chop_split_indicator: body.r1_mark
-      });
-    }
-
-    const roll2 = body.r2;
-    if (roll2 !== null) {
-      // 10th frame has special “reset rack” cases; BUT your UI already enforces valid values.
-      // For dev logging, we just treat eligibility based on “remaining pins” rule.
-      const built = buildPins(eligible, roll2);
-      eligible = built.nextEligible;
-
-      inserts.push({
-        dev_frame_id,
-        roll_number: 2,
-        pins_eligible: built.pins_eligible,
-        pins_knocked: built.pins_knocked,
-        chop_split_indicator: body.r2_mark
-      });
-    }
-
-    const roll3 = body.r3;
-    if (roll3 !== null) {
-      // If 10th frame and the rack “resets” before roll 3, your UI already adjusts options.
-      // For logging we reflect the “eligible” pins computed from prior remaining.
-      const built = buildPins(eligible, roll3);
-
-      inserts.push({
-        dev_frame_id,
-        roll_number: 3,
-        pins_eligible: built.pins_eligible,
-        pins_knocked: built.pins_knocked,
-        chop_split_indicator: body.r3_mark
-      });
-    }
-
-    if (inserts.length > 0) {
-      const ins = await sb(`dev_rolls`, {
-        method: "POST",
-        headers: { Prefer: "return=minimal" },
-        body: JSON.stringify(inserts)
-      });
-      if (!ins.ok) return NextResponse.json({ ok: false, step: "insert_rolls", detail: ins.json }, { status: 500 });
-    }
-
-    // (Optional) you can also store lane per frame in dev_frames if you add a column.
-    // For now, lane is only cookie-backed per your requirement.
-
-    return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err?.message ?? "Unknown error" }, { status: 500 });
+    return NextResponse.json({ ok: true, frame_id, rolls_inserted: toInsert.length });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
   }
 }
