@@ -508,38 +508,44 @@ export default function GamePage() {
   function setMark(roll: 1 | 2 | 3, val: Mark) {
     if (roll === 1) setFrameValue(index, { m1: val });
     if (roll === 2) setFrameValue(index, { m2: val });
-    if (roll === 3) setFrameValue(index, { m3: val });
-  }
+    if (roll === 3) setFrameValue(index, { m3: 
 
   async function syncFrameToDevTables(frameIdx: number) {
-    // only if logged in + have dev_game_id cookie
     const userId = await getMeUserId();
     if (!userId) return;
-
-    const dev = devGameId || getCookie("dev_game_id") || "";
-    if (!dev) {
-      // dev_game_id is created elsewhere in your flow; skipping if missing
-      return;
-    }
 
     const fnum = frameIdx + 1;
     const fr = frames[frameIdx];
 
-    await fetch("/api/dev/sync-frame", {
+    const res = await fetch("/api/dev/sync-frame", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        dev_game_id: dev,
+        dev_game_id: devGameId || getCookie("dev_game_id") || null,
+
+        played_date: gameDate,
+        location_name: location,
+        event_type_name: gameType, // Scrimmage/League/Tournament
+        game_number: gameNumber,
+
         frame_number: fnum,
         lane: fr.lane ?? null,
+
         r1: fr.r1 ?? null,
         r2: fr.r2 ?? null,
         r3: fr.r3 ?? null,
+
         r1_mark: fr.m1 ?? null,
         r2_mark: fr.m2 ?? null,
         r3_mark: fr.m3 ?? null
       })
     });
+
+    const j = await res.json().catch(() => null);
+    if (res.ok && j?.dev_game_id) {
+      setDevGameId(j.dev_game_id);
+      setCookie("dev_game_id", j.dev_game_id);
+    }
   }
 
   async function resetThisFrame() {
@@ -554,11 +560,17 @@ export default function GamePage() {
     const dev = devGameId || getCookie("dev_game_id") || "";
     if (!dev) return;
 
-    await fetch("/api/dev/sync-frame", {
+        await fetch("/api/dev/sync-frame", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        dev_game_id: dev,
+        dev_game_id: devGameId || getCookie("dev_game_id") || null,
+
+        played_date: gameDate,
+        location_name: location,
+        event_type_name: gameType,
+        game_number: gameNumber,
+
         frame_number: currentFrameNumber,
         lane: null,
         r1: null,
