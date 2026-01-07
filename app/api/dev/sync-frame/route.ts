@@ -156,7 +156,7 @@ function buildRolls(frameNumber: number, r1: number | null, r2: number | null, r
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return NextResponse.json({ error: "Missing SUPABASE_URL or SUPABASE_ANON_KEY" }, { status: 500 });
   }
 
