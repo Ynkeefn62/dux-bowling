@@ -28,8 +28,8 @@ export function setAuthCookies(access_token: string, refresh_token: string) {
 export function getAuthCookies() {
   const jar = cookies();
   return {
-    accessToken: jar.get(ACCESS_COOKIE)?.value ?? null,
-    refreshToken: jar.get(REFRESH_COOKIE)?.value ?? null
+    accessToken: jar.get(ACCESS)?.value ?? null,
+    refreshToken: jar.get(REFRESH)?.value ?? null
   };
 }
 
