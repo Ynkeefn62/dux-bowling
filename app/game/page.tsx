@@ -286,6 +286,15 @@ async function getMeUserId(): Promise<string | null> {
   }
 }
 
+async function ensureDevUser() {
+  try {
+    // If not logged in, this will 401/return ok:false (which is fine)
+    await fetch("/api/dev/ensure-user", { method: "POST", cache: "no-store" });
+  } catch {
+    // ignore
+  }
+}
+
 export default function GamePage() {
   // delay cookie reads to client mount to avoid SSR “document is not defined”
   const [mounted, setMounted] = useState(false);
@@ -323,6 +332,9 @@ export default function GamePage() {
 
   useEffect(() => {
     setMounted(true);
+
+    // ✅ auto-create dev_users/dev_bowlers for logged-in users
+    ensureDevUser();
 
     // game id cookie
     const existing = getCookie("game_id");
