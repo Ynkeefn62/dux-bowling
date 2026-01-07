@@ -508,7 +508,8 @@ export default function GamePage() {
   function setMark(roll: 1 | 2 | 3, val: Mark) {
     if (roll === 1) setFrameValue(index, { m1: val });
     if (roll === 2) setFrameValue(index, { m2: val });
-    if (roll === 3) setFrameValue(index, { m3: 
+    if (roll === 3) setFrameValue(index, { m3: val });
+  }
 
   async function syncFrameToDevTables(frameIdx: number) {
     const userId = await getMeUserId();
@@ -546,7 +547,7 @@ export default function GamePage() {
       setDevGameId(j.dev_game_id);
       setCookie("dev_game_id", j.dev_game_id);
     }
-  },
+  }
 
   async function resetThisFrame() {
     // reset cookies + state fully for this frame so they must re-enter r1 -> r2 -> r3
