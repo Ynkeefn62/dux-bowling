@@ -1,6 +1,7 @@
+// app/api/dev/ensure-user/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { getAuthCookies } from "@/app/api/auth/_cookies";
 
 function supabaseAdmin() {
   const url = process.env.SUPABASE_URL!;
@@ -8,29 +9,21 @@ function supabaseAdmin() {
   return createClient(url, serviceKey);
 }
 
-// If you're using server-only auth cookies already, you likely have a helper.
-// For now, we’ll read the Supabase access token cookie you set during login.
-// If your cookie name differs, tell me and I’ll adjust.
-function getAccessTokenFromCookies() {
-  const jar = cookies();
-  return jar.get("sb-access-token")?.value ?? null;
-}
-
 export async function POST() {
-  const token = getAccessTokenFromCookies();
-  if (!token) return NextResponse.json({ error: "Not logged in" }, { status: 401 });
+  const { accessToken } = getAuthCookies();
+  if (!accessToken) return NextResponse.json({ error: "Not logged in" }, { status: 401 });
 
   const admin = supabaseAdmin();
 
-  // Validate token → get user
-  const { data: userData, error: userErr } = await admin.auth.getUser(token);
+  // Validate token and get user
+  const { data: userData, error: userErr } = await admin.auth.getUser(accessToken);
   if (userErr || !userData?.user) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
   const u = userData.user;
 
-  // Pull names/username from public.profiles if you want
+  // Pull from public.profiles (optional)
   const { data: profile } = await admin
     .from("profiles")
     .select("first_name,last_name,username,role")
@@ -43,16 +36,15 @@ export async function POST() {
     first_name: profile?.first_name ?? null,
     last_name: profile?.last_name ?? null,
     username: profile?.username ?? null,
-    user_type: (profile?.role ?? "Bowler") === "bowler" ? "Bowler" : "Bowler"
+    user_type: "Bowler" as const
   };
 
-  // Upsert dev_users
-  const { error: upsertErr } = await admin.from("dev_users").upsert(payload, { onConflict: "dev_user_id" });
-  if (upsertErr) {
-    return NextResponse.json({ error: upsertErr.message }, { status: 500 });
-  }
+  const { error: upsertErr } = await admin
+    .from("dev_users")
+    .upsert(payload, { onConflict: "dev_user_id" });
 
-  // Ensure dev_bowlers row exists
+  if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
+
   const { data: bowlerRow } = await admin
     .from("dev_bowlers")
     .select("dev_bowler_id")
