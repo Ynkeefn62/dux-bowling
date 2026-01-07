@@ -546,7 +546,7 @@ export default function GamePage() {
       setDevGameId(j.dev_game_id);
       setCookie("dev_game_id", j.dev_game_id);
     }
-  }
+  },
 
   async function resetThisFrame() {
     // reset cookies + state fully for this frame so they must re-enter r1 -> r2 -> r3
