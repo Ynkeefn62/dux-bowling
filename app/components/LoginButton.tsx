@@ -507,3 +507,9 @@ function pill(active: boolean): React.CSSProperties {
     cursor: "pointer"
   };
 }
+
+<p class="consent-text">
+  By creating an account, you agree to our
+  <a href="/terms">Terms of Service</a> and
+  <a href="/privacy">Privacy Policy</a>.
+</p>
