@@ -3,6 +3,8 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import HamburgerMenu from "./components/HamburgerMenu";
 import LoginButton from "./components/LoginButton";
+import Footer from "@/components/Footer";
+
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -26,6 +28,7 @@ export default function RootLayout({
         <HamburgerMenu />
         <LoginButton />
         {children}
+          <Footer />
       </body>
     </html>
   );
