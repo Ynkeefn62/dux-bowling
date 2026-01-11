@@ -4,6 +4,7 @@ import "./globals.css";
 import HamburgerMenu from "./components/HamburgerMenu";
 import LoginButton from "./components/LoginButton";
 import Footer from "./components/Footer";
+import CookieBanner from "./components/CookieBanner";
 
 
 const montserrat = Montserrat({
@@ -29,6 +30,7 @@ export default function RootLayout({
         <LoginButton />
         {children}
           <Footer />
+          <CookieBanner />
       </body>
     </html>
   );
