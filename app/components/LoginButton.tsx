@@ -466,8 +466,22 @@ export default function LoginButton() {
                   </button>
 
                   {mode === "signup" && (
-                    <div style={{ fontSize: ".85rem", color: "#666", lineHeight: 1.4 }}>
-                      New accounts created here are assigned <strong>Bowler</strong> access by default.
+                    <div
+                      style={{
+                        fontSize: ".8rem",
+                        color: "#666",
+                        textAlign: "center",
+                        lineHeight: 1.4
+                      }}
+                    >
+                      By creating an account, you agree to our{" "}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer">
+                        Terms of Service
+                      </a>{" "}
+                      and{" "}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                        Privacy Policy
+                      </a>.
                     </div>
                   )}
 
@@ -507,9 +521,3 @@ function pill(active: boolean): React.CSSProperties {
     cursor: "pointer"
   };
 }
-
-<p class="consent-text">
-  By creating an account, you agree to our
-  <a href="/terms">Terms of Service</a> and
-  <a href="/privacy">Privacy Policy</a>.
-</p>
