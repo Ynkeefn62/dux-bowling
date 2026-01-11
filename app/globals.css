@@ -8,3 +8,96 @@ html, body {
   margin: 0;
   padding: 0;
 }
+
+/* --- Legal pages typography + layout --- */
+.page-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  font-family: Montserrat, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  color: #3b2a20;
+}
+
+.page-card {
+  background: #fff;
+  border: 1px solid #eadfcd;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 18px 45px rgba(0,0,0,0.08);
+}
+
+.legal h1 {
+  margin: 0 0 0.5rem 0;
+  color: #e46a2e;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+.legal .updated {
+  margin: 0 0 1.25rem 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.legal h2 {
+  margin: 1.5rem 0 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #3b2a20;
+}
+
+.legal h3 {
+  margin: 1rem 0 0.35rem 0;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #3b2a20;
+}
+
+.legal p {
+  margin: 0.75rem 0;
+  line-height: 1.65;
+  color: #4a3327;
+}
+
+.legal ul {
+  margin: 0.5rem 0 0.75rem 1.2rem;
+  padding: 0;
+  line-height: 1.6;
+  color: #4a3327;
+}
+
+.legal a {
+  color: #e46a2e;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* --- Footer --- */
+.site-footer {
+  margin-top: 4rem;
+  padding: 2rem 1rem;
+  border-top: 1px solid #eadfcd;
+  text-align: center;
+  font-family: Montserrat, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  color: #3b2a20;
+}
+
+.site-footer nav {
+  margin-bottom: 0.5rem;
+}
+
+.site-footer a {
+  color: #3b2a20;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.site-footer .sep {
+  margin: 0 0.5rem;
+  color: #a28c7e;
+}
