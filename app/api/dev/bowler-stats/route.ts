@@ -35,11 +35,13 @@ async function sb(path: string, init: RequestInit) {
   return { ok: true as const, status: res.status, json };
 }
 
+type HistogramBucket = { label: string; start: number; end: number; count: number };
+
 type RollRow = {
   dev_frame_id: string;
   roll_number: number;
   pins_knocked: number[] | null;
-  chop_split: string | null; // <-- IMPORTANT
+  chop_split: string | null; // "Chop" | "Split" | null
 };
 
 type FrameRow = {
@@ -51,7 +53,7 @@ type GameRow = {
   dev_game_id: string;
   played_at: string | null;
 
-  // these need to exist for filters:
+  // Used for filters (must exist on dev_games)
   dev_alley_id: string | null;
   lane_number: number | null;
   dev_game_type_id: string | null;
@@ -67,19 +69,27 @@ function rollPins(pins: number[] | null) {
 
 function computeDuckpinScoreFromFrames(frames: Array<{ frame_number: number; r1: number; r2: number; r3: number }>) {
   const f = Array.from({ length: 10 }, (_, i) => {
-    const row = frames.find(x => x.frame_number === i + 1);
+    const row = frames.find((x) => x.frame_number === i + 1);
     return row ?? { frame_number: i + 1, r1: 0, r2: 0, r3: 0 };
   });
 
+  // Build roll stream for frames 1-9 only (for bonuses)
   const rollStream: number[] = [];
   for (let i = 0; i < 9; i++) {
     const fr = f[i];
-    if (fr.r1 === 10) { rollStream.push(10); continue; }
+    if (fr.r1 === 10) {
+      rollStream.push(10);
+      continue;
+    }
     const two = fr.r1 + fr.r2;
-    if (two === 10) { rollStream.push(fr.r1, fr.r2); continue; }
+    if (two === 10) {
+      rollStream.push(fr.r1, fr.r2);
+      continue;
+    }
     rollStream.push(fr.r1, fr.r2, fr.r3);
   }
 
+  // Add 10th frame rolls (no bonus beyond)
   rollStream.push(f[9].r1, f[9].r2, f[9].r3);
 
   let total = 0;
@@ -123,24 +133,31 @@ function mean(nums: number[]) {
   for (const n of nums) s += n;
   return s / nums.length;
 }
+
 function median(nums: number[]) {
   if (nums.length === 0) return 0;
   const a = [...nums].sort((x, y) => x - y);
   const mid = Math.floor(a.length / 2);
-  return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+  if (a.length % 2 === 1) return a[mid];
+  return (a[mid - 1] + a[mid]) / 2;
 }
+
 function stddev(nums: number[]) {
   if (nums.length === 0) return 0;
   const m = mean(nums);
   let s = 0;
-  for (const n of nums) { const d = n - m; s += d * d; }
+  for (const n of nums) {
+    const d = n - m;
+    s += d * d;
+  }
+  // population std dev
   return Math.sqrt(s / nums.length);
 }
 
-function buildHistogram(scores: number[]) {
+function buildHistogram(scores: number[]): HistogramBucket[] {
   const maxScore = scores.length ? Math.max(...scores) : 0;
   const maxBucket = Math.max(10, Math.ceil((maxScore + 1) / 10) * 10);
-  const buckets: { label: string; start: number; end: number; count: number }[] = [];
+  const buckets: HistogramBucket[] = [];
 
   for (let start = 0; start < maxBucket; start += 10) {
     const end = start + 9;
@@ -159,24 +176,25 @@ function clamp01(n: number) {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(1, n));
 }
+
 function pct(numer: number, denom: number) {
   if (!denom) return 0;
   return clamp01(numer / denom);
 }
+
 function sum(arr: number[]) {
   let s = 0;
   for (const n of arr) s += n;
   return s;
 }
+
 function toISODate(d: string | null) {
   const iso = d ?? new Date().toISOString();
   return iso.slice(0, 10);
 }
 
 function isChopOrSplit(chop_split: string | null) {
-  // adjust to your actual values if different
-  const v = String(chop_split ?? "").toLowerCase();
-  return v === "chop" || v === "split" || v === "chop_split" || v === "both";
+  return chop_split === "Chop" || chop_split === "Split";
 }
 
 export async function GET(req: Request) {
@@ -184,10 +202,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
-    // filters
-    const alleyId = searchParams.get("alleyId") || "";
-    const lane = searchParams.get("lane") || "";
-    const gameType = searchParams.get("gameType") || ""; // dev_game_type_id
+    // Filters (optional)
+    const alleyId = searchParams.get("alleyId") || "";     // dev_alley_id
+    const lane = searchParams.get("lane") || "";           // lane_number as string
+    const gameType = searchParams.get("gameType") || "";   // dev_game_type_id
 
     if (!userId) {
       return NextResponse.json({ ok: false, error: "Missing userId" }, { status: 400 });
@@ -198,7 +216,9 @@ export async function GET(req: Request) {
       `dev_bowlers?dev_user_id=eq.${encodeURIComponent(userId)}&select=dev_bowler_id`,
       { method: "GET" }
     );
-    if (!bowlerRes.ok) return NextResponse.json({ ok: false, step: "dev_bowlers", detail: bowlerRes.json }, { status: 500 });
+    if (!bowlerRes.ok) {
+      return NextResponse.json({ ok: false, step: "dev_bowlers", detail: bowlerRes.json }, { status: 500 });
+    }
 
     const devBowlerId = bowlerRes.json?.[0]?.dev_bowler_id;
     if (!devBowlerId) {
@@ -218,26 +238,45 @@ export async function GET(req: Request) {
       });
     }
 
-    // Lookups for filter labels (safe; tables are read-only)
+    // Lookup tables (labels for filters)
     const [alleysRes, gameTypesRes] = await Promise.all([
       sb(`dev_alleys?select=dev_alley_id,alley_name&order=alley_name.asc`, { method: "GET" }),
       sb(`dev_game_types?select=dev_game_type_id,game_type_name&order=game_type_name.asc`, { method: "GET" })
     ]);
+
     const alleys: AlleyRow[] = alleysRes.ok ? (alleysRes.json ?? []) : [];
     const gameTypes: GameTypeRow[] = gameTypesRes.ok ? (gameTypesRes.json ?? []) : [];
 
-    // Games (must include filter columns)
+    // Games (include filter columns)
     const gamesRes = await sb(
       `dev_games?dev_bowler_id=eq.${encodeURIComponent(devBowlerId)}` +
         `&select=dev_game_id,played_at,dev_alley_id,lane_number,dev_game_type_id` +
         `&order=played_at.desc`,
       { method: "GET" }
     );
-    if (!gamesRes.ok) return NextResponse.json({ ok: false, step: "dev_games", detail: gamesRes.json }, { status: 500 });
+    if (!gamesRes.ok) {
+      return NextResponse.json({ ok: false, step: "dev_games", detail: gamesRes.json }, { status: 500 });
+    }
 
     const allGames: GameRow[] = gamesRes.json ?? [];
+    if (allGames.length === 0) {
+      return NextResponse.json({
+        ok: true,
+        gamesPlayed: 0,
+        average: 0,
+        median: 0,
+        high: 0,
+        low: 0,
+        stddev: 0,
+        scores: [],
+        histogram: buildHistogram([]),
+        kpi: { strikePct: 0, sparePct: 0 },
+        rolling: [],
+        filterOptions: { alleys: [], lanes: [], gameTypes: [] }
+      });
+    }
 
-    // Filter options from the user's games
+    // Filter options derived from user's games
     const laneSet = new Set<string>();
     const alleySet = new Set<string>();
     const gtSet = new Set<string>();
@@ -253,10 +292,9 @@ export async function GET(req: Request) {
         value: id,
         label: alleys.find((a) => a.dev_alley_id === id)?.alley_name ?? id
       })),
-      lanes: Array.from(laneSet).sort((a, b) => Number(a) - Number(b)).map((ln) => ({
-        value: ln,
-        label: `Lane ${ln}`
-      })),
+      lanes: Array.from(laneSet)
+        .sort((a, b) => Number(a) - Number(b))
+        .map((ln) => ({ value: ln, label: `Lane ${ln}` })),
       gameTypes: Array.from(gtSet).map((id) => ({
         value: id,
         label: gameTypes.find((t) => t.dev_game_type_id === id)?.game_type_name ?? id
@@ -264,14 +302,14 @@ export async function GET(req: Request) {
     };
 
     // Apply filters
-    const games = allGames.filter((g) => {
+    const gamesFiltered = allGames.filter((g) => {
       if (alleyId && g.dev_alley_id !== alleyId) return false;
       if (lane && String(g.lane_number ?? "") !== lane) return false;
       if (gameType && g.dev_game_type_id !== gameType) return false;
       return true;
     });
 
-    if (games.length === 0) {
+    if (gamesFiltered.length === 0) {
       return NextResponse.json({
         ok: true,
         gamesPlayed: 0,
@@ -288,7 +326,7 @@ export async function GET(req: Request) {
       });
     }
 
-    // Rolling window size (frames)
+    // Rolling window (frames)
     const ROLLING_FRAMES = 50;
 
     const scores: number[] = [];
@@ -305,11 +343,13 @@ export async function GET(req: Request) {
     const rbSpareEligible: number[] = [];
     const rbSpareMade: number[] = [];
 
-    // Rolling chart should be chronological
-    const gamesChrono = [...games].sort((a, b) => String(a.played_at ?? "").localeCompare(String(b.played_at ?? "")));
+    // rolling chart chronological
+    const gamesChrono = [...gamesFiltered].sort((a, b) =>
+      String(a.played_at ?? "").localeCompare(String(b.played_at ?? ""))
+    );
 
     for (const g of gamesChrono) {
-      // frames for this game
+      // Frames
       const framesRes = await sb(
         `dev_frames?dev_game_id=eq.${encodeURIComponent(g.dev_game_id)}` +
           `&select=dev_frame_id,frame_number` +
@@ -321,13 +361,13 @@ export async function GET(req: Request) {
       const frames: FrameRow[] = framesRes.json ?? [];
       if (!frames.length) continue;
 
-      // completed game requirement
+      // Completed game requirement: frame 10 exists
       if (!frames.some((f) => f.frame_number === 10)) continue;
 
+      // Rolls: all rolls for all frames in one request
       const frameIds = frames.map((f) => f.dev_frame_id);
       const inList = `(${frameIds.map((id) => `"${id}"`).join(",")})`;
 
-      // all rolls for these frames, including chop_split
       const rollsRes = await sb(
         `dev_rolls?dev_frame_id=in.${encodeURIComponent(inList)}` +
           `&select=dev_frame_id,roll_number,pins_knocked,chop_split` +
@@ -367,16 +407,13 @@ export async function GET(req: Request) {
         rbStrikeEligible.push(1);
         rbStrikeMade.push(isStrike ? 1 : 0);
 
-        // Clean spare eligibility:
-        // exclude strikes
-        // exclude frames where roll_number=1 had chop/split
+        // Clean spare eligibility: exclude strikes AND exclude if roll1 chop/split
         const hadChopOrSplitOnBall1 = isChopOrSplit(roll1?.chop_split ?? null);
         const eligibleCleanSpare = !isStrike && !hadChopOrSplitOnBall1;
 
         if (eligibleCleanSpare) cleanSpareEligible += 1;
 
-        // Spare success:
-        // all pins down on second ball (for duckpin, that means r1+r2==10)
+        // Spare success: all pins down on second ball => r1 + r2 === 10 (and not a strike)
         const isSpare = !isStrike && (r1 + r2 === 10);
         const madeCleanSpare = eligibleCleanSpare && isSpare;
 
@@ -390,14 +427,11 @@ export async function GET(req: Request) {
         if (rbSpareEligible.length > ROLLING_FRAMES) { rbSpareEligible.shift(); rbSpareMade.shift(); }
       }
 
-      // score
       const score = computeDuckpinScoreFromFrames(frameRollsForScore);
       scores.push(score);
 
-      // rolling point at game date
-      const t = toISODate(g.played_at);
       rolling.push({
-        t,
+        t: toISODate(g.played_at),
         strikePct: pct(sum(rbStrikeMade), sum(rbStrikeEligible)),
         sparePct: pct(sum(rbSpareMade), sum(rbSpareEligible))
       });
