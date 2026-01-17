@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 
+import TopBanner from "./components/TopBanner";
 import HamburgerMenu from "./components/HamburgerMenu";
 import LoginButton from "./components/LoginButton";
 import Footer from "./components/Footer";
@@ -25,40 +26,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={montserrat.className} style={{ margin: 0 }}>
-        {/* Fixed top banner background */}
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 72,
-            background: "#000",
-            zIndex: 40,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center"
-          }}
-        >
-          {/* Centered logo */}
-          <img
-            src="/dux-bowling-wordmark.png" // <-- update path if needed
-            alt="Dux Bowling"
-            style={{
-              height: 42,
-              width: "auto",
-              pointerEvents: "none",
-              userSelect: "none"
-            }}
-          />
-        </div>
+      <body className={montserrat.className}>
+        {/* Persistent top banner */}
+        <TopBanner />
 
-        {/* Existing fixed buttons */}
+        {/* Existing buttons (fixed, same height as banner) */}
         <HamburgerMenu />
         <LoginButton />
 
-        {/* Page content offset below banner */}
+        {/* Page content offset so it doesn't sit under the banner */}
         <div style={{ paddingTop: 72 }}>
           {children}
           <Footer />
