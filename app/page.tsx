@@ -9,7 +9,7 @@ const ORANGE_SOFT = "rgba(228,106,46,0.14)";
 
 // Your generated bowling lane wood image
 // Place this file in /public
-const WOOD_BG_URL = "/lane-wood.png";
+const WOOD_BG_URL = "/lane-wood.png.PNG";
 
 export default function Home() {
   return (
