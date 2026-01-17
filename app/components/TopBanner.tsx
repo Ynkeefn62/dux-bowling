@@ -9,23 +9,34 @@ export default function TopBanner() {
         left: 0,
         right: 0,
         height: 72,
-        backgroundColor: "#000",
-        zIndex: 40,
+        background: "#000",
+        zIndex: 1000,
         display: "flex",
         alignItems: "center",
         justifyContent: "center"
       }}
     >
-      <img
-        src="/5@300x.png" // update path if needed
-        alt="Dux Bowling"
+      {/* Centered logo wrapper */}
+      <div
         style={{
-          height: 42,
-          width: "auto",
-          pointerEvents: "none",
-          userSelect: "none"
+          maxWidth: "60%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none" // prevents blocking menu/login taps
         }}
-      />
+      >
+        <img
+          src="/5@300x.png"
+          alt="Dux Bowling"
+          style={{
+            height: 36,
+            width: "auto",
+            maxWidth: "100%",
+            objectFit: "contain"
+          }}
+        />
+      </div>
     </div>
   );
 }
