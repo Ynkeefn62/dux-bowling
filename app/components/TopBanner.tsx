@@ -17,7 +17,7 @@ export default function TopBanner() {
       }}
     >
       <img
-        src="/dux-bowling-wordmark.png" // update path if needed
+        src="/5@300x.png" // update path if needed
         alt="Dux Bowling"
         style={{
           height: 42,
