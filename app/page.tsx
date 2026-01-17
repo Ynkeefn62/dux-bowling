@@ -279,17 +279,7 @@ export default function Home() {
             </PaperCard>
           </RevealOnce>
 
-          <footer
-            style={{
-              marginTop: "1.75rem",
-              textAlign: "center",
-              color: "rgba(0,0,0,0.65)",
-              fontSize: ".9rem",
-              textShadow: "0 1px 0 rgba(255,255,255,0.35)"
-            }}
-          >
-            © {new Date().getFullYear()} Dux Bowling LLC
-          </footer>
+
         </div>
       </div>
     </main>
