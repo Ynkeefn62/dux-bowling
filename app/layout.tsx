@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
-import HamburgerMenu from "./components/HamburgerMenu";
-import LoginButton from "./components/LoginButton";
+
+import TopBanner from "./components/TopBanner";
 import Footer from "./components/Footer";
 import CookieBanner from "./components/CookieBanner";
-
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -25,12 +24,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={montserrat.className}>
-        <HamburgerMenu />
-        <LoginButton />
-        {children}
+      <body className={montserrat.className} style={{ margin: 0 }}>
+        {/* Persistent top banner (menu + logo + login) */}
+        <TopBanner />
+
+        {/* Push page content below fixed banner */}
+        <div style={{ paddingTop: 72 }}>
+          {children}
           <Footer />
-          <CookieBanner />
+        </div>
+
+        {/* Global cookie banner */}
+        <CookieBanner />
       </body>
     </html>
   );
