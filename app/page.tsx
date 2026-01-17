@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 
-const BG = "#caa472"; // warm bowling-lane maple
 const TEXT = "#f2f2f2";
 const MUTED = "rgba(242,242,242,0.78)";
 const ORANGE = "#e46a2e";
@@ -13,30 +12,57 @@ export default function Home() {
     <main
       style={{
         minHeight: "100vh",
-        // subtle lane grain + wood base
-        background:
-          "linear-gradient(90deg, rgba(0,0,0,0.02) 0%, rgba(255,255,255,0.03) 50%, rgba(0,0,0,0.02) 100%), " +
-          BG,
         fontFamily: "Montserrat, system-ui",
-        color: TEXT
+        color: TEXT,
+        position: "relative",
+        overflow: "hidden"
       }}
     >
-      {/* Background accents tuned for light wood */}
+      {/* Background image */}
       <div
         aria-hidden="true"
         style={{
           position: "fixed",
           inset: 0,
-          pointerEvents: "none",
           zIndex: 0,
-          background:
-            "radial-gradient(900px 520px at 18% 10%, rgba(228,106,46,0.18), transparent 60%)," +
-            "radial-gradient(900px 520px at 86% 28%, rgba(160,110,60,0.18), transparent 62%)," +
-            "linear-gradient(180deg, rgba(255,255,255,0.35), transparent 40%, rgba(0,0,0,0.18) 100%)"
+          backgroundImage: `url("/lane-wood.png")`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          transform: "translateZ(0)" // helps smoothness on mobile
         }}
       />
 
-      <div style={{ position: "relative", zIndex: 1, padding: "2rem 1rem 4rem" }}>
+      {/* Dark overlay for readability */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1,
+          background:
+            "radial-gradient(900px 520px at 18% 10%, rgba(228,106,46,0.14), transparent 58%)," +
+            "radial-gradient(900px 520px at 86% 28%, rgba(228,106,46,0.10), transparent 62%)," +
+            "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.65) 55%, rgba(0,0,0,0.72) 100%)",
+          pointerEvents: "none"
+        }}
+      />
+
+      {/* Subtle animated grain overlay */}
+      <div
+        aria-hidden="true"
+        className="dux-grain"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 2,
+          pointerEvents: "none",
+          opacity: 0.10, // keep it subtle
+          mixBlendMode: "overlay" // gives a natural “wood grain” enhancement
+        }}
+      />
+
+      <div style={{ position: "relative", zIndex: 3, padding: "2rem 1rem 4rem" }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
           <img
@@ -117,7 +143,6 @@ export default function Home() {
               We’re building modern pinsetter technology and a connected digital experience that makes every roll count.
             </p>
 
-            {/* subtle scroll hint */}
             <div
               style={{
                 marginTop: "1.6rem",
@@ -146,9 +171,9 @@ export default function Home() {
 
             <div style={{ marginTop: "1rem", display: "grid", gap: "1rem" }}>
               <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
-                Duckpin Bowling is a variant of bowling that is more challenging than traditional ten-pin bowling. There
-                has <strong style={{ color: TEXT }}>never</strong> been a perfect game in the history of duckpin. We’d
-                love to see it happen — but without modernizing the sport with new technology, we may never get there.
+                Duckpin Bowling is a variant of bowling that is more challenging than traditional ten-pin bowling. There has{" "}
+                <strong style={{ color: TEXT }}>never</strong> been a perfect game in the history of duckpin.
+                We’d love to see it happen — but without modernizing the sport with new technology, we may never get there.
               </p>
 
               <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
@@ -159,19 +184,20 @@ export default function Home() {
 
               <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
                 Our goal is to build a new pinsetter that is{" "}
-                <strong style={{ color: TEXT }}>reliable, simple, and cost-effective</strong>. It will be designed to
-                retrofit existing duckpin alleys first, with the long-term goal of expanding into new geographies.
+                <strong style={{ color: TEXT }}>reliable, simple, and cost-effective</strong>.
+                It will be designed to retrofit existing duckpin alleys first, with the long-term goal of expanding into
+                new geographies.
               </p>
 
               <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
-                While upgrading the pinsetter, we’re also upgrading the bowler experience. Bowling is one of the rare
-                sports where the point of impact occurs at the same time and place as scoring — which makes it the
-                perfect foundation for a modern stats ecosystem where performance is saved, visualized, and shared.
+                While upgrading the pinsetter, we’re also upgrading the bowler experience. Bowling is one of the rare sports
+                where the point of impact occurs at the same time and place as scoring — which makes it the perfect foundation
+                for a modern stats ecosystem where performance is saved, visualized, and shared.
               </p>
 
               <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
-                Ultimately, we want to grow duckpin bowling across the country — building competition, community, and a
-                digital layer of achievements and rewards that makes the sport even more fun for bowlers of all ages.
+                Ultimately, we want to grow duckpin bowling across the country — building competition, community, and
+                a digital layer of achievements and rewards that makes the sport even more fun for bowlers of all ages.
               </p>
             </div>
           </section>
@@ -219,27 +245,51 @@ export default function Home() {
           </footer>
         </div>
       </div>
+
+      {/* Grain animation CSS */}
+      <style>{`
+        .dux-grain{
+          /* Layered subtle “grain” using gradients (very lightweight) */
+          background-image:
+            repeating-linear-gradient(
+              90deg,
+              rgba(255,255,255,0.045) 0px,
+              rgba(255,255,255,0.045) 1px,
+              rgba(0,0,0,0.0) 2px,
+              rgba(0,0,0,0.0) 7px
+            ),
+            repeating-linear-gradient(
+              0deg,
+              rgba(0,0,0,0.04) 0px,
+              rgba(0,0,0,0.04) 1px,
+              rgba(0,0,0,0.0) 3px,
+              rgba(0,0,0,0.0) 9px
+            );
+          background-size: 220px 220px, 340px 340px;
+          background-position: 0 0, 0 0;
+          animation: duxGrainDrift 14s linear infinite;
+          will-change: background-position;
+          transform: translateZ(0);
+        }
+
+        @keyframes duxGrainDrift {
+          0%   { background-position: 0px 0px, 0px 0px; }
+          50%  { background-position: 18px -10px, -12px 14px; }
+          100% { background-position: 36px -20px, -24px 28px; }
+        }
+
+        /* Respect reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+          .dux-grain { animation: none; }
+        }
+      `}</style>
     </main>
   );
 }
 
-function LearnCard({
-  href,
-  title,
-  text
-}: {
-  href: string;
-  title: string;
-  text: string;
-}) {
+function LearnCard({ href, title, text }: { href: string; title: string; text: string }) {
   return (
-    <Link
-      href={href}
-      style={{
-        textDecoration: "none",
-        color: "inherit"
-      }}
-    >
+    <Link href={href} style={{ textDecoration: "none", color: "inherit" }}>
       <div
         style={{
           height: "100%",
@@ -253,7 +303,6 @@ function LearnCard({
       >
         <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.15rem" }}>{title}</div>
         <p style={{ margin: ".55rem 0 0", color: "rgba(242,242,242,0.78)", lineHeight: 1.65 }}>{text}</p>
-
         <div style={{ marginTop: "1rem", color: "rgba(242,242,242,0.6)", fontWeight: 800 }}>Explore →</div>
       </div>
     </Link>
