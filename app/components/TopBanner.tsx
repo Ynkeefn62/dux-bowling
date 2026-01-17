@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export default function TopBanner() {
   return (
     <div
@@ -16,14 +18,15 @@ export default function TopBanner() {
         justifyContent: "center"
       }}
     >
-      {/* Centered logo wrapper */}
-      <div
+      {/* Clickable centered logo */}
+      <Link
+        href="/"
+        aria-label="Go to homepage"
         style={{
           maxWidth: "60%",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          pointerEvents: "none" // prevents blocking menu/login taps
+          justifyContent: "center"
         }}
       >
         <img
@@ -33,10 +36,11 @@ export default function TopBanner() {
             height: 36,
             width: "auto",
             maxWidth: "100%",
-            objectFit: "contain"
+            objectFit: "contain",
+            cursor: "pointer"
           }}
         />
-      </div>
+      </Link>
     </div>
   );
 }
