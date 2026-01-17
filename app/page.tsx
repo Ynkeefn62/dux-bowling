@@ -9,50 +9,59 @@ const ORANGE = "#e46a2e";
 const ORANGE_SOFT = "rgba(228,106,46,0.14)";
 
 // Put your generated wood image in /public
+// (example: /public/lane-wood.png)
 const WOOD_BG_URL = "/lane-wood.png.PNG";
 
 /**
- * Fades in when visible, fades out when not visible.
- * Uses IntersectionObserver (fast, no scroll listeners).
+ * Reveal-once wrapper:
+ * - Starts slightly blurred + lower opacity
+ * - Smoothly fades in and clears blur when it enters viewport
+ * - Once revealed, it stays visible (no fade-out)
  */
-function FadeInOut({
+function RevealOnce({
   children,
   style,
-  threshold = 0.35
+  threshold = 0.2,
+  rootMargin = "0px 0px -10% 0px" // starts a bit before it fully enters
 }: {
   children: React.ReactNode;
   style?: React.CSSProperties;
   threshold?: number;
+  rootMargin?: string;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [visible, setVisible] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (revealed) return;
 
     const obs = new IntersectionObserver(
       (entries) => {
         const e = entries[0];
-        setVisible(e.isIntersecting);
+        if (e.isIntersecting) {
+          setRevealed(true);
+          obs.disconnect();
+        }
       },
-      {
-        threshold
-      }
+      { threshold, rootMargin }
     );
 
     obs.observe(el);
     return () => obs.disconnect();
-  }, [threshold]);
+  }, [revealed, threshold, rootMargin]);
 
   return (
     <div
       ref={ref}
       style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0px)" : "translateY(10px)",
-        transition: "opacity 500ms ease, transform 500ms ease",
-        willChange: "opacity, transform",
+        opacity: revealed ? 1 : 0,
+        transform: revealed ? "translateY(0px)" : "translateY(14px)",
+        filter: revealed ? "blur(0px)" : "blur(6px)",
+        transition:
+          "opacity 800ms cubic-bezier(0.16, 1, 0.3, 1), transform 800ms cubic-bezier(0.16, 1, 0.3, 1), filter 900ms cubic-bezier(0.16, 1, 0.3, 1)",
+        willChange: "opacity, transform, filter",
         ...style
       }}
     >
@@ -68,6 +77,8 @@ export default function Home() {
         minHeight: "100vh",
         fontFamily: "Montserrat, system-ui",
         color: TEXT,
+
+        // Background as-is (no blur/transparency)
         backgroundImage: `url("${WOOD_BG_URL}")`,
         backgroundSize: "cover",
         backgroundPosition: "center",
@@ -90,7 +101,7 @@ export default function Home() {
 
         <div style={{ maxWidth: 980, margin: "0 auto" }}>
           {/* HERO */}
-          <FadeInOut>
+          <RevealOnce>
             <section
               style={{
                 maxWidth: 900,
@@ -110,7 +121,8 @@ export default function Home() {
                   borderRadius: 999,
                   background: ORANGE_SOFT,
                   fontWeight: 900,
-                  fontSize: ".85rem"
+                  fontSize: ".85rem",
+                  border: "1px solid rgba(228,106,46,0.18)"
                 }}
               >
                 <span
@@ -134,19 +146,10 @@ export default function Home() {
                 Making Duckpins Cool Again.
               </h1>
 
-              <p
-                style={{
-                  margin: 0,
-                  lineHeight: 1.7,
-                  color: MUTED,
-                  fontSize: "clamp(1.05rem, 2vw, 1.15rem)"
-                }}
-              >
-                With us, you’re not just a bowler —{" "}
-                <strong style={{ color: TEXT }}>you’re an athlete.</strong>
+              <p style={{ margin: 0, lineHeight: 1.7, color: MUTED, fontSize: "clamp(1.05rem, 2vw, 1.15rem)" }}>
+                With us, you’re not just a bowler — <strong style={{ color: TEXT }}>you’re an athlete.</strong>
                 <br />
-                We’re building modern pinsetter technology and a connected digital experience
-                that makes every roll count.
+                We’re building modern pinsetter technology and a connected digital experience that makes every roll count.
               </p>
 
               <div
@@ -160,10 +163,10 @@ export default function Home() {
                 Scroll to learn more ↓
               </div>
             </section>
-          </FadeInOut>
+          </RevealOnce>
 
           {/* WHAT WE'RE ABOUT */}
-          <FadeInOut style={{ marginTop: "1.5rem" }}>
+          <RevealOnce style={{ marginTop: "1.5rem" }}>
             <section
               style={{
                 background: "#1c1c1c",
@@ -172,32 +175,30 @@ export default function Home() {
                 boxShadow: "0 18px 40px rgba(0,0,0,0.6)"
               }}
             >
-              <h2 style={{ margin: 0, color: ORANGE, fontSize: "1.6rem" }}>
-                What We’re About
-              </h2>
+              <h2 style={{ margin: 0, color: ORANGE, fontSize: "1.6rem" }}>What We’re About</h2>
 
               <div style={{ marginTop: "1rem", display: "grid", gap: "1rem" }}>
                 <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
-                  Duckpin bowling is more challenging than ten-pin bowling, and no one has
-                  ever rolled a perfect game. Without modern technology, the sport cannot grow.
+                  Duckpin bowling is more challenging than ten-pin bowling, and no one has ever rolled a perfect game.
+                  Without modern technology, the sport cannot grow.
                 </p>
 
                 <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
-                  Most duckpin alleys rely on Sherman pinsetters built over 50 years ago.
-                  Maintaining them is increasingly difficult.
+                  Most duckpin alleys rely on Sherman pinsetters built over 50 years ago. Maintaining them is increasingly
+                  difficult.
                 </p>
 
                 <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
                   We’re building a new pinsetter that is{" "}
-                  <strong style={{ color: TEXT }}>reliable, simple, and cost-effective</strong>,
-                  while upgrading the digital experience for bowlers.
+                  <strong style={{ color: TEXT }}>reliable, simple, and cost-effective</strong>, while upgrading the digital
+                  experience for bowlers.
                 </p>
               </div>
             </section>
-          </FadeInOut>
+          </RevealOnce>
 
           {/* WANT TO LEARN MORE */}
-          <FadeInOut style={{ marginTop: "1.5rem" }}>
+          <RevealOnce style={{ marginTop: "1.5rem" }}>
             <section
               style={{
                 background: "#1c1c1c",
@@ -206,11 +207,9 @@ export default function Home() {
                 boxShadow: "0 18px 40px rgba(0,0,0,0.6)"
               }}
             >
-              <h2 style={{ margin: 0, color: ORANGE, fontSize: "1.6rem" }}>
-                Want to Learn More?
-              </h2>
+              <h2 style={{ margin: 0, color: ORANGE, fontSize: "1.6rem" }}>Want to Learn More?</h2>
 
-              <p style={{ margin: ".85rem 0 0", lineHeight: 1.7, color: MUTED }}>
+              <p style={{ margin: ".85rem 0 0", lineHeight: 1.7, color: MUTED, maxWidth: 860 }}>
                 Whether you’re a bowler or an alley owner, we’re building for you.
               </p>
 
@@ -222,24 +221,16 @@ export default function Home() {
                   gap: "1rem"
                 }}
               >
-                <FadeInOut threshold={0.2}>
-                  <LearnCard
-                    href="/bowlers"
-                    title="Bowlers"
-                    text="Score tracking, analytics, and new game modes."
-                  />
-                </FadeInOut>
+                <RevealOnce threshold={0.1}>
+                  <LearnCard href="/bowlers" title="Bowlers" text="Score tracking, analytics, and new game modes." />
+                </RevealOnce>
 
-                <FadeInOut threshold={0.2}>
-                  <LearnCard
-                    href="/alleys"
-                    title="Alleys"
-                    text="Pinsetter roadmap and an all-in-one operations platform."
-                  />
-                </FadeInOut>
+                <RevealOnce threshold={0.1}>
+                  <LearnCard href="/alleys" title="Alleys" text="Pinsetter roadmap and an all-in-one operations platform." />
+                </RevealOnce>
               </div>
             </section>
-          </FadeInOut>
+          </RevealOnce>
 
           <footer
             style={{
@@ -257,15 +248,7 @@ export default function Home() {
   );
 }
 
-function LearnCard({
-  href,
-  title,
-  text
-}: {
-  href: string;
-  title: string;
-  text: string;
-}) {
+function LearnCard({ href, title, text }: { href: string; title: string; text: string }) {
   return (
     <Link href={href} style={{ textDecoration: "none", color: "inherit" }}>
       <div
@@ -274,18 +257,13 @@ function LearnCard({
           background: "#151515",
           borderRadius: 18,
           padding: "1.25rem",
-          boxShadow: "0 14px 32px rgba(0,0,0,0.55)"
+          boxShadow: "0 14px 32px rgba(0,0,0,0.55)",
+          transition: "transform 180ms ease"
         }}
       >
-        <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.15rem" }}>
-          {title}
-        </div>
-        <p style={{ margin: ".55rem 0 0", color: MUTED, lineHeight: 1.65 }}>
-          {text}
-        </p>
-        <div style={{ marginTop: "1rem", color: "rgba(242,242,242,0.6)", fontWeight: 800 }}>
-          Explore →
-        </div>
+        <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.15rem" }}>{title}</div>
+        <p style={{ margin: ".55rem 0 0", color: MUTED, lineHeight: 1.65 }}>{text}</p>
+        <div style={{ marginTop: "1rem", color: "rgba(242,242,242,0.6)", fontWeight: 800 }}>Explore →</div>
       </div>
     </Link>
   );
