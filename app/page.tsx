@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-const BG = "#121212";
+const BG = "#caa472"; // warm bowling-lane maple
 const TEXT = "#f2f2f2";
 const MUTED = "rgba(242,242,242,0.78)";
 const ORANGE = "#e46a2e";
@@ -13,12 +13,15 @@ export default function Home() {
     <main
       style={{
         minHeight: "100vh",
-        background: BG,
+        // subtle lane grain + wood base
+        background:
+          "linear-gradient(90deg, rgba(0,0,0,0.02) 0%, rgba(255,255,255,0.03) 50%, rgba(0,0,0,0.02) 100%), " +
+          BG,
         fontFamily: "Montserrat, system-ui",
         color: TEXT
       }}
     >
-      {/* Background accents */}
+      {/* Background accents tuned for light wood */}
       <div
         aria-hidden="true"
         style={{
@@ -27,9 +30,9 @@ export default function Home() {
           pointerEvents: "none",
           zIndex: 0,
           background:
-            "radial-gradient(900px 520px at 18% 10%, rgba(228,106,46,0.22), transparent 58%)," +
-            "radial-gradient(900px 520px at 86% 28%, rgba(228,106,46,0.12), transparent 62%)," +
-            "linear-gradient(180deg, rgba(255,255,255,0.02), transparent 35%, rgba(0,0,0,0.25) 100%)"
+            "radial-gradient(900px 520px at 18% 10%, rgba(228,106,46,0.18), transparent 60%)," +
+            "radial-gradient(900px 520px at 86% 28%, rgba(160,110,60,0.18), transparent 62%)," +
+            "linear-gradient(180deg, rgba(255,255,255,0.35), transparent 40%, rgba(0,0,0,0.18) 100%)"
         }}
       />
 
@@ -108,7 +111,8 @@ export default function Home() {
                 maxWidth: 820
               }}
             >
-              With us, you’re not just a bowler — <span style={{ color: TEXT, fontWeight: 900 }}>you’re an athlete.</span>
+              With us, you’re not just a bowler —{" "}
+              <span style={{ color: TEXT, fontWeight: 900 }}>you’re an athlete.</span>
               <br />
               We’re building modern pinsetter technology and a connected digital experience that makes every roll count.
             </p>
@@ -138,15 +142,13 @@ export default function Home() {
               border: "1px solid rgba(255,255,255,0.08)"
             }}
           >
-            <h2 style={{ margin: 0, color: ORANGE, fontSize: "1.6rem" }}>
-              What We’re About
-            </h2>
+            <h2 style={{ margin: 0, color: ORANGE, fontSize: "1.6rem" }}>What We’re About</h2>
 
             <div style={{ marginTop: "1rem", display: "grid", gap: "1rem" }}>
               <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
-                Duckpin Bowling is a variant of bowling that is more challenging than traditional ten-pin bowling.
-                There has <strong style={{ color: TEXT }}>never</strong> been a perfect game in the history of duckpin.
-                We’d love to see it happen — but without modernizing the sport with new technology, we may never get there.
+                Duckpin Bowling is a variant of bowling that is more challenging than traditional ten-pin bowling. There
+                has <strong style={{ color: TEXT }}>never</strong> been a perfect game in the history of duckpin. We’d
+                love to see it happen — but without modernizing the sport with new technology, we may never get there.
               </p>
 
               <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
@@ -157,20 +159,19 @@ export default function Home() {
 
               <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
                 Our goal is to build a new pinsetter that is{" "}
-                <strong style={{ color: TEXT }}>reliable, simple, and cost-effective</strong>.
-                It will be designed to retrofit existing duckpin alleys first, with the long-term goal of expanding into
-                new geographies.
+                <strong style={{ color: TEXT }}>reliable, simple, and cost-effective</strong>. It will be designed to
+                retrofit existing duckpin alleys first, with the long-term goal of expanding into new geographies.
               </p>
 
               <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
-                While upgrading the pinsetter, we’re also upgrading the bowler experience. Bowling is one of the rare sports
-                where the point of impact occurs at the same time and place as scoring — which makes it the perfect foundation
-                for a modern stats ecosystem where performance is saved, visualized, and shared.
+                While upgrading the pinsetter, we’re also upgrading the bowler experience. Bowling is one of the rare
+                sports where the point of impact occurs at the same time and place as scoring — which makes it the
+                perfect foundation for a modern stats ecosystem where performance is saved, visualized, and shared.
               </p>
 
               <p style={{ margin: 0, lineHeight: 1.75, color: MUTED }}>
-                Ultimately, we want to grow duckpin bowling across the country — building competition, community, and
-                a digital layer of achievements and rewards that makes the sport even more fun for bowlers of all ages.
+                Ultimately, we want to grow duckpin bowling across the country — building competition, community, and a
+                digital layer of achievements and rewards that makes the sport even more fun for bowlers of all ages.
               </p>
             </div>
           </section>
@@ -186,9 +187,7 @@ export default function Home() {
               border: "1px solid rgba(255,255,255,0.08)"
             }}
           >
-            <h2 style={{ margin: 0, color: ORANGE, fontSize: "1.6rem" }}>
-              Want to Learn More?
-            </h2>
+            <h2 style={{ margin: 0, color: ORANGE, fontSize: "1.6rem" }}>Want to Learn More?</h2>
 
             <p style={{ margin: ".85rem 0 0", lineHeight: 1.7, color: MUTED, maxWidth: 860 }}>
               Whether you’re a bowler looking for better tracking and competition — or an alley exploring the next era
@@ -203,16 +202,8 @@ export default function Home() {
                 gap: "1rem"
               }}
             >
-              <LearnCard
-                href="/bowlers"
-                title="Bowlers"
-                text="Score tracking, analytics, league tools, and new game modes."
-              />
-              <LearnCard
-                href="/alleys"
-                title="Alleys"
-                text="Pinsetter roadmap, expanded formats, and an all-in-one operations app."
-              />
+              <LearnCard href="/bowlers" title="Bowlers" text="Score tracking, analytics, league tools, and new game modes." />
+              <LearnCard href="/alleys" title="Alleys" text="Pinsetter roadmap, expanded formats, and an all-in-one operations app." />
             </div>
           </section>
 
@@ -261,13 +252,9 @@ function LearnCard({
         }}
       >
         <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.15rem" }}>{title}</div>
-        <p style={{ margin: ".55rem 0 0", color: "rgba(242,242,242,0.78)", lineHeight: 1.65 }}>
-          {text}
-        </p>
+        <p style={{ margin: ".55rem 0 0", color: "rgba(242,242,242,0.78)", lineHeight: 1.65 }}>{text}</p>
 
-        <div style={{ marginTop: "1rem", color: "rgba(242,242,242,0.6)", fontWeight: 800 }}>
-          Explore →
-        </div>
+        <div style={{ marginTop: "1rem", color: "rgba(242,242,242,0.6)", fontWeight: 800 }}>Explore →</div>
       </div>
     </Link>
   );
