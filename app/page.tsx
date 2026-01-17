@@ -25,7 +25,7 @@ export default function Home() {
           position: "fixed",
           inset: 0,
           zIndex: 0,
-          backgroundImage: `url("/lane-wood.png")`,
+          backgroundImage: `url("/lane-wood.PNG")`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
