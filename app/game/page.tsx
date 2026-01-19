@@ -31,7 +31,9 @@ function isBrowser() {
 function setCookie(name: string, value: string, days = 30) {
   if (!isBrowser()) return;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(
+    value
+  )}; expires=${expires}; path=/; SameSite=Lax`;
 }
 function getCookie(name: string) {
   if (!isBrowser()) return null;
@@ -92,7 +94,6 @@ function initFramesFromCookiesClient(): FrameState[] {
 
 function clearAllGameCookies() {
   deleteCookie("game_id");
-  deleteCookie("dev_game_id");
   deleteCookie("game_date");
   deleteCookie("game_location");
   deleteCookie("game_type");
@@ -222,12 +223,11 @@ function computeCumulative(frames: FrameState[]) {
   return cum;
 }
 
-function isStrike(frame: FrameState, frameNumber: number) {
-  // display strike if first roll is 10 (including 10th frame)
+function isStrike(frame: FrameState) {
   return frame.r1 === 10;
 }
 
-function isSpareInTwo(frame: FrameState, frameNumber: number) {
+function isSpareInTwo(frame: FrameState) {
   if (frame.r1 === null || frame.r2 === null) return false;
   return frame.r1 !== 10 && frame.r1 + frame.r2 === 10;
 }
@@ -286,17 +286,7 @@ async function getMeUserId(): Promise<string | null> {
   }
 }
 
-async function ensureDevUser() {
-  try {
-    // If not logged in, this will 401/return ok:false (which is fine)
-    await fetch("/api/dev/ensure-user", { method: "POST", cache: "no-store" });
-  } catch {
-    // ignore
-  }
-}
-
 export default function GamePage() {
-  // delay cookie reads to client mount to avoid SSR “document is not defined”
   const [mounted, setMounted] = useState(false);
 
   // meta
@@ -305,9 +295,6 @@ export default function GamePage() {
   const [location, setLocation] = useState<(typeof LOCATIONS)[number]>(LOCATIONS[0]);
   const [gameType, setGameType] = useState<(typeof GAME_TYPES)[number]>(GAME_TYPES[0]);
   const [gameNumber, setGameNumber] = useState<number>(1);
-
-  // dev game id (used for syncing dev tables)
-  const [devGameId, setDevGameId] = useState<string>("");
 
   // frames
   const [frames, setFrames] = useState<FrameState[]>(
@@ -330,25 +317,28 @@ export default function GamePage() {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [arrowTop, setArrowTop] = useState<number>(280);
 
+  // submit UX
+  const [toast, setToast] = useState<string | null>(null);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3200);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   useEffect(() => {
     setMounted(true);
-
-    // ✅ auto-create dev_users/dev_bowlers for logged-in users
-    ensureDevUser();
 
     // game id cookie
     const existing = getCookie("game_id");
     let id = existing ?? "";
     if (!id) {
-      // crypto is only in browser
       id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).toString();
       setCookie("game_id", id);
     }
     setGameId(id);
-
-    // dev game id cookie (created elsewhere in your flow; if missing we’ll just skip syncing)
-    const dev = getCookie("dev_game_id") ?? "";
-    setDevGameId(dev);
 
     // meta cookies
     setGameDate(getCookie("game_date") ?? todayISO());
@@ -392,7 +382,6 @@ export default function GamePage() {
       raf = window.requestAnimationFrame(update);
     };
 
-    // initial update (even before you scroll)
     schedule();
 
     window.addEventListener("scroll", schedule, { passive: true });
@@ -438,7 +427,6 @@ export default function GamePage() {
       return copy;
     });
 
-    // cookies
     const fnum = frameIdx + 1;
 
     if (patch.lane !== undefined) {
@@ -491,12 +479,11 @@ export default function GamePage() {
       return true;
     }
 
-    // roll 3
     if (r1 === null || r2 === null) return false;
 
     if (currentFrameNumber < 10) {
       if (r1 === 10) return false;
-      if (r1 + r2 === 10) return false; // spare-in-2 ends in frames 1-9
+      if (r1 + r2 === 10) return false;
       return true;
     }
 
@@ -505,12 +492,10 @@ export default function GamePage() {
 
   function onRollChange(roll: 1 | 2 | 3, val: number | null) {
     if (roll === 1) {
-      // changing roll1 resets roll2+roll3 and marks for those rolls
       setFrameValue(index, { r1: val, r2: null, r3: null, m2: null, m3: null });
       return;
     }
     if (roll === 2) {
-      // changing roll2 resets roll3 and mark3
       setFrameValue(index, { r2: val, r3: null, m3: null });
       return;
     }
@@ -523,89 +508,17 @@ export default function GamePage() {
     if (roll === 3) setFrameValue(index, { m3: val });
   }
 
-  async function syncFrameToDevTables(frameIdx: number) {
-    const userId = await getMeUserId();
-    if (!userId) return;
-
-    const fnum = frameIdx + 1;
-    const fr = frames[frameIdx];
-
-    const res = await fetch("/api/dev/sync-frame", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dev_game_id: devGameId || getCookie("dev_game_id") || null,
-
-        played_date: gameDate,
-        location_name: location,
-        event_type_name: gameType, // Scrimmage/League/Tournament
-        game_number: gameNumber,
-
-        frame_number: fnum,
-        lane: fr.lane ?? null,
-
-        r1: fr.r1 ?? null,
-        r2: fr.r2 ?? null,
-        r3: fr.r3 ?? null,
-
-        r1_mark: fr.m1 ?? null,
-        r2_mark: fr.m2 ?? null,
-        r3_mark: fr.m3 ?? null
-      })
-    });
-
-    const j = await res.json().catch(() => null);
-    if (res.ok && j?.dev_game_id) {
-      setDevGameId(j.dev_game_id);
-      setCookie("dev_game_id", j.dev_game_id);
-    }
-  }
-
   async function resetThisFrame() {
-    // reset cookies + state fully for this frame so they must re-enter r1 -> r2 -> r3
     resetFrameCookies(currentFrameNumber);
     setFrameValue(index, { lane: null, r1: null, r2: null, r3: null, m1: null, m2: null, m3: null });
-
-    // delete old dev rows for this frame (sync-frame deletes then reinserts nothing)
-    const userId = await getMeUserId();
-    if (!userId) return;
-
-    const dev = devGameId || getCookie("dev_game_id") || "";
-    if (!dev) return;
-
-        await fetch("/api/dev/sync-frame", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dev_game_id: devGameId || getCookie("dev_game_id") || null,
-
-        played_date: gameDate,
-        location_name: location,
-        event_type_name: gameType,
-        game_number: gameNumber,
-
-        frame_number: currentFrameNumber,
-        lane: null,
-        r1: null,
-        r2: null,
-        r3: null,
-        r1_mark: null,
-        r2_mark: null,
-        r3_mark: null
-      })
-    });
+    // ✅ no network
   }
 
   async function confirmFrame() {
     if (!frameComplete(currentFrame, currentFrameNumber) || isFutureFrame) return;
 
-    // sync to dev tables (also deletes stale rows for that frame)
-    await syncFrameToDevTables(index);
-
-    // flip back ONLY on confirm
     setFlipped(false);
 
-    // advance if it was the current incomplete frame
     const nowAllowed = firstIncompleteFrame(frames);
     if (index === nowAllowed && index < 9) setIndex(index + 1);
   }
@@ -622,7 +535,6 @@ export default function GamePage() {
     setCookie("game_id", id);
     setGameId(id);
 
-    setDevGameId(""); // dev_game_id will be created by your login/dev flow later
     setGameDate(todayISO());
     setLocation(LOCATIONS[0]);
     setGameType(GAME_TYPES[0]);
@@ -642,17 +554,72 @@ export default function GamePage() {
     setFlipped(false);
   }
 
-  function submitScore() {
+  function buildSubmitPayload() {
+    return {
+      game_id: gameId,
+      played_date: gameDate,
+      location_name: location,
+      event_type_name: gameType,
+      game_number: gameNumber,
+      frames: frames.map((f, i) => ({
+        frame_number: i + 1,
+        lane: f.lane ?? null,
+        r1: f.r1 ?? null,
+        r2: f.r2 ?? null,
+        r3: f.r3 ?? null,
+        r1_mark: f.m1 ?? null,
+        r2_mark: f.m2 ?? null,
+        r3_mark: f.m3 ?? null
+      }))
+    };
+  }
+
+  async function onSubmitClick() {
+    if (!allComplete || submitting) return;
+
+    const userId = await getMeUserId();
+    if (!userId) {
+      setToast("You must log in first to submit your score.");
+      return;
+    }
+
+    setShowSubmitConfirm(true);
+  }
+
+  async function submitScoreFinal() {
     if (!allComplete) return;
-    // For now, just clear cookies and reset
-    clearAllGameCookies();
-    alert("Score submitted!");
-    newGame();
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/auth-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify(buildSubmitPayload())
+      });
+
+      const j = await res.json().catch(() => null);
+
+      if (!res.ok || !j?.ok) {
+        setToast(j?.error || "Failed to submit score. Please try again.");
+        return;
+      }
+
+      setToast("Score submitted!");
+      setShowSubmitConfirm(false);
+
+      clearAllGameCookies();
+      newGame();
+    } catch {
+      setToast("Network error submitting score. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   // display helpers
-  const strike = isStrike(currentFrame, currentFrameNumber);
-  const spare2 = isSpareInTwo(currentFrame, currentFrameNumber);
+  const strike = isStrike(currentFrame);
+  const spare2 = isSpareInTwo(currentFrame);
   const cumScore = cumulative[index];
 
   const r1Text = strike ? "X" : currentFrame.r1 !== null ? String(currentFrame.r1) : "";
@@ -664,10 +631,7 @@ export default function GamePage() {
   const m3 = currentFrame.m3;
 
   if (!mounted) {
-    // tiny guard to avoid hydration weirdness
-    return (
-      <main style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "Montserrat, system-ui" }} />
-    );
+    return <main style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "Montserrat, system-ui" }} />;
   }
 
   return (
@@ -701,21 +665,13 @@ export default function GamePage() {
           <img
             src="/1@300x.png"
             alt="Dux Bowling"
-            style={{
-              maxWidth: 160,
-              height: "auto",
-              filter: "drop-shadow(0 18px 40px rgba(0,0,0,0.6))"
-            }}
+            style={{ maxWidth: 160, height: "auto", filter: "drop-shadow(0 18px 40px rgba(0,0,0,0.6))" }}
           />
         </div>
 
         <header style={{ textAlign: "center", marginBottom: "1rem" }}>
-          <h1 style={{ margin: 0, color: ORANGE, fontWeight: 950, letterSpacing: "-0.02em" }}>
-            Game Tracker
-          </h1>
-          <p style={{ margin: ".5rem 0 0", color: MUTED, lineHeight: 1.6 }}>
-            Track your duckpin score in real time.
-          </p>
+          <h1 style={{ margin: 0, color: ORANGE, fontWeight: 950, letterSpacing: "-0.02em" }}>Game Tracker</h1>
+          <p style={{ margin: ".5rem 0 0", color: MUTED, lineHeight: 1.6 }}>Track your duckpin score in real time.</p>
         </header>
 
         {/* Meta inputs */}
@@ -723,13 +679,7 @@ export default function GamePage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".75rem" }}>
             <label style={labelStyle}>
               Date
-              <input
-                type="date"
-                value={gameDate}
-                max={todayISO()}
-                onChange={(e) => setGameDate(e.target.value)}
-                style={inputStyle}
-              />
+              <input type="date" value={gameDate} max={todayISO()} onChange={(e) => setGameDate(e.target.value)} style={inputStyle} />
             </label>
 
             <label style={labelStyle}>
@@ -824,15 +774,7 @@ export default function GamePage() {
 
         {/* Card */}
         <div style={{ display: "flex", justifyContent: "center" }}>
-          <div
-            ref={cardRef}
-            style={{
-              width: "min(640px, 94vw)",
-              height: 340,
-              perspective: 1100,
-              opacity: isFutureFrame ? 0.6 : 1
-            }}
-          >
+          <div ref={cardRef} style={{ width: "min(640px, 94vw)", height: 340, perspective: 1100, opacity: isFutureFrame ? 0.6 : 1 }}>
             <div
               style={{
                 position: "relative",
@@ -847,7 +789,7 @@ export default function GamePage() {
               <div
                 onClick={() => {
                   if (isFutureFrame) return;
-                  setFlipped(true); // only flip to back by tapping front
+                  setFlipped(true);
                 }}
                 style={{
                   position: "absolute",
@@ -866,15 +808,10 @@ export default function GamePage() {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontWeight: 950, color: ORANGE, letterSpacing: "-0.02em" }}>
-                    Frame {currentFrameNumber}
-                  </div>
-                  <div style={{ fontSize: ".85rem", color: MUTED }}>
-                    Cumulative
-                  </div>
+                  <div style={{ fontWeight: 950, color: ORANGE, letterSpacing: "-0.02em" }}>Frame {currentFrameNumber}</div>
+                  <div style={{ fontSize: ".85rem", color: MUTED }}>Cumulative</div>
                 </div>
 
-                {/* Classic-ish score box */}
                 <div
                   style={{
                     border: `2px solid ${ORANGE}`,
@@ -885,37 +822,14 @@ export default function GamePage() {
                     background: "rgba(0,0,0,0.18)"
                   }}
                 >
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr",
-                      borderBottom: `2px solid ${ORANGE}`
-                    }}
-                  >
-                    {/* Roll 1 */}
-                    <RollCell
-                      value={r1Text}
-                      isStrike={strike}
-                      mark={m1}
-                      rightBorder
-                    />
-
-                    {/* Roll 2 */}
-                    <RollCell
-                      value={r2Text}
-                      spareTriangle={spare2}
-                      mark={m2}
-                      rightBorder
-                    />
-
-                    {/* Roll 3 */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: `2px solid ${ORANGE}` }}>
+                    <RollCell value={r1Text} isStrike={strike} mark={m1} rightBorder />
+                    <RollCell value={r2Text} spareTriangle={spare2} mark={m2} rightBorder />
                     <RollCell value={r3Text} mark={m3} />
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ fontSize: "2.3rem", fontWeight: 950, color: ORANGE }}>
-                      {cumScore ?? "—"}
-                    </div>
+                    <div style={{ fontSize: "2.3rem", fontWeight: 950, color: ORANGE }}>{cumScore ?? "—"}</div>
                   </div>
                 </div>
 
@@ -923,15 +837,12 @@ export default function GamePage() {
                   <div>
                     Lane: <span style={{ color: TEXT, fontWeight: 900 }}>{currentFrame.lane ?? "—"}</span>
                   </div>
-                  <div style={{ color: MUTED }}>
-                    {isFutureFrame ? "Complete earlier frames first" : "Tap to enter scores"}
-                  </div>
+                  <div style={{ color: MUTED }}>{isFutureFrame ? "Complete earlier frames first" : "Tap to enter scores"}</div>
                 </div>
               </div>
 
-              {/* BACK (entry) */}
+              {/* BACK */}
               <div
-                // DO NOT flip back by tapping background — only Confirm flips back
                 onClick={(e) => e.stopPropagation()}
                 style={{
                   position: "absolute",
@@ -950,9 +861,7 @@ export default function GamePage() {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontWeight: 950, color: ORANGE, letterSpacing: "-0.02em" }}>
-                    Frame {currentFrameNumber}
-                  </div>
+                  <div style={{ fontWeight: 950, color: ORANGE, letterSpacing: "-0.02em" }}>Frame {currentFrameNumber}</div>
                   <button
                     onClick={async (e) => {
                       e.stopPropagation();
@@ -976,7 +885,6 @@ export default function GamePage() {
                 </div>
 
                 <div style={{ display: "grid", gap: ".75rem" }}>
-                  {/* Lane */}
                   <label style={labelStyle}>
                     Lane (optional)
                     <select
@@ -993,7 +901,6 @@ export default function GamePage() {
                     </select>
                   </label>
 
-                  {/* Rolls + Chop/Split */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: ".75rem" }}>
                     <RollEntry
                       label="Roll 1"
@@ -1004,7 +911,6 @@ export default function GamePage() {
                       mark={currentFrame.m1}
                       onMarkChange={(m) => setMark(1, m)}
                     />
-
                     <RollEntry
                       label="Roll 2"
                       value={currentFrame.r2}
@@ -1014,7 +920,6 @@ export default function GamePage() {
                       mark={currentFrame.m2}
                       onMarkChange={(m) => setMark(2, m)}
                     />
-
                     <RollEntry
                       label="Roll 3"
                       value={currentFrame.r3}
@@ -1041,8 +946,8 @@ export default function GamePage() {
                     fontWeight: 950,
                     background: ORANGE,
                     color: "#fff",
-                    opacity: (!frameComplete(currentFrame, currentFrameNumber) || isFutureFrame) ? 0.6 : 1,
-                    cursor: (!frameComplete(currentFrame, currentFrameNumber) || isFutureFrame) ? "default" : "pointer",
+                    opacity: !frameComplete(currentFrame, currentFrameNumber) || isFutureFrame ? 0.6 : 1,
+                    cursor: !frameComplete(currentFrame, currentFrameNumber) || isFutureFrame ? "default" : "pointer",
                     boxShadow: "0 18px 40px rgba(0,0,0,0.55)"
                   }}
                 >
@@ -1056,8 +961,8 @@ export default function GamePage() {
         {/* Bottom actions */}
         <div style={{ marginTop: "1.25rem", display: "grid", gap: ".75rem" }}>
           <button
-            onClick={submitScore}
-            disabled={!allComplete}
+            onClick={onSubmitClick}
+            disabled={!allComplete || submitting}
             style={{
               width: "100%",
               border: "none",
@@ -1066,12 +971,12 @@ export default function GamePage() {
               fontWeight: 950,
               background: ORANGE,
               color: "#fff",
-              opacity: allComplete ? 1 : 0.6,
-              cursor: allComplete ? "pointer" : "default",
+              opacity: allComplete && !submitting ? 1 : 0.6,
+              cursor: allComplete && !submitting ? "pointer" : "default",
               boxShadow: "0 22px 55px rgba(0,0,0,0.55)"
             }}
           >
-            Submit Score
+            {submitting ? "Submitting..." : "Submit Score"}
           </button>
 
           <button
@@ -1088,13 +993,110 @@ export default function GamePage() {
           >
             New Game
           </button>
-
-          {/* (Optional) tiny dev hint */}
-          <div style={{ textAlign: "center", color: MUTED, fontSize: ".8rem" }}>
-            {devGameId ? "Dev sync enabled (dev_game_id found)." : "Dev sync will run when dev_game_id exists & you’re logged in."}
-          </div>
         </div>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: 18,
+            transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.78)",
+            border: `1px solid ${BORDER}`,
+            color: TEXT,
+            padding: ".75rem 1rem",
+            borderRadius: 14,
+            fontWeight: 900,
+            zIndex: 9999,
+            boxShadow: "0 22px 55px rgba(0,0,0,0.65)",
+            backdropFilter: "blur(10px)",
+            maxWidth: "min(92vw, 520px)",
+            textAlign: "center"
+          }}
+        >
+          {toast}
+        </div>
+      )}
+
+      {/* Submit confirmation modal */}
+      {showSubmitConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !submitting && setShowSubmitConfirm(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.62)",
+            zIndex: 9998,
+            display: "grid",
+            placeItems: "center",
+            padding: "1rem"
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(92vw, 560px)",
+              background: PANEL,
+              border: `1px solid ${BORDER}`,
+              borderRadius: 18,
+              padding: "1rem",
+              boxShadow: "0 22px 55px rgba(0,0,0,0.65)",
+              backdropFilter: "blur(12px)"
+            }}
+          >
+            <div style={{ fontWeight: 950, color: ORANGE, fontSize: "1.15rem", marginBottom: ".5rem" }}>
+              Submit score?
+            </div>
+
+            <div style={{ color: MUTED, lineHeight: 1.6, fontWeight: 800 }}>
+              Are you sure you want to submit your score? Once you have submitted your score, results are final and cannot
+              be changed.
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".75rem", marginTop: "1rem" }}>
+              <button
+                onClick={() => !submitting && setShowSubmitConfirm(false)}
+                disabled={submitting}
+                style={{
+                  border: `1px solid ${BORDER}`,
+                  borderRadius: 14,
+                  padding: ".95rem",
+                  fontWeight: 950,
+                  background: "rgba(0,0,0,0.22)",
+                  color: TEXT,
+                  opacity: submitting ? 0.6 : 1,
+                  cursor: submitting ? "default" : "pointer"
+                }}
+              >
+                No
+              </button>
+
+              <button
+                onClick={submitScoreFinal}
+                disabled={submitting}
+                style={{
+                  border: "none",
+                  borderRadius: 14,
+                  padding: ".95rem",
+                  fontWeight: 950,
+                  background: ORANGE,
+                  color: "#fff",
+                  opacity: submitting ? 0.7 : 1,
+                  cursor: submitting ? "default" : "pointer",
+                  boxShadow: "0 18px 40px rgba(0,0,0,0.55)"
+                }}
+              >
+                {submitting ? "Submitting..." : "Yes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -1162,16 +1164,9 @@ function RollCell({
       }}
     >
       {spareTriangle && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: `linear-gradient(135deg, transparent 50%, rgba(228,106,46,0.35) 50%)`
-          }}
-        />
+        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, transparent 50%, rgba(228,106,46,0.35) 50%)` }} />
       )}
 
-      {/* C / S marker */}
       {mark && (
         <div
           style={{
