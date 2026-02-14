@@ -275,6 +275,10 @@ export default function Home() {
                 <RevealOnce threshold={0.1}>
                   <LearnCard href="/alleys" title="Alleys" text="Pinsetter roadmap and an all-in-one operations platform." />
                 </RevealOnce>
+
+                <RevealOnce threshold={0.1}>
+                  <LearnCard href="/demo" title="Mascot Demo" text="Watch the mascot roll a retro video-game strike." />
+                </RevealOnce>
               </div>
             </PaperCard>
           </RevealOnce>
