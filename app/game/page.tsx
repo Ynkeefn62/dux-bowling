@@ -591,7 +591,7 @@ export default function GamePage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/auth-score", {
+      const res = await fetch("/api/game/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
