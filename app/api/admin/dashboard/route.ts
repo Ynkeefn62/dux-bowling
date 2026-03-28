@@ -76,7 +76,7 @@ export async function GET() {
         id:             p.id,
         user_id:        p.id,
         email:          p.email,
-        display_name:   bp?.display_name ?? `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null,
+        display_name:   bp?.display_name ?? (`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null),
         username:       p.username,
         user_type:      p.user_type,
         games_played:   bp?.games_played ?? 0,
