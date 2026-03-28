@@ -78,12 +78,12 @@ export default function BowlerDashboardPage() {
 
         setLoggedIn(true);
 
-        const qs = new URLSearchParams({ userId });
+        const qs = new URLSearchParams();
         if (filters.alleyId) qs.set("alleyId", filters.alleyId);
         if (filters.lane) qs.set("lane", filters.lane);
         if (filters.gameType) qs.set("gameType", filters.gameType);
 
-        const sRes = await fetch(`/api/dev/bowler-stats?${qs.toString()}`, { cache: "no-store" });
+        const sRes = await fetch(`/api/game/stats?${qs.toString()}`, { cache: "no-store" });
         const data = (await sRes.json()) as StatsResponse;
 
         if (!sRes.ok || !data?.ok) {
