@@ -36,14 +36,14 @@ type StatsResponse = {
   filterOptions?: {
     alleys: FilterOption[];
     lanes: FilterOption[];
-    gameTypes: FilterOption[]; // dev_game_type_id values
+    gameTypes: FilterOption[];
   };
 };
 
 type Filters = {
-  alleyId: string;   // dev_alley_id or ""
-  lane: string;      // "1" or ""
-  gameType: string;  // dev_game_type_id or ""
+  alleyId: string;
+  lane: string;
+  gameType: string;
 };
 
 export default function BowlerDashboardPage() {
@@ -303,7 +303,7 @@ export default function BowlerDashboardPage() {
             Bowler Dashboard
           </h1>
           <p style={{ margin: ".5rem 0 0", color: MUTED, lineHeight: 1.6 }}>
-            Your stats based on completed games recorded in the dev tables.
+            Your stats based on completed games recorded to your account.
           </p>
         </header>
 
