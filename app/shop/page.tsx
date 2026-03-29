@@ -237,7 +237,7 @@ export default function ShopPage() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
                     <div style={{ fontWeight: 900, color: ORANGE, fontSize: "1.1rem" }}>{p.price}</div>
                     <button
-                      onClick={() => setSubmitted(false) || setEmail("")}
+                      onClick={() => { setSubmitted(false); setEmail(""); }}
                       style={{
                         padding: ".45rem .9rem", borderRadius: 8,
                         border: `1px solid rgba(228,106,46,0.35)`,
