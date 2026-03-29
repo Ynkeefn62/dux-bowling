@@ -8,16 +8,22 @@ function bad(msg: string, status = 400) {
 
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
+    const { email, password, remember = true } = await req.json();
     if (!email || !password) return bad("Email and password are required.");
 
     const supabase = supabaseAnonServer();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) return bad(error.message, 401);
-    if (!data.session) return bad("No session returned. Is email confirmation required?", 401);
+    if (error) {
+      // Give a clear, specific message
+      if (error.message.toLowerCase().includes("invalid")) {
+        return bad("Incorrect email or password.", 401);
+      }
+      return bad(error.message, 401);
+    }
+    if (!data.session) return bad("No session returned. Please confirm your email first.", 401);
 
-    setAuthCookies(data.session.access_token, data.session.refresh_token);
+    setAuthCookies(data.session.access_token, data.session.refresh_token, Boolean(remember));
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
