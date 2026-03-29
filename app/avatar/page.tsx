@@ -362,8 +362,6 @@ function Eyebrow({side,hair,hairD,faceShape}: {side:"left"|"right";hair:string;h
   );
 }
 
-function lighten(hex:string,a:number):string { const[r,g,b]=hexToRgb(hex); return rgbToHex(r+(255-r)*a,g+(255-g)*a,b+(255-b)*a); }
-
 // ── EYE ──────────────────────────────────────────────────────
 function Eye({side,eyeColor,irisGrad,glowFilter,skin,skinD}: {
   side:"left"|"right"; eyeColor:string; irisGrad:string; glowFilter:string; skin:string; skinD:string;
@@ -711,8 +709,6 @@ function FrontHair({style,hair,hairD,hairL,gradId,shineId}: {
   return null;
 }
 
-function lighten2(hex:string,a:number):string { const[r,g,b]=hexToRgb(hex); return rgbToHex(r+(255-r)*a,g+(255-g)*a,b+(255-b)*a); }
-
 // ── FACIAL HAIR ───────────────────────────────────────────────
 function FacialHair({style,hair,hairD,skin}: {style:string;hair:string;hairD:string;skin:string}) {
   if (style==="stubble") return (
@@ -736,9 +732,9 @@ function FacialHair({style,hair,hairD,skin}: {style:string;hair:string;hairD:str
       <path d="M144,222 C148,216 154,213 160,215 C166,213 172,216 176,222 C172,225 166,224 160,224 C154,224 148,225 144,222 Z"
         fill={hair} />
       <path d="M146,218 C152,214 157,213 160,215"
-        stroke={lighten2(hair,0.25)} strokeWidth="1.5" fill="none" opacity="0.45" strokeLinecap="round" />
+        stroke={lighten(hair,0.25)} strokeWidth="1.5" fill="none" opacity="0.45" strokeLinecap="round" />
       <path d="M174,218 C168,214 163,213 160,215"
-        stroke={lighten2(hair,0.25)} strokeWidth="1.5" fill="none" opacity="0.45" strokeLinecap="round" />
+        stroke={lighten(hair,0.25)} strokeWidth="1.5" fill="none" opacity="0.45" strokeLinecap="round" />
     </g>
   );
 
@@ -752,7 +748,7 @@ function FacialHair({style,hair,hairD,skin}: {style:string;hair:string;hairD:str
         fill={hair} opacity="0.88" />
       {/* Beard highlight */}
       <path d="M152,228 C155,238 158,243 160,244"
-        stroke={lighten2(hair,0.25)} strokeWidth="2.5" fill="none" opacity="0.3" strokeLinecap="round" />
+        stroke={lighten(hair,0.25)} strokeWidth="2.5" fill="none" opacity="0.3" strokeLinecap="round" />
       {/* Beard outline strands */}
       {[138,148,160,172,182].map((x,i)=>(
         <path key={i} d={`M${x},${240+i} C${x},${250+i} ${x+2},${258} ${x+2},${260}`}
@@ -776,7 +772,7 @@ function FacialHair({style,hair,hairD,skin}: {style:string;hair:string;hairD:str
         stroke={hairD} strokeWidth="4" fill="none" opacity="0.3" strokeLinecap="round" />
       {/* Center highlight */}
       <path d="M157,228 C158,242 159,252 160,256"
-        stroke={lighten2(hair,0.28)} strokeWidth="3" fill="none" opacity="0.32" strokeLinecap="round" />
+        stroke={lighten(hair,0.28)} strokeWidth="3" fill="none" opacity="0.32" strokeLinecap="round" />
       {/* Strand texture */}
       {[130,140,152,168,180,190].map((x,i)=>(
         <path key={i} d={`M${x},${235+i*2} C${x+1},${250+i} ${x+1},${264} ${x+2},${270}`}
@@ -791,7 +787,7 @@ function FacialHair({style,hair,hairD,skin}: {style:string;hair:string;hairD:str
 // ── BODY ─────────────────────────────────────────────────────
 function Body({outfit,skin,skinD,gradId,skinGradId}: {outfit:string;skin:string;skinD:string;gradId:string;skinGradId:string}) {
   const shirt   = shirtCol(outfit);
-  const shirtL  = lighten2(shirt,0.18);
+  const shirtL  = lighten(shirt,0.18);
   const shirtD  = darken(shirt,0.22);
   const accent  = outfit==="letterman"?"#C8A020":outfit==="bowling-shirt"?"#F0E0A0":"#ffffff";
 
@@ -919,7 +915,7 @@ function Collar({outfit,shirt,shirtL,shirtD,accent}: {outfit:string;shirt:string
       <path d="M140,252 C145,260 155,265 160,266 C165,265 175,260 180,252"
         fill={shirtD} opacity="0.5" />
       <path d="M141,255 C148,263 156,267 160,268 C164,267 172,263 179,255"
-        stroke={lighten2(shirt,0.08)} strokeWidth="1.5" fill="none" opacity="0.3" />
+        stroke={lighten(shirt,0.08)} strokeWidth="1.5" fill="none" opacity="0.3" />
     </g>
   );
   // Default spread collar for bowling-shirt, letterman, jersey
@@ -1025,7 +1021,7 @@ function Hat({hair,hairD}: {hair:string;hairD:string}) {
       <ellipse cx="160" cy="150" rx="72" ry="16" fill={brim} />
       {/* Brim highlight */}
       <path d="M96,146 C108,142 130,140 160,140 C190,140 212,142 224,146"
-        stroke={lighten2(brim,0.2)} strokeWidth="2.5" fill="none" opacity="0.4"
+        stroke={lighten(brim,0.2)} strokeWidth="2.5" fill="none" opacity="0.4"
         strokeLinecap="round" />
       {/* Crown seam */}
       <path d="M98,150 C118,156 140,158 160,158 C180,158 202,156 222,150"
