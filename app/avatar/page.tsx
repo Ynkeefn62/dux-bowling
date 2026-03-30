@@ -1,6 +1,26 @@
 "use client";
 import React, { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+const AvatarStage = dynamic(() => import("./AvatarStage"), {
+  ssr: false,
+  loading: () => (
+    <div style={{
+      width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",
+      background:"rgba(4,4,12,0.8)",flexDirection:"column",gap:"1rem",
+    }}>
+      <div style={{
+        width:48,height:48,border:"3px solid rgba(56,217,245,0.15)",
+        borderTop:"3px solid #38d9f5",borderRadius:"50%",
+        animation:"spin 1s linear infinite",
+      }}/>
+      <span style={{fontSize:".62rem",color:"rgba(240,240,255,0.4)",fontFamily:"'Courier New',monospace",letterSpacing:".12em"}}>
+        LOADING 3D ENGINE
+      </span>
+    </div>
+  ),
+});
 
 // ─── Tokens ──────────────────────────────────────────────────
 const ORANGE = "#e46a2e";
@@ -1256,35 +1276,34 @@ export default function AvatarPage() {
             </button>
           </div>
 
-          {/* ── CENTER STAGE ── */}
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden",padding:"1.25rem 1rem",background:"rgba(4,4,12,0.4)"}}>
-            <div aria-hidden="true" style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 75% 70% at 50% 105%,rgba(228,106,46,0.07),transparent 65%),radial-gradient(ellipse 55% 35% at 50% 0%,rgba(56,217,245,0.05),transparent 55%)"}}/>
+          {/* ── CENTER STAGE (3D) ── */}
+          <div style={{display:"flex",flexDirection:"column",position:"relative",overflow:"hidden",background:"#050510"}}>
+            {/* Ambient glow overlay */}
+            <div aria-hidden="true" style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse 60% 30% at 50% 0%,rgba(56,217,245,0.04),transparent 60%),radial-gradient(ellipse 50% 25% at 50% 100%,rgba(228,106,46,0.05),transparent 55%)"}}/>
 
-            {/* Frame */}
-            <div style={{position:"relative",width:"100%",maxWidth:580,borderRadius:14,overflow:"hidden",border:"1px solid rgba(56,217,245,0.16)",boxShadow:"0 0 70px rgba(56,217,245,0.05),0 0 140px rgba(228,106,46,0.03),inset 0 0 60px rgba(0,0,0,0.45)",background:"rgba(6,6,14,0.25)"}}>
+            {/* 3D Canvas — fills the column */}
+            <div style={{flex:1,position:"relative",minHeight:0}}>
+              {/* Corner brackets */}
               <CornerBracket pos="tl"/>
               <CornerBracket pos="tr"/>
               <CornerBracket pos="bl"/>
               <CornerBracket pos="br"/>
 
-              <AlleyScene w={580} h={310}/>
-
-              {/* Spotlight */}
-              <div aria-hidden="true" style={{position:"absolute",bottom:0,left:"50%",width:200,height:70,background:"radial-gradient(ellipse 100% 100% at 50% 100%,rgba(228,106,46,0.32),transparent 70%)",animation:"spotPulse 3.5s ease-in-out infinite",transform:"translateX(-50%)"}}/>
-
-              {/* Character with idle float */}
-              <div style={{position:"absolute",bottom:0,left:"50%",filter:"drop-shadow(0 14px 36px rgba(0,0,0,0.85)) drop-shadow(0 0 44px rgba(56,217,245,0.1))",animation:"idleFloat 4s ease-in-out infinite"}}>
-                <CharacterSVG state={state} w={228} h={432}/>
+              {/* HUD top-left */}
+              <div style={{position:"absolute",top:14,left:16,fontSize:".52rem",color:"rgba(240,240,255,0.32)",fontFamily:"'Courier New',monospace",letterSpacing:".1em",zIndex:2,pointerEvents:"none"}}>
+                LANE 4 · WALKERSVILLE
               </div>
 
-              {/* HUD top-left */}
-              <div style={{position:"absolute",top:14,left:16,fontSize:".52rem",color:"rgba(240,240,255,0.35)",fontFamily:"'Courier New',monospace",letterSpacing:".1em"}}>LANE 4 · WALKERSVILLE</div>
+              {/* HUD top-right */}
+              <div style={{position:"absolute",top:12,right:14,zIndex:2,pointerEvents:"none",fontSize:".54rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900,background:"rgba(228,106,46,0.14)",border:"1px solid rgba(228,106,46,0.28)",borderRadius:4,padding:"2px 8px"}}>
+                LVL 1
+              </div>
 
-              {/* HUD top-right — level badge */}
-              <div style={{position:"absolute",top:12,right:14,fontSize:".54rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900,background:"rgba(228,106,46,0.14)",border:"1px solid rgba(228,106,46,0.28)",borderRadius:4,padding:"2px 8px"}}>LVL 1</div>
+              {/* 3D stage */}
+              <AvatarStage state={state} />
 
               {/* Nameplate */}
-              <div style={{position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)",background:"rgba(5,5,15,0.9)",border:`1px solid rgba(56,217,245,0.32)`,borderRadius:6,padding:".28rem 1rem",boxShadow:"0 0 18px rgba(56,217,245,0.18)",backdropFilter:"blur(8px)",whiteSpace:"nowrap"}}>
+              <div style={{position:"absolute",bottom:32,left:"50%",transform:"translateX(-50%)",background:"rgba(5,5,15,0.88)",border:"1px solid rgba(56,217,245,0.32)",borderRadius:6,padding:".28rem 1rem",boxShadow:"0 0 18px rgba(56,217,245,0.18)",backdropFilter:"blur(8px)",whiteSpace:"nowrap",zIndex:2,pointerEvents:"none"}}>
                 <div style={{display:"flex",alignItems:"center",gap:".45rem"}}>
                   <div style={{width:5,height:5,borderRadius:"50%",background:ORANGE,boxShadow:`0 0 7px ${ORANGE}`}}/>
                   <span style={{fontSize:".6rem",color:"rgba(240,240,255,0.92)",fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900}}>{playerName}</span>
@@ -1294,8 +1313,8 @@ export default function AvatarPage() {
               </div>
             </div>
 
-            {/* Loadout summary pill */}
-            <div style={{display:"flex",alignItems:"center",gap:".5rem",marginTop:".9rem",background:"rgba(12,12,24,0.75)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,padding:".4rem .9rem",flexWrap:"wrap",justifyContent:"center"}}>
+            {/* Loadout summary bar */}
+            <div style={{flexShrink:0,display:"flex",alignItems:"center",gap:".5rem",padding:".5rem 1rem",background:"rgba(8,8,18,0.9)",borderTop:"1px solid rgba(255,255,255,0.055)",flexWrap:"wrap",justifyContent:"center",zIndex:2}}>
               {[
                 {k:"HAIR",v:HAIR_STYLES_TIERED.find(h=>h.id===state.hairStyle)?.label??state.hairStyle},
                 {k:"OUTFIT",v:OUTFITS.find(o=>o.id===state.outfit)?.label??state.outfit},
@@ -1303,8 +1322,8 @@ export default function AvatarPage() {
               ].map((item,i)=>(
                 <div key={i} style={{display:"flex",alignItems:"center",gap:".35rem"}}>
                   {i>0&&<div style={{width:1,height:10,background:"rgba(255,255,255,0.15)"}}/>}
-                  <span style={{fontSize:".54rem",color:"rgba(240,240,255,0.38)",fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>{item.k}</span>
-                  <span style={{fontSize:".58rem",color:"rgba(240,240,255,0.75)",fontFamily:"'Courier New',monospace",fontWeight:900,letterSpacing:".04em"}}>{item.v.toUpperCase()}</span>
+                  <span style={{fontSize:".52rem",color:"rgba(240,240,255,0.35)",fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>{item.k}</span>
+                  <span style={{fontSize:".56rem",color:"rgba(240,240,255,0.78)",fontFamily:"'Courier New',monospace",fontWeight:900,letterSpacing:".04em"}}>{item.v.toUpperCase()}</span>
                 </div>
               ))}
             </div>
