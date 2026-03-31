@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import ReactECharts from "echarts-for-react";
+
+const QrScannerModal = dynamic(() => import("@/app/components/QrScannerModal"), { ssr: false });
 
 const ORANGE = "#e46a2e";
 const BG = "#121212";
@@ -53,6 +56,7 @@ export default function BowlerDashboardPage() {
   const [err, setErr] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<Filters>({ alleyId: "", lane: "", gameType: "" });
+  const [showLaneScanner, setShowLaneScanner] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -259,6 +263,23 @@ export default function BowlerDashboardPage() {
     };
   }, [stats?.rolling]);
 
+  function handleLaneScan(text: string) {
+    setShowLaneScanner(false);
+    // The lane screen QR encodes /game?session=xxx — navigate directly
+    try {
+      const url = new URL(text);
+      // Accept both /game?session= and /simulators/lane-screen?session= QR codes
+      const session = url.searchParams.get("session");
+      if (session) {
+        window.location.href = `/game?session=${encodeURIComponent(session)}`;
+      } else {
+        window.location.href = text;
+      }
+    } catch {
+      window.location.href = `/game?session=${encodeURIComponent(text)}`;
+    }
+  }
+
   return (
     <main
       style={{
@@ -269,6 +290,14 @@ export default function BowlerDashboardPage() {
         padding: "2rem 1rem 3rem"
       }}
     >
+      {showLaneScanner && (
+        <QrScannerModal
+          title="Scan Lane QR"
+          hint="Point at the QR code shown on the lane screen above your lane"
+          onScan={handleLaneScan}
+          onClose={() => setShowLaneScanner(false)}
+        />
+      )}
       {/* Background glow */}
       <div
         aria-hidden="true"
@@ -306,6 +335,38 @@ export default function BowlerDashboardPage() {
             Your stats based on completed games recorded to your account.
           </p>
         </header>
+
+        {/* Join a Lane */}
+        {loggedIn && (
+          <div style={{
+            marginBottom: "1rem",
+            padding: ".75rem 1rem",
+            background: "rgba(228,106,46,0.08)",
+            border: "1px solid rgba(228,106,46,0.25)",
+            borderRadius: 12,
+            display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap",
+          }}>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontWeight: 900, fontSize: ".88rem", color: ORANGE, marginBottom: 2 }}>
+                🎳 Ready to bowl?
+              </div>
+              <div style={{ fontSize: ".72rem", color: MUTED, lineHeight: 1.5 }}>
+                Scan the QR code on the lane screen above your lane to join the session and track your score in real time.
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLaneScanner(true)}
+              style={{
+                padding: ".65rem 1.1rem", borderRadius: 10, border: 0,
+                background: ORANGE, color: "#fff",
+                fontWeight: 900, fontSize: ".82rem", cursor: "pointer",
+                fontFamily: "Montserrat, system-ui", whiteSpace: "nowrap",
+              }}
+            >
+              📷 Scan Lane QR
+            </button>
+          </div>
+        )}
 
         {/* Filters */}
         <Panel style={{ marginBottom: "1rem" }}>

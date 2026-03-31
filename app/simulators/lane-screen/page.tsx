@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
+
+const QrScannerModal = dynamic(() => import("@/app/components/QrScannerModal"), { ssr: false });
 import { createClient, RealtimeChannel } from "@supabase/supabase-js";
 
 // ── Design tokens ─────────────────────────────────────────────
@@ -1001,8 +1004,9 @@ export default function LaneScreenSimulatorPage() {
   const [laneNum, setLaneNum]             = useState("4");
   const [locationName, setLocationName]   = useState("Walkersville Bowling Center");
   const [dbSyncEnabled, setDbSyncEnabled] = useState(true);
-  const [showReset, setShowReset]         = useState(false);
-  const [showSettings, setShowSettings]   = useState(false);
+  const [showReset, setShowReset]               = useState(false);
+  const [showSettings, setShowSettings]         = useState(false);
+  const [showPinsetterScanner, setShowPinsetterScanner] = useState(false);
 
   const channelRef    = useRef<RealtimeChannel|null>(null);
   const playersRef    = useRef(players);
@@ -1189,15 +1193,21 @@ export default function LaneScreenSimulatorPage() {
   const allDone      = players.length > 0 && players.every(p=>p.done);
   const modeInfo     = GAME_MODE_INFO.find(m=>m.mode===gameConfig?.mode);
 
-  const scoreTrackerQr = useMemo(() => {
-    if (typeof window==="undefined") return "";
-    const url=`${window.location.origin}/game`;
-    return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
-  }, []);
+  // QR bowlers scan to join/track this lane session
+  const joinQr = useMemo(() => {
+    if (!sessionId || typeof window==="undefined") return "";
+    const url = `${window.location.origin}/game?session=${encodeURIComponent(sessionId)}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+  }, [sessionId]);
+
+  const joinUrl = useMemo(() => {
+    if (!sessionId || typeof window==="undefined") return "";
+    return `${window.location.origin}/game?session=${encodeURIComponent(sessionId)}`;
+  }, [sessionId]);
 
   const pinsetterQr = useMemo(() => {
-    if (!sessionId||typeof window==="undefined") return "";
-    const url=`${window.location.origin}/simulators/pinsetter?session=${encodeURIComponent(sessionId)}`;
+    if (!sessionId || typeof window==="undefined") return "";
+    const url = `${window.location.origin}/simulators/pinsetter?session=${encodeURIComponent(sessionId)}`;
     return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
   }, [sessionId]);
 
@@ -1207,9 +1217,35 @@ export default function LaneScreenSimulatorPage() {
   }
 
   // ── Active game screen ─────────────────────────────────────
+  function handlePinsetterScan(text: string) {
+    setShowPinsetterScanner(false);
+    // The pinsetter QR encodes a URL like /simulators/lane-screen?session=xxx
+    // Navigate there so this device connects with that session
+    try {
+      const url = new URL(text);
+      const scannedSession = url.searchParams.get("session");
+      if (scannedSession) {
+        window.location.href = `/simulators/lane-screen?session=${encodeURIComponent(scannedSession)}`;
+      } else {
+        window.location.href = text;
+      }
+    } catch {
+      // Not a valid URL — try treating it as a raw session ID
+      window.location.href = `/simulators/lane-screen?session=${encodeURIComponent(text)}`;
+    }
+  }
+
   return (
     <main style={{ minHeight:"100vh", background:BG, fontFamily:"Montserrat, system-ui", color:TEXT, padding:"1rem" }}>
       {showAddPlayer && <AddPlayerModal onAdd={addPlayer} onClose={()=>setShowAddPlayer(false)} />}
+      {showPinsetterScanner && (
+        <QrScannerModal
+          title="Scan Pinsetter QR"
+          hint="Point at the QR code shown on the pinsetter device"
+          onScan={handlePinsetterScan}
+          onClose={() => setShowPinsetterScanner(false)}
+        />
+      )}
 
       <div style={{ maxWidth:1200, margin:"0 auto" }}>
 
@@ -1243,6 +1279,13 @@ export default function LaneScreenSimulatorPage() {
               <span style={{ width:7, height:7, borderRadius:"50%", background:connected?"#4ade80":"rgba(255,255,255,0.22)", display:"inline-block" }} />
               {connected?"Pinsetter":"Waiting…"}
             </span>
+            <button
+              onClick={() => setShowPinsetterScanner(true)}
+              style={{ padding:".4rem .7rem", borderRadius:8, border:`1px solid ${BORDER}`, background:"transparent", color:MUTED, fontSize:".78rem", cursor:"pointer" }}
+              title="Scan the pinsetter device's QR code to connect"
+            >
+              📷 Scan Pinsetter
+            </button>
             <button onClick={()=>setShowAddPlayer(true)} style={{ padding:".4rem .7rem", borderRadius:8, border:0, background:ORANGE, color:"#fff", fontWeight:900, fontSize:".78rem", cursor:"pointer" }}>
               + Bowler
             </button>
@@ -1256,6 +1299,31 @@ export default function LaneScreenSimulatorPage() {
             </button>
           </div>
         </div>
+
+        {/* ── JOIN GAME QR BANNER ── */}
+        {joinQr && (
+          <div style={{
+            marginBottom:"1rem", padding:".65rem 1rem",
+            background:"rgba(255,255,255,0.04)",
+            border:`1px solid ${BORDER}`, borderRadius:12,
+            display:"flex", alignItems:"center", gap:"1rem", flexWrap:"wrap",
+          }}>
+            <img
+              src={joinQr}
+              alt="Join game QR"
+              width={80} height={80}
+              style={{ borderRadius:6, background:"white", padding:4, flexShrink:0 }}
+            />
+            <div>
+              <div style={{ fontWeight:900, fontSize:".82rem", color:TEXT, marginBottom:2 }}>
+                📲 Bowlers — scan to join &amp; track your score
+              </div>
+              <div style={{ fontSize:".68rem", color:MUTED, wordBreak:"break-all" }}>
+                {joinUrl}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Settings drawer */}
         {showSettings && (
@@ -1364,9 +1432,9 @@ export default function LaneScreenSimulatorPage() {
                 </p>
               </div>
               <div style={{ background:PANEL, border:`1px solid ${BORDER}`, borderRadius:12, padding:"1rem", textAlign:"center" }}>
-                <div style={{ fontSize:".65rem", color:MUTED, fontWeight:700, letterSpacing:".1em", marginBottom:".5rem" }}>SCORE TRACKER</div>
-                {scoreTrackerQr && <img src={scoreTrackerQr} alt="Score QR" width={160} height={160} style={{ borderRadius:6, background:"white", padding:6 }} />}
-                <p style={{ fontSize:".68rem", color:MUTED, margin:".5rem 0 0" }}>Scan to track your score on your phone</p>
+                <div style={{ fontSize:".65rem", color:MUTED, fontWeight:700, letterSpacing:".1em", marginBottom:".5rem" }}>JOIN GAME</div>
+                {joinQr && <img src={joinQr} alt="Join game QR" width={160} height={160} style={{ borderRadius:6, background:"white", padding:6 }} />}
+                <p style={{ fontSize:".68rem", color:MUTED, margin:".5rem 0 0" }}>Scan to join &amp; track your score on your phone</p>
               </div>
               {/* No-tap threshold reminder */}
               {gameConfig?.mode==="no-tap" && (
