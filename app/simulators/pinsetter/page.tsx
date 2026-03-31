@@ -31,6 +31,7 @@ export default function PinsetterSimulatorPage() {
   const [pins, setPins] = useState<PinState[]>(Array(PIN_TOTAL).fill("standing"));
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [status, setStatus] = useState("Waiting for a lane screen to connect...");
+  const [configRequest, setConfigRequest] = useState<number[]|null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -69,7 +70,19 @@ export default function PinsetterSimulatorPage() {
       .on("broadcast", { event: "lane:reset-request" }, () => {
         setPins(Array(PIN_TOTAL).fill("standing"));
         setSelected(new Set());
+        setConfigRequest(null);
         setStatus("Lane requested a reset. Rack restored.");
+      })
+      .on("broadcast", { event: "lane:set-config" }, ({ payload }: { payload: { pinsToSet: number[] } }) => {
+        const { pinsToSet } = payload;
+        // Automatically update pin display to reflect next required configuration
+        setPins(Array(PIN_TOTAL).fill(null).map((_, i) => {
+          const pin = i + 1;
+          return pinsToSet.includes(pin) ? "standing" : "missing";
+        }));
+        setSelected(new Set());
+        setConfigRequest(pinsToSet);
+        setStatus(`Next config: stand pins [${pinsToSet.join(", ")}]`);
       })
       .subscribe();
 
@@ -127,7 +140,18 @@ export default function PinsetterSimulatorPage() {
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
         <Link href="/simulators" style={{ color: "#f2f2f2" }}>← Back to simulators</Link>
         <h1 style={{ marginBottom: ".3rem" }}>Pinsetter Simulator</h1>
-        <p style={{ opacity: 0.8 }}>Tap orange pins to mark fallen pins, then submit the roll.</p>
+        <p style={{ opacity: 0.8 }}>Tap pins to mark as fallen, then submit. The lane screen controls which pins to set up next.</p>
+
+        {configRequest !== null && (
+          <div style={{
+            marginBottom: "1rem", padding: ".75rem 1rem",
+            background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.35)",
+            borderRadius: 10, fontSize: ".84rem", color: "#22d3ee", fontWeight: 700,
+          }}>
+            ⟳ Next rack: stand pins [{configRequest.join(", ")}]
+            {configRequest.length === 10 ? " — full reset" : configRequest.length === 6 ? " — dice mode (6 pins)" : ""}
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 1fr) 280px", gap: "1.5rem", alignItems: "start" }}>
           <section style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: "1rem" }}>
