@@ -7,6 +7,151 @@
 html, body {
   margin: 0;
   padding: 0;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* ── Responsive CSS custom properties ────────────────────────────────────────
+   These can be read by class-based rules below and referenced via
+   CSS var() anywhere (including inline style strings that use var()).       */
+:root {
+  --banner-h:   72px;
+  --page-h-pad: 1.25rem;
+  --page-v-pad: 2rem;
+  --logo-h:     36px;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --banner-h:   56px;
+    --page-h-pad: 0.875rem;
+    --page-v-pad: 1.25rem;
+    --logo-h:     28px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  :root {
+    --banner-h:   64px;
+    --page-h-pad: 1rem;
+    --page-v-pad: 1.5rem;
+    --logo-h:     32px;
+  }
+}
+
+/* ── Global page wrapper (driven by layout.tsx) ──────────────────────────── */
+.dux-page-wrap {
+  padding-top: var(--banner-h);
+}
+
+/* ── Responsive grid utilities ───────────────────────────────────────────── */
+/* 2-column → 1-column on mobile */
+.dux-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+/* 3-column → 2-column on tablet → 1-column on mobile */
+.dux-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+/* auto-fill responsive grid (for product/card grids) */
+.dux-grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .dux-grid-2,
+  .dux-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .dux-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── data-rsp attribute selectors ────────────────────────────────────────────
+   Applied to inline-styled React components so CSS can override them
+   without prop-drilling or converting everything to CSS classes.           */
+
+/* Dashboard/page hero: 2-column layout collapses on mobile */
+@media (max-width: 700px) {
+  [data-rsp~="hero-2col"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Side-by-side sections → stack */
+  [data-rsp~="side-by-side"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* 3-col KPI → 2-col on mobile */
+  [data-rsp~="kpi-3col"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Hide on mobile */
+  [data-rsp~="desktop-only"] {
+    display: none !important;
+  }
+
+  /* Stack horizontal flex layouts vertically on mobile */
+  [data-rsp~="flex-col-mobile"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+}
+
+@media (min-width: 701px) {
+  [data-rsp~="mobile-only"] {
+    display: none !important;
+  }
+}
+
+/* ── Responsive typography helpers ───────────────────────────────────────── */
+.dux-hero-title {
+  font-size: clamp(1.8rem, 6vw, 3.5rem);
+  line-height: 1.08;
+  font-weight: 900;
+}
+
+.dux-section-title {
+  font-size: clamp(1.2rem, 3vw, 1.65rem);
+  font-weight: 900;
+}
+
+/* ── Touch-friendly interactive elements ─────────────────────────────────── */
+@media (max-width: 640px) {
+  button,
+  a[role="button"],
+  input[type="submit"] {
+    min-height: 44px;
+  }
+}
+
+/* ── Simulator pages: optimize for landscape on tablet ───────────────────── */
+@media (min-width: 641px) and (max-width: 1024px) and (orientation: landscape) {
+  [data-page="lane-screen"] {
+    font-size: 0.88rem;
+  }
+}
+
+/* ── Scrollable overflow for tables / scoreboards ────────────────────────── */
+.dux-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* --- Legal pages typography + layout --- */

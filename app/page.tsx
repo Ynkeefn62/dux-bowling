@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useDevice } from "@/app/hooks/useDevice";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const ORANGE      = "#e46a2e";
@@ -463,6 +464,8 @@ function TimelineStep({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function HomePage() {
+  const { isMobile, isTablet } = useDevice();
+
   return (
     <main
       style={{
@@ -497,7 +500,7 @@ export default function HomePage() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            padding: "6rem 1.25rem 4rem",
+            padding: isMobile ? "3.5rem 1rem 3rem" : isTablet ? "5rem 1.25rem 4rem" : "6rem 1.25rem 4rem",
             backgroundImage: `url("${WOOD_BG}")`,
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -1295,6 +1298,17 @@ export default function HomePage() {
         </section>
 
       </div>
+
+      {/* Responsive overrides for sections that use fixed patterns */}
+      <style>{`
+        @media (max-width: 640px) {
+          /* Reduce section padding on mobile */
+          section { padding-left: 1rem !important; padding-right: 1rem !important; }
+          /* Tighten section vertical spacing */
+          section[style*="padding: 5rem"] { padding-top: 3rem !important; padding-bottom: 3rem !important; }
+          section[style*="padding: 4rem"] { padding-top: 2.5rem !important; padding-bottom: 2.5rem !important; }
+        }
+      `}</style>
     </main>
   );
 }

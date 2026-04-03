@@ -508,7 +508,7 @@ export default function BowlerDashboardPage() {
         </div>
 
         {/* ── HERO: Avatar + Rating + KPIs ── */}
-        <div style={{
+        <div data-rsp="hero-2col" style={{
           display: "grid",
           gridTemplateColumns: "clamp(220px,36%,360px) 1fr",
           gap: "1rem",
@@ -605,7 +605,7 @@ export default function BowlerDashboardPage() {
 
             {/* Quick KPIs */}
             {isStats && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: ".65rem" }}>
+              <div data-rsp="kpi-3col" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: ".65rem" }}>
                 <KpiCard label="Games" value={stats.gamesPlayed} />
                 <KpiCard label="Average" value={fmt(stats.average)} color={ORANGE} />
                 <KpiCard label="High Score" value={stats.high} color={GOLD} />
@@ -650,7 +650,7 @@ export default function BowlerDashboardPage() {
             </Panel>
 
             {/* Exhibit 2: Frame Analysis + Pin Leave Map (side by side) */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div data-rsp="side-by-side" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
 
               {/* Frame Breakdown */}
               <Panel>
@@ -713,7 +713,7 @@ export default function BowlerDashboardPage() {
             <Panel>
               <Shine />
               <ExhibitHeader n={4} title="Score History" icon="📈" />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div data-rsp="side-by-side" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div>
                   <div style={{ fontSize: ".72rem", fontWeight: 900, color: MUTED, marginBottom: ".4rem", textTransform: "uppercase", letterSpacing: ".06em" }}>Distribution</div>
                   {stats.histogram.length === 0
@@ -763,11 +763,17 @@ export default function BowlerDashboardPage() {
         )}
       </div>
 
-      {/* Mobile layout override via injected style */}
+      {/* Responsive overrides — globals.css handles [data-rsp] rules */}
       <style>{`
-        @media (max-width: 680px) {
-          .dashboard-hero { grid-template-columns: 1fr !important; }
-          .dashboard-side-by-side { grid-template-columns: 1fr !important; }
+        @media (max-width: 640px) {
+          /* Compact padding on mobile */
+          [data-rsp="hero-2col"] { padding: 0 !important; }
+        }
+        @media (max-width: 900px) {
+          /* Avatar canvas shorter on tablet portrait */
+          [data-rsp="hero-2col"] > *:first-child > div[style*="height: 320px"] {
+            height: 260px !important;
+          }
         }
       `}</style>
     </main>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDevice } from "@/app/hooks/useDevice";
 
 type Mode = {
   title: string;
@@ -49,6 +50,7 @@ const GAME_MODES: Mode[] = [
 
 export default function BowlersPage() {
   const [index, setIndex] = useState(0);
+  const { isMobile } = useDevice();
 
   const isFirst = index === 0;
   const isLast = index === GAME_MODES.length - 1;
@@ -134,7 +136,7 @@ export default function BowlersPage() {
         }}
       />
 
-      <div style={{ position: "relative", zIndex: 1, padding: "2rem 1rem 4rem" }}>
+      <div style={{ position: "relative", zIndex: 1, padding: isMobile ? "1rem 0.75rem 3rem" : "2rem 1rem 4rem" }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
           <img
@@ -321,21 +323,22 @@ export default function BowlersPage() {
                 aria-label="Previous mode"
                 style={{
                   position: "fixed",
-                  left: 12,
+                  left: isMobile ? 4 : 12,
                   top: "var(--dux-arrow-top, 50%)",
                   transform: "translateY(-50%)",
-                  width: 48,
-                  height: 48,
+                  width: isMobile ? 38 : 48,
+                  height: isMobile ? 38 : 48,
                   borderRadius: "50%",
                   border: "none",
                   background: ORANGE,
                   color: "#fff",
-                  fontSize: "1.5rem",
+                  fontSize: isMobile ? "1.2rem" : "1.5rem",
                   opacity: isFirst ? 0.5 : 1,
                   cursor: isFirst ? "default" : "pointer",
                   zIndex: 50,
                   boxShadow: "0 16px 34px rgba(0,0,0,0.55)",
-                  visibility: "var(--dux-arrows-visible, hidden)" as any
+                  visibility: "var(--dux-arrows-visible, hidden)" as any,
+                  touchAction: "manipulation",
                 }}
               >
                 ‹
@@ -347,21 +350,22 @@ export default function BowlersPage() {
                 aria-label="Next mode"
                 style={{
                   position: "fixed",
-                  right: 12,
+                  right: isMobile ? 4 : 12,
                   top: "var(--dux-arrow-top, 50%)",
                   transform: "translateY(-50%)",
-                  width: 48,
-                  height: 48,
+                  width: isMobile ? 38 : 48,
+                  height: isMobile ? 38 : 48,
                   borderRadius: "50%",
                   border: "none",
                   background: ORANGE,
                   color: "#fff",
-                  fontSize: "1.5rem",
+                  fontSize: isMobile ? "1.2rem" : "1.5rem",
                   opacity: isLast ? 0.5 : 1,
                   cursor: isLast ? "default" : "pointer",
                   zIndex: 50,
                   boxShadow: "0 16px 34px rgba(0,0,0,0.55)",
-                  visibility: "var(--dux-arrows-visible, hidden)" as any
+                  visibility: "var(--dux-arrows-visible, hidden)" as any,
+                  touchAction: "manipulation",
                 }}
               >
                 ›
