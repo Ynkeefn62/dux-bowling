@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useDevice } from "@/app/hooks/useDevice";
 
 const AvatarStage = dynamic(() => import("./AvatarStage"), {
   ssr: false,
@@ -1159,6 +1160,7 @@ export default function AvatarPage() {
   const [playerName,setPlayerName] = useState("BOWLER");
   const [editingName,setEditingName] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  const { isMobile, isTablet } = useDevice();
 
   useEffect(()=>{
     (async()=>{
@@ -1196,6 +1198,66 @@ export default function AvatarPage() {
 
   const BG_COLORS = ["#e46a2e","#2563eb","#16a34a","#dc2626","#7c3aed","#db2777","#0891b2","#ca8a04","#374151","#1c1c1c"];
 
+  // ── Shared options content (used in both mobile and desktop panels) ──────────
+  function renderOptions() {
+    return (<>
+      {category==="BODY"&&(<>
+        <SectionLabel>SKIN TONE</SectionLabel>
+        <SkinPicker value={state.skinToneIdx} onChange={v=>set("skinToneIdx",v)}/>
+        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"1rem 0"}}/>
+        <SectionLabel>FACE SHAPE</SectionLabel>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem"}}>
+          {FACE_SHAPES_TIERED.map(f=><OptionCard key={f.id} label={f.label} tier={f.tier} locked={f.locked} active={state.faceShape===f.id} onClick={()=>set("faceShape",f.id)}/>)}
+        </div>
+      </>)}
+      {category==="HAIR"&&(<>
+        <SectionLabel>STYLE</SectionLabel>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
+          {HAIR_STYLES_TIERED.map(h=><OptionCard key={h.id} label={h.label} tier={h.tier} locked={h.locked} active={state.hairStyle===h.id} onClick={()=>set("hairStyle",h.id)}/>)}
+        </div>
+        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1rem"}}/>
+        <SectionLabel>COLOR</SectionLabel>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:".38rem"}}>
+          {HAIR_COLORS_TIERED.map(h=><ColorCard key={h.id} hex={h.hex} label={h.label} tier={h.tier} locked={h.locked} active={state.hairColor===h.id} onClick={()=>set("hairColor",h.id)}/>)}
+        </div>
+      </>)}
+      {category==="FACE"&&(<>
+        <SectionLabel>FACIAL HAIR</SectionLabel>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
+          {FACIAL_HAIR_TIERED.map(f=><OptionCard key={f.id} label={f.label} tier={f.tier} locked={f.locked} active={state.facialHair===f.id} onClick={()=>set("facialHair",f.id)}/>)}
+        </div>
+        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1rem"}}/>
+        <SectionLabel>EYE COLOR</SectionLabel>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:".38rem"}}>
+          {EYE_COLORS_TIERED.map(e=><ColorCard key={e.id} hex={e.hex} label={e.label} tier={e.tier} locked={e.locked} active={state.eyeColor===e.id} onClick={()=>set("eyeColor",e.id)}/>)}
+        </div>
+      </>)}
+      {category==="OUTFIT"&&(<>
+        <SectionLabel>OUTFIT</SectionLabel>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
+          {OUTFITS_TIERED.map(o=><OptionCard key={o.id} label={o.label} tier={o.tier} locked={o.locked} active={state.outfit===o.id} onClick={()=>{if(!o.locked)set("outfit",o.id);}}/>)}
+        </div>
+        <div style={{padding:".7rem .85rem",borderRadius:8,background:"rgba(228,106,46,0.07)",border:"1px solid rgba(228,106,46,0.18)"}}>
+          <div style={{fontSize:".56rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".08em",fontWeight:900,marginBottom:3}}>UNLOCK EPIC & LEGENDARY SKINS</div>
+          <div style={{fontSize:".52rem",color:"rgba(240,240,255,0.42)",fontFamily:"'Courier New',monospace",lineHeight:1.55}}>Earn through achievements or visit the Shop to unlock exclusive looks.</div>
+        </div>
+      </>)}
+      {category==="EXTRAS"&&(<>
+        <SectionLabel>ACCESSORIES</SectionLabel>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
+          {ACCESSORIES_TIERED.map(a=><OptionCard key={a.id} label={a.label} tier={a.tier} locked={a.locked} active={state.accessories.includes(a.id)} onClick={()=>{if(!a.locked)set("accessories",toggleAcc(state,a.id));}}/>)}
+        </div>
+        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1rem"}}/>
+        <SectionLabel>BACKGROUND COLOR</SectionLabel>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:".35rem"}}>
+          {BG_COLORS.map(c=>(
+            <button key={c} onClick={()=>set("bgColor",c)} style={{paddingBottom:"100%",borderRadius:6,background:c,border:`2px solid ${state.bgColor===c?NEON:"transparent"}`,cursor:"pointer",position:"relative",boxShadow:state.bgColor===c?`0 0 12px rgba(56,217,245,0.5)`:undefined,transform:state.bgColor===c?"scale(1.12)":"scale(1)",transition:"all 120ms"}}/>
+          ))}
+        </div>
+      </>)}
+    </>);
+  }
+
   return (
     <main style={{height:"100vh",display:"flex",flexDirection:"column",background:BG,fontFamily:"Montserrat,system-ui",color:TEXT,overflow:"hidden"}}>
 
@@ -1207,214 +1269,254 @@ export default function AvatarPage() {
       <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",height:"100%"}}>
 
         {/* ══ TOP BAR ══ */}
-        <div style={{display:"flex",alignItems:"center",gap:"1rem",padding:".65rem 1.5rem",borderBottom:"1px solid rgba(56,217,245,0.1)",background:"rgba(8,8,18,0.88)",backdropFilter:"blur(16px)",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:isMobile?".5rem":"1rem",padding:isMobile?".5rem .875rem":".65rem 1.5rem",borderBottom:"1px solid rgba(56,217,245,0.1)",background:"rgba(8,8,18,0.88)",backdropFilter:"blur(16px)",flexShrink:0}}>
 
-          <Link href="/profile" style={{display:"flex",alignItems:"center",gap:".35rem",color:"rgba(240,240,255,0.38)",textDecoration:"none",fontSize:".7rem",fontFamily:"'Courier New',monospace",letterSpacing:".06em",transition:"color 150ms"}}>
+          <Link href="/profile" style={{display:"flex",alignItems:"center",gap:".35rem",color:"rgba(240,240,255,0.38)",textDecoration:"none",fontSize:isMobile?".65rem":".7rem",fontFamily:"'Courier New',monospace",letterSpacing:".06em",flexShrink:0}}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             BACK
           </Link>
-          <div style={{width:1,height:22,background:"rgba(255,255,255,0.09)"}}/>
-          <div style={{display:"flex",alignItems:"center",gap:".45rem"}}>
-            <span style={{fontSize:".68rem",color:NEON,fontFamily:"'Courier New',monospace",letterSpacing:".18em",fontWeight:900}}>DUX</span>
-            <span style={{fontSize:".68rem",color:"rgba(255,255,255,0.28)",fontFamily:"'Courier New',monospace",letterSpacing:".1em"}}>BOWLING</span>
-          </div>
+          <div style={{width:1,height:18,background:"rgba(255,255,255,0.09)",flexShrink:0}}/>
+          {!isMobile && (
+            <>
+              <div style={{display:"flex",alignItems:"center",gap:".45rem",flexShrink:0}}>
+                <span style={{fontSize:".68rem",color:NEON,fontFamily:"'Courier New',monospace",letterSpacing:".18em",fontWeight:900}}>DUX</span>
+                <span style={{fontSize:".68rem",color:"rgba(255,255,255,0.28)",fontFamily:"'Courier New',monospace",letterSpacing:".1em"}}>BOWLING</span>
+              </div>
+            </>
+          )}
           <div style={{flex:1,textAlign:"center"}}>
-            <div style={{fontSize:".72rem",fontWeight:900,letterSpacing:".2em",color:"rgba(240,240,255,0.88)",fontFamily:"'Courier New',monospace"}}>BOWLER IDENTITY</div>
-            <div style={{fontSize:".52rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".14em",marginTop:1}}>CUSTOMIZE YOUR CHARACTER</div>
+            <div style={{fontSize:isMobile?".62rem":".72rem",fontWeight:900,letterSpacing:isMobile?".12em":".2em",color:"rgba(240,240,255,0.88)",fontFamily:"'Courier New',monospace"}}>BOWLER IDENTITY</div>
+            {!isMobile&&<div style={{fontSize:".52rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".14em",marginTop:1}}>CUSTOMIZE YOUR CHARACTER</div>}
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:".65rem"}}>
-            {!loggedIn&&<span style={{fontSize:".62rem",color:"rgba(240,240,255,0.28)",fontFamily:"'Courier New',monospace"}}>LOG IN TO SAVE</span>}
-            {saved&&<span style={{fontSize:".7rem",fontWeight:900,color:"#4ade80",fontFamily:"'Courier New',monospace",letterSpacing:".06em",animation:"savedFlash .4s ease"}}>✓ SAVED</span>}
-            <button onClick={saveAvatar} disabled={saving||!loggedIn} style={{display:"flex",alignItems:"center",gap:".45rem",padding:".5rem 1.3rem",borderRadius:6,cursor:saving||!loggedIn?"default":"pointer",background:saving||!loggedIn?"transparent":ORANGE,border:`1.5px solid ${saving||!loggedIn?"rgba(228,106,46,0.28)":ORANGE}`,color:"white",fontWeight:900,fontSize:".72rem",fontFamily:"'Courier New',monospace",letterSpacing:".1em",textTransform:"uppercase",opacity:saving||!loggedIn?0.45:1,boxShadow:saving||!loggedIn?undefined:"0 0 22px rgba(228,106,46,0.55),0 3px 10px rgba(228,106,46,0.3)",transition:"all 150ms"}}>
+          <div style={{display:"flex",alignItems:"center",gap:isMobile?".4rem":".65rem",flexShrink:0}}>
+            {!loggedIn&&!isMobile&&<span style={{fontSize:".62rem",color:"rgba(240,240,255,0.28)",fontFamily:"'Courier New',monospace"}}>LOG IN TO SAVE</span>}
+            {saved&&<span style={{fontSize:isMobile?".6rem":".7rem",fontWeight:900,color:"#4ade80",fontFamily:"'Courier New',monospace",letterSpacing:".06em",animation:"savedFlash .4s ease"}}>✓ {isMobile?"":"SAVED"}</span>}
+            <button onClick={saveAvatar} disabled={saving||!loggedIn} style={{display:"flex",alignItems:"center",gap:".4rem",padding:isMobile?".45rem .75rem":".5rem 1.3rem",borderRadius:6,cursor:saving||!loggedIn?"default":"pointer",background:saving||!loggedIn?"transparent":ORANGE,border:`1.5px solid ${saving||!loggedIn?"rgba(228,106,46,0.28)":ORANGE}`,color:"white",fontWeight:900,fontSize:isMobile?".65rem":".72rem",fontFamily:"'Courier New',monospace",letterSpacing:".08em",textTransform:"uppercase",opacity:saving||!loggedIn?0.45:1,boxShadow:saving||!loggedIn?undefined:"0 0 22px rgba(228,106,46,0.55)",transition:"all 150ms",touchAction:"manipulation",whiteSpace:"nowrap"}}>
               {saving
-                ?<><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{animation:"spin 1s linear infinite"}}><path d="M21 12a9 9 0 1 1-18 0"/></svg>SAVING</>
-                :<><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>SAVE LOADOUT</>
+                ?<><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{animation:"spin 1s linear infinite"}}><path d="M21 12a9 9 0 1 1-18 0"/></svg>{!isMobile&&"SAVING"}</>
+                :isMobile
+                  ?<><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>SAVE</>
+                  :<><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>SAVE LOADOUT</>
               }
             </button>
           </div>
         </div>
 
-        {/* ══ 3-COLUMN BODY ══ */}
-        <div style={{flex:1,display:"grid",gridTemplateColumns:"190px 1fr 310px",overflow:"hidden",minHeight:0}}>
+        {/* ══ RESPONSIVE BODY ══ */}
 
-          {/* ── LEFT NAV ── */}
-          <div style={{borderRight:"1px solid rgba(56,217,245,0.09)",background:"rgba(6,6,14,0.65)",display:"flex",flexDirection:"column",padding:".85rem .7rem",gap:".45rem",overflowY:"auto"}}>
+        {/* ─── MOBILE LAYOUT (<641px) ─── */}
+        {isMobile && (
+          <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0}}>
 
-            {/* Player card */}
-            <div style={{background:"rgba(12,12,24,0.85)",border:"1px solid rgba(56,217,245,0.14)",borderRadius:10,padding:".8rem .7rem",marginBottom:".35rem",textAlign:"center",position:"relative",overflow:"hidden"}}>
-              <div aria-hidden="true" style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 90% 55% at 50% 0%,rgba(228,106,46,0.11),transparent 70%)"}}/>
-              <div style={{position:"relative",zIndex:1}}>
-                {/* Mini avatar preview */}
-                <div style={{width:56,height:56,borderRadius:"50%",margin:"0 auto .55rem",border:`2px solid ${ORANGE}`,overflow:"hidden",position:"relative",boxShadow:`0 0 18px rgba(228,106,46,0.38)`,background:"rgba(0,0,0,0.5)"}}>
-                  <div style={{position:"absolute",top:-28,left:"50%",transform:"translateX(-50%)"}}>
-                    <CharacterSVG state={state} w={112} h={210}/>
-                  </div>
-                </div>
-                {editingName
-                  ?<input ref={nameRef} value={playerName} onChange={e=>setPlayerName(e.target.value.toUpperCase().slice(0,14))} onBlur={()=>setEditingName(false)} onKeyDown={e=>{if(e.key==="Enter")setEditingName(false);}} style={{background:"rgba(56,217,245,0.1)",border:`1px solid ${NEON}`,borderRadius:4,color:NEON,fontSize:".68rem",fontWeight:900,fontFamily:"'Courier New',monospace",letterSpacing:".08em",textAlign:"center",width:"100%",padding:".2rem .3rem",outline:"none"}}/>
-                  :<button onClick={()=>setEditingName(true)} style={{background:"none",border:"none",cursor:"pointer",padding:0,width:"100%"}}>
-                    <div style={{fontSize:".72rem",fontWeight:900,color:TEXT,fontFamily:"'Courier New',monospace",letterSpacing:".06em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{playerName}</div>
-                    <div style={{fontSize:".5rem",color:"rgba(240,240,255,0.3)",fontFamily:"'Courier New',monospace",letterSpacing:".08em",marginTop:2}}>TAP TO RENAME ✎</div>
-                  </button>
-                }
-                <div style={{display:"inline-flex",alignItems:"center",gap:4,marginTop:".5rem",background:"rgba(228,106,46,0.13)",border:"1px solid rgba(228,106,46,0.32)",borderRadius:20,padding:"3px 10px"}}>
-                  <div style={{width:5,height:5,borderRadius:"50%",background:ORANGE,boxShadow:`0 0 6px ${ORANGE}`}}/>
-                  <span style={{fontSize:".54rem",color:ORANGE,fontFamily:"'Courier New',monospace",fontWeight:900,letterSpacing:".1em"}}>ROOKIE</span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{fontSize:".5rem",color:"rgba(240,240,255,0.22)",fontFamily:"'Courier New',monospace",letterSpacing:".14em",padding:"0 .2rem",marginBottom:".1rem"}}>CATEGORIES</div>
-
-            {CATS.map(cat=><CategoryTab key={cat.id} cat={cat} active={category===cat.id} onClick={()=>setCategory(cat.id)}/>)}
-
-            <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:".2rem 0"}}/>
-
-            <button onClick={()=>setState(DEFAULTS)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:".4rem",padding:".5rem",borderRadius:8,cursor:"pointer",width:"100%",border:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.02)",color:"rgba(240,240,255,0.3)",fontSize:".58rem",fontFamily:"'Courier New',monospace",letterSpacing:".1em",transition:"all 150ms"}}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.32"/></svg>
-              RESET
-            </button>
-          </div>
-
-          {/* ── CENTER STAGE (3D) ── */}
-          <div style={{display:"flex",flexDirection:"column",position:"relative",overflow:"hidden",background:"#050510"}}>
-            {/* Ambient glow overlay */}
-            <div aria-hidden="true" style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse 60% 30% at 50% 0%,rgba(56,217,245,0.04),transparent 60%),radial-gradient(ellipse 50% 25% at 50% 100%,rgba(228,106,46,0.05),transparent 55%)"}}/>
-
-            {/* 3D Canvas — fills the column */}
-            <div style={{flex:1,position:"relative",minHeight:0}}>
-              {/* Corner brackets */}
-              <CornerBracket pos="tl"/>
-              <CornerBracket pos="tr"/>
-              <CornerBracket pos="bl"/>
-              <CornerBracket pos="br"/>
-
-              {/* HUD top-left */}
-              <div style={{position:"absolute",top:14,left:16,fontSize:".52rem",color:"rgba(240,240,255,0.32)",fontFamily:"'Courier New',monospace",letterSpacing:".1em",zIndex:2,pointerEvents:"none"}}>
-                LANE 4 · WALKERSVILLE
-              </div>
-
-              {/* HUD top-right */}
-              <div style={{position:"absolute",top:12,right:14,zIndex:2,pointerEvents:"none",fontSize:".54rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900,background:"rgba(228,106,46,0.14)",border:"1px solid rgba(228,106,46,0.28)",borderRadius:4,padding:"2px 8px"}}>
+            {/* Compact 3D canvas preview — always visible so you see changes live */}
+            <div style={{height:210,position:"relative",flexShrink:0,background:"#050510",borderBottom:"1px solid rgba(56,217,245,0.09)"}}>
+              <div aria-hidden="true" style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse 60% 40% at 50% 0%,rgba(56,217,245,0.04),transparent 60%)"}}/>
+              <CornerBracket pos="tl" size={14}/>
+              <CornerBracket pos="tr" size={14}/>
+              <AvatarStage state={state}/>
+              <div style={{position:"absolute",top:8,right:10,zIndex:2,pointerEvents:"none",fontSize:".48rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900,background:"rgba(228,106,46,0.14)",border:"1px solid rgba(228,106,46,0.28)",borderRadius:4,padding:"2px 6px"}}>
                 LVL 1
               </div>
-
-              {/* 3D stage */}
-              <AvatarStage state={state} />
-
-              {/* Nameplate */}
-              <div style={{position:"absolute",bottom:32,left:"50%",transform:"translateX(-50%)",background:"rgba(5,5,15,0.88)",border:"1px solid rgba(56,217,245,0.32)",borderRadius:6,padding:".28rem 1rem",boxShadow:"0 0 18px rgba(56,217,245,0.18)",backdropFilter:"blur(8px)",whiteSpace:"nowrap",zIndex:2,pointerEvents:"none"}}>
-                <div style={{display:"flex",alignItems:"center",gap:".45rem"}}>
-                  <div style={{width:5,height:5,borderRadius:"50%",background:ORANGE,boxShadow:`0 0 7px ${ORANGE}`}}/>
-                  <span style={{fontSize:".6rem",color:"rgba(240,240,255,0.92)",fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900}}>{playerName}</span>
-                  <div style={{width:1,height:11,background:"rgba(255,255,255,0.18)"}}/>
-                  <span style={{fontSize:".56rem",color:NEON,fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>{OUTFITS.find(o=>o.id===state.outfit)?.label.toUpperCase()??""}</span>
-                </div>
+              <div style={{position:"absolute",bottom:8,left:"50%",transform:"translateX(-50%)",background:"rgba(5,5,15,0.9)",border:"1px solid rgba(56,217,245,0.28)",borderRadius:4,padding:".18rem .65rem",backdropFilter:"blur(8px)",whiteSpace:"nowrap",zIndex:2,pointerEvents:"none"}}>
+                <span style={{fontSize:".52rem",color:"rgba(240,240,255,0.9)",fontFamily:"'Courier New',monospace",letterSpacing:".08em",fontWeight:900}}>{playerName}</span>
               </div>
             </div>
 
-            {/* Loadout summary bar */}
-            <div style={{flexShrink:0,display:"flex",alignItems:"center",gap:".5rem",padding:".5rem 1rem",background:"rgba(8,8,18,0.9)",borderTop:"1px solid rgba(255,255,255,0.055)",flexWrap:"wrap",justifyContent:"center",zIndex:2}}>
-              {[
-                {k:"HAIR",v:HAIR_STYLES_TIERED.find(h=>h.id===state.hairStyle)?.label??state.hairStyle},
-                {k:"OUTFIT",v:OUTFITS.find(o=>o.id===state.outfit)?.label??state.outfit},
-                ...(state.accessories.length>0?[{k:"EXTRAS",v:`+${state.accessories.length}`}]:[]),
-              ].map((item,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:".35rem"}}>
-                  {i>0&&<div style={{width:1,height:10,background:"rgba(255,255,255,0.15)"}}/>}
-                  <span style={{fontSize:".52rem",color:"rgba(240,240,255,0.35)",fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>{item.k}</span>
-                  <span style={{fontSize:".56rem",color:"rgba(240,240,255,0.78)",fontFamily:"'Courier New',monospace",fontWeight:900,letterSpacing:".04em"}}>{item.v.toUpperCase()}</span>
+            {/* Horizontal category strip + mini avatar + reset */}
+            <div style={{display:"flex",flexShrink:0,background:"rgba(6,6,14,0.92)",borderBottom:"1px solid rgba(56,217,245,0.09)",overflowX:"auto",WebkitOverflowScrolling:"touch" as any}}>
+              {/* Mini player avatar bubble */}
+              <div style={{display:"flex",alignItems:"center",padding:"0 .6rem",borderRight:"1px solid rgba(255,255,255,0.06)",flexShrink:0}}>
+                <div style={{width:34,height:34,borderRadius:"50%",border:`2px solid ${ORANGE}`,overflow:"hidden",position:"relative",background:"rgba(0,0,0,0.5)",boxShadow:`0 0 12px rgba(228,106,46,0.35)`,flexShrink:0}}>
+                  <div style={{position:"absolute",top:-17,left:"50%",transform:"translateX(-50%)"}}>
+                    <CharacterSVG state={state} w={68} h={128}/>
+                  </div>
                 </div>
+              </div>
+
+              {/* Category buttons */}
+              {CATS.map(cat=>(
+                <button key={cat.id} onClick={()=>setCategory(cat.id)} style={{
+                  display:"flex",flexDirection:"column",alignItems:"center",gap:".18rem",
+                  padding:".52rem .7rem",flexShrink:0,border:"none",
+                  background:category===cat.id?"rgba(228,106,46,0.12)":"transparent",
+                  color:category===cat.id?ORANGE:"rgba(240,240,255,0.38)",
+                  borderBottom:category===cat.id?`2.5px solid ${ORANGE}`:"2.5px solid transparent",
+                  cursor:"pointer",minWidth:54,touchAction:"manipulation",WebkitTapHighlightColor:"transparent" as any,
+                }}>
+                  {cat.icon}
+                  <span style={{fontSize:".42rem",fontFamily:"'Courier New',monospace",letterSpacing:".08em",textTransform:"uppercase"}}>{cat.label}</span>
+                </button>
               ))}
+
+              {/* Reset at end */}
+              <button onClick={()=>setState(DEFAULTS)} style={{
+                display:"flex",flexDirection:"column",alignItems:"center",gap:".18rem",
+                padding:".52rem .65rem",flexShrink:0,border:"none",
+                background:"transparent",color:"rgba(240,240,255,0.28)",
+                borderBottom:"2.5px solid transparent",cursor:"pointer",minWidth:46,
+                marginLeft:"auto",touchAction:"manipulation",
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.32"/></svg>
+                <span style={{fontSize:".42rem",fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>RESET</span>
+              </button>
             </div>
-          </div>
 
-          {/* ── RIGHT PANEL ── */}
-          <div style={{borderLeft:"1px solid rgba(56,217,245,0.09)",background:"rgba(6,6,14,0.72)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-
-            {/* Panel header */}
-            <div style={{padding:".85rem 1.1rem .55rem",borderBottom:"1px solid rgba(255,255,255,0.055)",flexShrink:0,position:"sticky",top:0,background:"rgba(6,6,14,0.97)",backdropFilter:"blur(14px)",zIndex:2}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".45rem"}}>
-                <div style={{fontSize:".62rem",fontWeight:900,color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".15em"}}>{category} OPTIONS</div>
-                <div style={{fontSize:".52rem",color:"rgba(240,240,255,0.28)",fontFamily:"'Courier New',monospace"}}>
+            {/* Options panel header (tier legend) */}
+            <div style={{padding:".55rem .875rem .35rem",borderBottom:"1px solid rgba(255,255,255,0.04)",flexShrink:0,background:"rgba(6,6,14,0.92)"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".3rem"}}>
+                <div style={{fontSize:".58rem",fontWeight:900,color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".14em"}}>{category} OPTIONS</div>
+                <div style={{fontSize:".48rem",color:"rgba(240,240,255,0.28)",fontFamily:"'Courier New',monospace"}}>
                   {category==="BODY"?`${SKIN_TONES.length} TONES`:category==="HAIR"?`${HAIR_STYLES_TIERED.length} STYLES`:category==="FACE"?`${FACE_SHAPES_TIERED.length+FACIAL_HAIR_TIERED.length} OPTIONS`:category==="OUTFIT"?`${OUTFITS_TIERED.length} LOOKS`:`${ACCESSORIES_TIERED.length} ITEMS`}
                 </div>
               </div>
               <div style={{display:"flex",gap:3}}>
                 {(["common","rare","epic","legendary"] as Tier[]).map(t=>(
-                  <div key={t} style={{display:"flex",alignItems:"center",gap:3,background:`rgba(${hexToRgb(TIERS[t].color)},0.07)`,border:`1px solid rgba(${hexToRgb(TIERS[t].color)},0.2)`,borderRadius:4,padding:"1px 5px"}}>
+                  <div key={t} style={{display:"flex",alignItems:"center",gap:2,background:`rgba(${hexToRgb(TIERS[t].color)},0.07)`,border:`1px solid rgba(${hexToRgb(TIERS[t].color)},0.2)`,borderRadius:4,padding:"1px 5px"}}>
                     <div style={{width:4,height:4,borderRadius:"50%",background:TIERS[t].color}}/>
-                    <span style={{fontSize:".42rem",color:TIERS[t].color,fontFamily:"'Courier New',monospace",letterSpacing:".06em",textTransform:"uppercase"}}>{t}</span>
+                    <span style={{fontSize:".38rem",color:TIERS[t].color,fontFamily:"'Courier New',monospace",letterSpacing:".06em",textTransform:"uppercase"}}>{t}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Scrollable content */}
-            <div style={{flex:1,padding:".85rem 1.1rem",overflowY:"auto"}}>
-
-              {category==="BODY"&&(<>
-                <SectionLabel>SKIN TONE</SectionLabel>
-                <SkinPicker value={state.skinToneIdx} onChange={v=>set("skinToneIdx",v)}/>
-                <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"1rem 0"}}/>
-                <SectionLabel>FACE SHAPE</SectionLabel>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem"}}>
-                  {FACE_SHAPES_TIERED.map(f=><OptionCard key={f.id} label={f.label} tier={f.tier} locked={f.locked} active={state.faceShape===f.id} onClick={()=>set("faceShape",f.id)}/>)}
-                </div>
-              </>)}
-
-              {category==="HAIR"&&(<>
-                <SectionLabel>STYLE</SectionLabel>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
-                  {HAIR_STYLES_TIERED.map(h=><OptionCard key={h.id} label={h.label} tier={h.tier} locked={h.locked} active={state.hairStyle===h.id} onClick={()=>set("hairStyle",h.id)}/>)}
-                </div>
-                <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1rem"}}/>
-                <SectionLabel>COLOR</SectionLabel>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:".38rem"}}>
-                  {HAIR_COLORS_TIERED.map(h=><ColorCard key={h.id} hex={h.hex} label={h.label} tier={h.tier} locked={h.locked} active={state.hairColor===h.id} onClick={()=>set("hairColor",h.id)}/>)}
-                </div>
-              </>)}
-
-              {category==="FACE"&&(<>
-                <SectionLabel>FACIAL HAIR</SectionLabel>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
-                  {FACIAL_HAIR_TIERED.map(f=><OptionCard key={f.id} label={f.label} tier={f.tier} locked={f.locked} active={state.facialHair===f.id} onClick={()=>set("facialHair",f.id)}/>)}
-                </div>
-                <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1rem"}}/>
-                <SectionLabel>EYE COLOR</SectionLabel>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:".38rem"}}>
-                  {EYE_COLORS_TIERED.map(e=><ColorCard key={e.id} hex={e.hex} label={e.label} tier={e.tier} locked={e.locked} active={state.eyeColor===e.id} onClick={()=>set("eyeColor",e.id)}/>)}
-                </div>
-              </>)}
-
-              {category==="OUTFIT"&&(<>
-                <SectionLabel>OUTFIT</SectionLabel>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
-                  {OUTFITS_TIERED.map(o=><OptionCard key={o.id} label={o.label} tier={o.tier} locked={o.locked} active={state.outfit===o.id} onClick={()=>{if(!o.locked)set("outfit",o.id);}}/>)}
-                </div>
-                <div style={{padding:".7rem .85rem",borderRadius:8,background:"rgba(228,106,46,0.07)",border:"1px solid rgba(228,106,46,0.18)"}}>
-                  <div style={{fontSize:".56rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".08em",fontWeight:900,marginBottom:3}}>UNLOCK EPIC & LEGENDARY SKINS</div>
-                  <div style={{fontSize:".52rem",color:"rgba(240,240,255,0.42)",fontFamily:"'Courier New',monospace",lineHeight:1.55}}>Earn through achievements or visit the Shop to unlock exclusive looks.</div>
-                </div>
-              </>)}
-
-              {category==="EXTRAS"&&(<>
-                <SectionLabel>ACCESSORIES</SectionLabel>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
-                  {ACCESSORIES_TIERED.map(a=><OptionCard key={a.id} label={a.label} tier={a.tier} locked={a.locked} active={state.accessories.includes(a.id)} onClick={()=>{if(!a.locked)set("accessories",toggleAcc(state,a.id));}}/>)}
-                </div>
-                <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1rem"}}/>
-                <SectionLabel>BACKGROUND COLOR</SectionLabel>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:".35rem"}}>
-                  {BG_COLORS.map(c=>(
-                    <button key={c} onClick={()=>set("bgColor",c)} style={{paddingBottom:"100%",borderRadius:6,background:c,border:`2px solid ${state.bgColor===c?NEON:"transparent"}`,cursor:"pointer",position:"relative",boxShadow:state.bgColor===c?`0 0 12px rgba(56,217,245,0.5)`:undefined,transform:state.bgColor===c?"scale(1.12)":"scale(1)",transition:"all 120ms"}}/>
-                  ))}
-                </div>
-              </>)}
-
+            {/* Scrollable options */}
+            <div style={{flex:1,padding:".75rem .875rem",overflowY:"auto",WebkitOverflowScrolling:"touch" as any}}>
+              {renderOptions()}
             </div>
           </div>
-        </div>
+        )}
+
+        {/* ─── TABLET / DESKTOP LAYOUT (641px+) ─── */}
+        {!isMobile && (
+          <div style={{flex:1,display:"grid",gridTemplateColumns:isTablet?"72px 1fr 270px":"190px 1fr 310px",overflow:"hidden",minHeight:0}}>
+
+            {/* ── LEFT NAV ── */}
+            <div style={{borderRight:"1px solid rgba(56,217,245,0.09)",background:"rgba(6,6,14,0.65)",display:"flex",flexDirection:"column",padding:isTablet?".7rem .4rem":".85rem .7rem",gap:".45rem",overflowY:"auto"}}>
+
+              {/* Player card — full version on desktop, hidden on tablet */}
+              {!isTablet && (
+                <div style={{background:"rgba(12,12,24,0.85)",border:"1px solid rgba(56,217,245,0.14)",borderRadius:10,padding:".8rem .7rem",marginBottom:".35rem",textAlign:"center",position:"relative",overflow:"hidden"}}>
+                  <div aria-hidden="true" style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 90% 55% at 50% 0%,rgba(228,106,46,0.11),transparent 70%)"}}/>
+                  <div style={{position:"relative",zIndex:1}}>
+                    <div style={{width:56,height:56,borderRadius:"50%",margin:"0 auto .55rem",border:`2px solid ${ORANGE}`,overflow:"hidden",position:"relative",boxShadow:`0 0 18px rgba(228,106,46,0.38)`,background:"rgba(0,0,0,0.5)"}}>
+                      <div style={{position:"absolute",top:-28,left:"50%",transform:"translateX(-50%)"}}>
+                        <CharacterSVG state={state} w={112} h={210}/>
+                      </div>
+                    </div>
+                    {editingName
+                      ?<input ref={nameRef} value={playerName} onChange={e=>setPlayerName(e.target.value.toUpperCase().slice(0,14))} onBlur={()=>setEditingName(false)} onKeyDown={e=>{if(e.key==="Enter")setEditingName(false);}} style={{background:"rgba(56,217,245,0.1)",border:`1px solid ${NEON}`,borderRadius:4,color:NEON,fontSize:".68rem",fontWeight:900,fontFamily:"'Courier New',monospace",letterSpacing:".08em",textAlign:"center",width:"100%",padding:".2rem .3rem",outline:"none"}}/>
+                      :<button onClick={()=>setEditingName(true)} style={{background:"none",border:"none",cursor:"pointer",padding:0,width:"100%"}}>
+                        <div style={{fontSize:".72rem",fontWeight:900,color:TEXT,fontFamily:"'Courier New',monospace",letterSpacing:".06em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{playerName}</div>
+                        <div style={{fontSize:".5rem",color:"rgba(240,240,255,0.3)",fontFamily:"'Courier New',monospace",letterSpacing:".08em",marginTop:2}}>TAP TO RENAME ✎</div>
+                      </button>
+                    }
+                    <div style={{display:"inline-flex",alignItems:"center",gap:4,marginTop:".5rem",background:"rgba(228,106,46,0.13)",border:"1px solid rgba(228,106,46,0.32)",borderRadius:20,padding:"3px 10px"}}>
+                      <div style={{width:5,height:5,borderRadius:"50%",background:ORANGE,boxShadow:`0 0 6px ${ORANGE}`}}/>
+                      <span style={{fontSize:".54rem",color:ORANGE,fontFamily:"'Courier New',monospace",fontWeight:900,letterSpacing:".1em"}}>ROOKIE</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Mini avatar on tablet */}
+              {isTablet && (
+                <div style={{width:44,height:44,borderRadius:"50%",border:`2px solid ${ORANGE}`,overflow:"hidden",position:"relative",background:"rgba(0,0,0,0.5)",boxShadow:`0 0 12px rgba(228,106,46,0.3)`,margin:"0 auto .4rem",flexShrink:0}}>
+                  <div style={{position:"absolute",top:-22,left:"50%",transform:"translateX(-50%)"}}>
+                    <CharacterSVG state={state} w={88} h={166}/>
+                  </div>
+                </div>
+              )}
+
+              {!isTablet && <div style={{fontSize:".5rem",color:"rgba(240,240,255,0.22)",fontFamily:"'Courier New',monospace",letterSpacing:".14em",padding:"0 .2rem",marginBottom:".1rem"}}>CATEGORIES</div>}
+
+              {CATS.map(cat => isTablet ? (
+                /* Icon-only on tablet */
+                <button key={cat.id} onClick={()=>setCategory(cat.id)} title={cat.label} style={{
+                  display:"flex",flexDirection:"column",alignItems:"center",gap:".2rem",
+                  padding:".55rem .3rem",width:"100%",borderRadius:8,cursor:"pointer",
+                  border:`1.5px solid ${category===cat.id?ORANGE:"rgba(255,255,255,0.07)"}`,
+                  background:category===cat.id?"rgba(228,106,46,0.13)":"rgba(255,255,255,0.02)",
+                  color:category===cat.id?ORANGE:"rgba(240,240,255,0.4)",
+                  boxShadow:category===cat.id?`0 0 14px rgba(228,106,46,0.25)`:undefined,
+                  touchAction:"manipulation",
+                }}>
+                  {cat.icon}
+                </button>
+              ) : (
+                <CategoryTab key={cat.id} cat={cat} active={category===cat.id} onClick={()=>setCategory(cat.id)}/>
+              ))}
+
+              <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:".2rem 0"}}/>
+
+              <button onClick={()=>setState(DEFAULTS)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:".4rem",padding:".5rem",borderRadius:8,cursor:"pointer",width:"100%",border:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.02)",color:"rgba(240,240,255,0.3)",fontSize:".58rem",fontFamily:"'Courier New',monospace",letterSpacing:".1em",transition:"all 150ms"}}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.32"/></svg>
+                {!isTablet && "RESET"}
+              </button>
+            </div>
+
+            {/* ── CENTER STAGE (3D) ── */}
+            <div style={{display:"flex",flexDirection:"column",position:"relative",overflow:"hidden",background:"#050510"}}>
+              <div aria-hidden="true" style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse 60% 30% at 50% 0%,rgba(56,217,245,0.04),transparent 60%),radial-gradient(ellipse 50% 25% at 50% 100%,rgba(228,106,46,0.05),transparent 55%)"}}/>
+              <div style={{flex:1,position:"relative",minHeight:0}}>
+                <CornerBracket pos="tl"/>
+                <CornerBracket pos="tr"/>
+                <CornerBracket pos="bl"/>
+                <CornerBracket pos="br"/>
+                <div style={{position:"absolute",top:14,left:16,fontSize:".52rem",color:"rgba(240,240,255,0.32)",fontFamily:"'Courier New',monospace",letterSpacing:".1em",zIndex:2,pointerEvents:"none"}}>
+                  LANE 4 · WALKERSVILLE
+                </div>
+                <div style={{position:"absolute",top:12,right:14,zIndex:2,pointerEvents:"none",fontSize:".54rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900,background:"rgba(228,106,46,0.14)",border:"1px solid rgba(228,106,46,0.28)",borderRadius:4,padding:"2px 8px"}}>
+                  LVL 1
+                </div>
+                <AvatarStage state={state} />
+                <div style={{position:"absolute",bottom:32,left:"50%",transform:"translateX(-50%)",background:"rgba(5,5,15,0.88)",border:"1px solid rgba(56,217,245,0.32)",borderRadius:6,padding:".28rem 1rem",boxShadow:"0 0 18px rgba(56,217,245,0.18)",backdropFilter:"blur(8px)",whiteSpace:"nowrap",zIndex:2,pointerEvents:"none"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:".45rem"}}>
+                    <div style={{width:5,height:5,borderRadius:"50%",background:ORANGE,boxShadow:`0 0 7px ${ORANGE}`}}/>
+                    <span style={{fontSize:".6rem",color:"rgba(240,240,255,0.92)",fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900}}>{playerName}</span>
+                    <div style={{width:1,height:11,background:"rgba(255,255,255,0.18)"}}/>
+                    <span style={{fontSize:".56rem",color:NEON,fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>{OUTFITS.find(o=>o.id===state.outfit)?.label.toUpperCase()??""}</span>
+                  </div>
+                </div>
+              </div>
+              <div style={{flexShrink:0,display:"flex",alignItems:"center",gap:".5rem",padding:".5rem 1rem",background:"rgba(8,8,18,0.9)",borderTop:"1px solid rgba(255,255,255,0.055)",flexWrap:"wrap",justifyContent:"center",zIndex:2}}>
+                {[
+                  {k:"HAIR",v:HAIR_STYLES_TIERED.find(h=>h.id===state.hairStyle)?.label??state.hairStyle},
+                  {k:"OUTFIT",v:OUTFITS.find(o=>o.id===state.outfit)?.label??state.outfit},
+                  ...(state.accessories.length>0?[{k:"EXTRAS",v:`+${state.accessories.length}`}]:[]),
+                ].map((item,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:".35rem"}}>
+                    {i>0&&<div style={{width:1,height:10,background:"rgba(255,255,255,0.15)"}}/>}
+                    <span style={{fontSize:".52rem",color:"rgba(240,240,255,0.35)",fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>{item.k}</span>
+                    <span style={{fontSize:".56rem",color:"rgba(240,240,255,0.78)",fontFamily:"'Courier New',monospace",fontWeight:900,letterSpacing:".04em"}}>{item.v.toUpperCase()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── RIGHT PANEL ── */}
+            <div style={{borderLeft:"1px solid rgba(56,217,245,0.09)",background:"rgba(6,6,14,0.72)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+              <div style={{padding:isTablet?".7rem .85rem .45rem":".85rem 1.1rem .55rem",borderBottom:"1px solid rgba(255,255,255,0.055)",flexShrink:0,background:"rgba(6,6,14,0.97)",backdropFilter:"blur(14px)",zIndex:2}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".45rem"}}>
+                  <div style={{fontSize:".62rem",fontWeight:900,color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".15em"}}>{category} OPTIONS</div>
+                  <div style={{fontSize:".52rem",color:"rgba(240,240,255,0.28)",fontFamily:"'Courier New',monospace"}}>
+                    {category==="BODY"?`${SKIN_TONES.length} TONES`:category==="HAIR"?`${HAIR_STYLES_TIERED.length} STYLES`:category==="FACE"?`${FACE_SHAPES_TIERED.length+FACIAL_HAIR_TIERED.length} OPTIONS`:category==="OUTFIT"?`${OUTFITS_TIERED.length} LOOKS`:`${ACCESSORIES_TIERED.length} ITEMS`}
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:3}}>
+                  {(["common","rare","epic","legendary"] as Tier[]).map(t=>(
+                    <div key={t} style={{display:"flex",alignItems:"center",gap:3,background:`rgba(${hexToRgb(TIERS[t].color)},0.07)`,border:`1px solid rgba(${hexToRgb(TIERS[t].color)},0.2)`,borderRadius:4,padding:"1px 5px"}}>
+                      <div style={{width:4,height:4,borderRadius:"50%",background:TIERS[t].color}}/>
+                      <span style={{fontSize:".42rem",color:TIERS[t].color,fontFamily:"'Courier New',monospace",letterSpacing:".06em",textTransform:"uppercase"}}>{t}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{flex:1,padding:isTablet?".7rem .85rem":".85rem 1.1rem",overflowY:"auto"}}>
+                {renderOptions()}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <style>{`
