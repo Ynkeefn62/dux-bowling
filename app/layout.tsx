@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 
@@ -10,13 +10,20 @@ import CookieBanner from "./components/CookieBanner";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
+  weight: ["400", "600", "700", "900"],
   display: "swap"
 });
 
 export const metadata: Metadata = {
   title: "Dux Bowling",
   description: "Saving Duckpin Bowling"
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
@@ -27,15 +34,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={montserrat.className}>
-        {/* Persistent top banner */}
+        {/* Persistent top banner — height is responsive via CSS var --banner-h */}
         <TopBanner />
 
-        {/* Existing buttons (fixed, same height as banner) */}
+        {/* Fixed overlay buttons */}
         <HamburgerMenu />
         <LoginButton />
 
-        {/* Page content offset so it doesn't sit under the banner */}
-        <div style={{ paddingTop: 72 }}>
+        {/* Page content — padding-top = var(--banner-h) via .dux-page-wrap */}
+        <div className="dux-page-wrap">
           {children}
           <Footer />
         </div>
