@@ -65,6 +65,7 @@ const DEFAULT_AVATAR: AvatarState = {
   outfit:      "bowling-shirt",
   accessories: [],
   bgColor:     "#1a1a2e",
+  gender:      "male",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
