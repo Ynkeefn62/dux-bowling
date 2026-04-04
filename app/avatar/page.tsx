@@ -64,11 +64,13 @@ type AvatarState = {
   skinToneIdx:number; hairStyle:string; hairColor:string;
   eyeColor:string; faceShape:string; facialHair:string;
   outfit:string; accessories:string[]; bgColor:string;
+  gender:"male"|"female";
 };
 const DEFAULTS:AvatarState = {
   skinToneIdx:3, hairStyle:"pompadour", hairColor:"brown",
   eyeColor:"brown", faceShape:"oval", facialHair:"none",
   outfit:"bowling-shirt", accessories:[], bgColor:"#e46a2e",
+  gender:"male",
 };
 
 // ─── Color math ───────────────────────────────────────────────
@@ -971,20 +973,117 @@ function hexToRgb(hex:string):string {
 }
 
 // ─── CATEGORY ICONS ───────────────────────────────────────────────
-function IconBody({s=22,c="currentColor"}:{s?:number;c?:string}) {
-  return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="3"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/><line x1="12" y1="8" x2="12" y2="14"/></svg>;
+function IconBody({s=26,c="currentColor"}:{s?:number;c?:string}) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 32 32" fill="none" stroke={c} strokeLinecap="round" strokeLinejoin="round">
+      {/* Head */}
+      <circle cx="16" cy="7" r="4.5" strokeWidth="1.8"/>
+      {/* Neck */}
+      <line x1="16" y1="11.5" x2="16" y2="13.5" strokeWidth="1.8"/>
+      {/* Torso */}
+      <path d="M9 14 C9 13 10 12.5 16 12.5 C22 12.5 23 13 23 14 L24 22 L8 22 Z" strokeWidth="1.6"/>
+      {/* Left arm */}
+      <path d="M9 14.5 C7 15.5 5.5 18 5 21" strokeWidth="1.8"/>
+      {/* Right arm */}
+      <path d="M23 14.5 C25 15.5 26.5 18 27 21" strokeWidth="1.8"/>
+      {/* Left leg */}
+      <path d="M11 22 L10 29" strokeWidth="1.8"/>
+      {/* Right leg */}
+      <path d="M21 22 L22 29" strokeWidth="1.8"/>
+      {/* Feet */}
+      <path d="M8.5 29 L12 29" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M20 29 L24 29" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  );
 }
-function IconHair({s=22,c="currentColor"}:{s?:number;c?:string}) {
-  return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round"><path d="M5 9c0-4 3-7 7-7s7 3 7 7c0 2-1 4-2 5"/><path d="M8 22V15c0-2 2-3 4-3s4 1 4 3v7"/><path d="M9 22v-3"/><path d="M15 22v-3"/></svg>;
+function IconHair({s=26,c="currentColor"}:{s?:number;c?:string}) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 32 32" fill="none" stroke={c} strokeLinecap="round" strokeLinejoin="round">
+      {/* Skull base */}
+      <path d="M6 18 C6 10 10 5 16 5 C22 5 26 10 26 18" strokeWidth="1.8"/>
+      {/* Side strands */}
+      <path d="M6 18 C5.5 20 6 22 8 23" strokeWidth="1.8"/>
+      <path d="M26 18 C26.5 20 26 22 24 23" strokeWidth="1.8"/>
+      {/* Hair top wave */}
+      <path d="M8 13 C10 9 13 8 16 8 C19 8 22 9 24 13" strokeWidth="2"/>
+      {/* Hair strands detail */}
+      <path d="M11 7 C11 5 12 3.5 13 3" strokeWidth="1.5"/>
+      <path d="M16 6 C16 4 16.5 3 17 2.5" strokeWidth="1.5"/>
+      <path d="M21 7 C22 5 22.5 3.5 22 3" strokeWidth="1.5"/>
+      {/* Comb teeth at bottom */}
+      <path d="M10 24 L10 28" strokeWidth="1.6"/>
+      <path d="M13.5 24 L13.5 28" strokeWidth="1.6"/>
+      <path d="M17 24 L17 28" strokeWidth="1.6"/>
+      <path d="M20.5 24 L20.5 28" strokeWidth="1.6"/>
+    </svg>
+  );
 }
-function IconFace({s=22,c="currentColor"}:{s?:number;c?:string}) {
-  return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.5" fill={c} stroke="none"/><circle cx="15" cy="10" r="1.5" fill={c} stroke="none"/><path d="M8 15c1 2 7 2 8 0"/></svg>;
+function IconFace({s=26,c="currentColor"}:{s?:number;c?:string}) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 32 32" fill="none" stroke={c} strokeLinecap="round" strokeLinejoin="round">
+      {/* Face outline */}
+      <path d="M16 3 C10 3 6 8 6 14 C6 20 10 26 16 26 C22 26 26 20 26 14 C26 8 22 3 16 3 Z" strokeWidth="1.8"/>
+      {/* Left eye */}
+      <ellipse cx="11.5" cy="13" rx="2.2" ry="2.5" strokeWidth="1.6"/>
+      <circle cx="11.5" cy="13.5" r="1" fill={c} stroke="none"/>
+      <circle cx="12.1" cy="12.6" r="0.5" fill="currentColor" opacity="0.6" stroke="none"/>
+      {/* Right eye */}
+      <ellipse cx="20.5" cy="13" rx="2.2" ry="2.5" strokeWidth="1.6"/>
+      <circle cx="20.5" cy="13.5" r="1" fill={c} stroke="none"/>
+      <circle cx="21.1" cy="12.6" r="0.5" fill="currentColor" opacity="0.6" stroke="none"/>
+      {/* Eyebrows */}
+      <path d="M9 10 C10 9 13 9 14 10" strokeWidth="1.6"/>
+      <path d="M18 10 C19 9 22 9 23 10" strokeWidth="1.6"/>
+      {/* Nose */}
+      <path d="M16 14.5 L15 18 C15 19 17 19 17 18 L16 14.5" strokeWidth="1.4"/>
+      {/* Smile */}
+      <path d="M11 21 C12.5 23.5 19.5 23.5 21 21" strokeWidth="1.8"/>
+      {/* Ear stubs */}
+      <path d="M6 14 C4.5 13.5 4 15 4.5 16" strokeWidth="1.6"/>
+      <path d="M26 14 C27.5 13.5 28 15 27.5 16" strokeWidth="1.6"/>
+    </svg>
+  );
 }
-function IconOutfit({s=22,c="currentColor"}:{s?:number;c?:string}) {
-  return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7l-3-4-5 3-5-3-3 4 4 2v10h8V9l4-2z"/></svg>;
+function IconOutfit({s=26,c="currentColor"}:{s?:number;c?:string}) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 32 32" fill="none" stroke={c} strokeLinecap="round" strokeLinejoin="round">
+      {/* Left sleeve */}
+      <path d="M7 6 L3 11 L7 13 L10 8" strokeWidth="1.8"/>
+      {/* Right sleeve */}
+      <path d="M25 6 L29 11 L25 13 L22 8" strokeWidth="1.8"/>
+      {/* Body */}
+      <path d="M10 8 L10 28 L22 28 L22 8" strokeWidth="1.8"/>
+      {/* Collar V-neck */}
+      <path d="M10 8 C12 7 14 10 16 11 C18 10 20 7 22 8" strokeWidth="1.8"/>
+      {/* Center button line */}
+      <line x1="16" y1="11" x2="16" y2="28" strokeWidth="1.2" strokeDasharray="1.5 2"/>
+      {/* Buttons */}
+      <circle cx="16" cy="15" r="1" fill={c} stroke="none"/>
+      <circle cx="16" cy="19.5" r="1" fill={c} stroke="none"/>
+      <circle cx="16" cy="24" r="1" fill={c} stroke="none"/>
+      {/* Chest pocket */}
+      <rect x="11" y="13" width="5" height="4" rx="0.5" strokeWidth="1.2"/>
+    </svg>
+  );
 }
-function IconExtras({s=22,c="currentColor"}:{s?:number;c?:string}) {
-  return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
+function IconExtras({s=26,c="currentColor"}:{s?:number;c?:string}) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 32 32" fill="none" stroke={c} strokeLinecap="round" strokeLinejoin="round">
+      {/* Glasses frames */}
+      <rect x="3" y="11" width="10" height="8" rx="3" strokeWidth="1.8"/>
+      <rect x="19" y="11" width="10" height="8" rx="3" strokeWidth="1.8"/>
+      {/* Bridge */}
+      <line x1="13" y1="15" x2="19" y2="15" strokeWidth="1.8"/>
+      {/* Temple arms */}
+      <line x1="3" y1="15" x2="1" y2="15" strokeWidth="1.8"/>
+      <line x1="29" y1="15" x2="31" y2="15" strokeWidth="1.8"/>
+      {/* Hat above */}
+      <path d="M10 11 C10 7 14 4 16 4 C18 4 22 7 22 11" strokeWidth="1.6"/>
+      <line x1="8" y1="11" x2="24" y2="11" strokeWidth="2"/>
+      {/* Star accessory */}
+      <path d="M16 19 L17.5 22.5 L21.5 22.5 L18.5 24.8 L19.5 28.5 L16 26.5 L12.5 28.5 L13.5 24.8 L10.5 22.5 L14.5 22.5 Z" strokeWidth="1.4"/>
+    </svg>
+  );
 }
 
 // ─── TIER BADGE ───────────────────────────────────────────────────
@@ -993,13 +1092,13 @@ function TierBadge({tier}:{tier:Tier}) {
   return (
     <div style={{
       position:"absolute",top:5,left:5,zIndex:2,
-      fontSize:".44rem",fontWeight:900,letterSpacing:".08em",
+      fontSize:".62rem",fontWeight:900,letterSpacing:".06em",
       fontFamily:"'Courier New',monospace",color:t.color,
       background:"rgba(0,0,0,0.8)",border:`1px solid ${t.color}`,
-      borderRadius:3,padding:"1px 4px",textTransform:"uppercase",
+      borderRadius:3,padding:"2px 5px",textTransform:"uppercase",
       boxShadow:`0 0 6px ${t.glow}`,lineHeight:1.4,
     }}>
-      {tier==="legendary"?"★ LEGENDARY":tier==="epic"?"◆ EPIC":tier==="rare"?"◈ RARE":"COMMON"}
+      {tier==="legendary"?"★ LGND":tier==="epic"?"◆ EPIC":tier==="rare"?"◈ RARE":"CMN"}
     </div>
   );
 }
@@ -1011,13 +1110,13 @@ function LockIcon() {
       position:"absolute",inset:0,display:"flex",flexDirection:"column",
       alignItems:"center",justifyContent:"center",
       background:"rgba(0,0,0,0.75)",backdropFilter:"blur(3px)",
-      borderRadius:8,gap:3,zIndex:3,
+      borderRadius:8,gap:4,zIndex:3,
     }}>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="11" width="18" height="11" rx="2"/>
         <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
       </svg>
-      <span style={{fontSize:".48rem",color:"rgba(255,255,255,0.45)",fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>LOCKED</span>
+      <span style={{fontSize:".72rem",color:"rgba(255,255,255,0.45)",fontFamily:"'Courier New',monospace",letterSpacing:".06em"}}>LOCKED</span>
     </div>
   );
 }
@@ -1027,26 +1126,26 @@ function OptionCard({label,tier,locked,active,onClick}:{label:string;tier:Tier;l
   const t = TIERS[tier];
   return (
     <button onClick={locked?undefined:onClick} disabled={locked} style={{
-      position:"relative",height:76,width:"100%",
-      borderRadius:8,overflow:"hidden",cursor:locked?"default":"pointer",
+      position:"relative",height:88,width:"100%",
+      borderRadius:10,overflow:"hidden",cursor:locked?"default":"pointer",
       border:`2px solid ${active?t.color:locked?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.1)"}`,
-      background:active?`rgba(${hexToRgb(t.color)},0.15)`:"rgba(255,255,255,0.03)",
+      background:active?`rgba(${hexToRgb(t.color)},0.18)`:"rgba(255,255,255,0.03)",
       transition:"all 150ms",padding:0,
-      boxShadow:active?`0 0 18px ${t.glow},inset 0 0 20px rgba(0,0,0,0.3)`:undefined,
+      boxShadow:active?`0 0 20px ${t.glow},inset 0 0 20px rgba(0,0,0,0.3)`:undefined,
       transform:active?"scale(1.03)":"scale(1)",
     }}>
       <div style={{
         position:"absolute",inset:0,display:"flex",alignItems:"flex-end",
-        justifyContent:"center",padding:"0 4px 10px",
+        justifyContent:"center",padding:"0 6px 12px",
       }}>
         <span style={{
-          fontSize:".6rem",fontWeight:900,textAlign:"center",lineHeight:1.2,
-          color:active?t.color:locked?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.75)",
+          fontSize:".82rem",fontWeight:900,textAlign:"center",lineHeight:1.2,
+          color:active?t.color:locked?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.82)",
           fontFamily:"'Courier New',monospace",letterSpacing:".04em",textTransform:"uppercase",
         }}>{label}</span>
       </div>
       <TierBadge tier={tier}/>
-      {active&&<div style={{position:"absolute",top:5,right:5,width:7,height:7,borderRadius:"50%",background:t.color,boxShadow:`0 0 8px ${t.color}`,zIndex:2}}/>}
+      {active&&<div style={{position:"absolute",top:6,right:6,width:8,height:8,borderRadius:"50%",background:t.color,boxShadow:`0 0 10px ${t.color}`,zIndex:2}}/>}
       {locked&&<LockIcon/>}
     </button>
   );
@@ -1056,23 +1155,23 @@ function OptionCard({label,tier,locked,active,onClick}:{label:string;tier:Tier;l
 function ColorCard({hex,label,tier,active,locked,onClick}:{hex:string;label:string;tier:Tier;active:boolean;locked:boolean;onClick:()=>void}) {
   return (
     <button onClick={locked?undefined:onClick} disabled={locked} style={{
-      position:"relative",height:58,width:"100%",
-      borderRadius:8,overflow:"hidden",cursor:locked?"default":"pointer",
+      position:"relative",height:68,width:"100%",
+      borderRadius:10,overflow:"hidden",cursor:locked?"default":"pointer",
       border:`2px solid ${active?NEON:locked?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.1)"}`,
       background:hex,transition:"all 150ms",padding:0,
-      boxShadow:active?`0 0 16px rgba(56,217,245,0.55)`:undefined,
-      transform:active?"scale(1.08)":"scale(1)",
+      boxShadow:active?`0 0 18px rgba(56,217,245,0.65)`:undefined,
+      transform:active?"scale(1.1)":"scale(1)",
       filter:locked?"brightness(0.35) saturate(0.2)":undefined,
     }}>
       <TierBadge tier={tier}/>
       {locked&&<LockIcon/>}
       {active&&(
         <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",zIndex:2}}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
       )}
-      <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,0.65)",padding:"2px 0",textAlign:"center",zIndex:1}}>
-        <span style={{fontSize:".47rem",color:"rgba(255,255,255,0.9)",fontFamily:"'Courier New',monospace",letterSpacing:".05em",textTransform:"uppercase"}}>{label}</span>
+      <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,0.72)",padding:"3px 0",textAlign:"center",zIndex:1}}>
+        <span style={{fontSize:".68rem",color:"rgba(255,255,255,0.92)",fontFamily:"'Courier New',monospace",letterSpacing:".04em",textTransform:"uppercase"}}>{label}</span>
       </div>
     </button>
   );
@@ -1092,13 +1191,13 @@ function SkinPicker({value,onChange}:{value:number;onChange:(v:number)=>void}) {
           onChange={e=>onChange(Number(e.target.value))}
           style={{position:"relative",width:"100%",height:18,appearance:"none",background:"transparent",cursor:"pointer",zIndex:1}}/>
       </div>
-      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
         {SKIN_TONES.map((c,i)=>(
           <button key={i} onClick={()=>onChange(i)} style={{
-            width:26,height:26,borderRadius:4,background:c,padding:0,cursor:"pointer",
+            width:34,height:34,borderRadius:6,background:c,padding:0,cursor:"pointer",
             border:`2.5px solid ${value===i?NEON:"transparent"}`,
-            boxShadow:value===i?`0 0 10px rgba(56,217,245,0.65)`:undefined,
-            transition:"all 120ms",transform:value===i?"scale(1.2)":"scale(1)",
+            boxShadow:value===i?`0 0 12px rgba(56,217,245,0.7)`:undefined,
+            transition:"all 120ms",transform:value===i?"scale(1.22)":"scale(1)",
           }}/>
         ))}
       </div>
@@ -1110,16 +1209,16 @@ function SkinPicker({value,onChange}:{value:number;onChange:(v:number)=>void}) {
 function CategoryTab({cat,active,onClick}:{cat:CatConfig;active:boolean;onClick:()=>unknown}) {
   return (
     <button onClick={onClick} style={{
-      display:"flex",flexDirection:"column",alignItems:"center",gap:".3rem",
-      padding:".6rem .5rem",width:"100%",borderRadius:8,cursor:"pointer",
+      display:"flex",flexDirection:"column",alignItems:"center",gap:".38rem",
+      padding:".7rem .6rem",width:"100%",borderRadius:10,cursor:"pointer",
       border:`1.5px solid ${active?ORANGE:"rgba(255,255,255,0.07)"}`,
       background:active?"rgba(228,106,46,0.13)":"rgba(255,255,255,0.02)",
       color:active?ORANGE:"rgba(240,240,255,0.4)",
       transition:"all 150ms",
-      boxShadow:active?`0 0 18px rgba(228,106,46,0.28),inset 0 0 20px rgba(228,106,46,0.05)`:undefined,
+      boxShadow:active?`0 0 20px rgba(228,106,46,0.30),inset 0 0 20px rgba(228,106,46,0.06)`:undefined,
     }}>
       {cat.icon}
-      <span style={{fontSize:".54rem",fontWeight:900,fontFamily:"'Courier New',monospace",letterSpacing:".08em",textTransform:"uppercase"}}>{cat.label}</span>
+      <span style={{fontSize:".75rem",fontWeight:900,fontFamily:"'Courier New',monospace",letterSpacing:".06em",textTransform:"uppercase"}}>{cat.label}</span>
     </button>
   );
 }
@@ -1136,8 +1235,8 @@ function CornerBracket({pos,color=NEON,size=20}:{pos:"tl"|"tr"|"bl"|"br";color?:
 
 // ─── SECTION LABEL ────────────────────────────────────────────────
 function SectionLabel({children}:{children:ReactNode}) {
-  return <div style={{fontSize:".58rem",color:NEON,fontFamily:"'Courier New',monospace",letterSpacing:".12em",marginBottom:".55rem",display:"flex",alignItems:"center",gap:".4rem"}}>
-    <div style={{width:3,height:10,background:NEON,borderRadius:2,boxShadow:`0 0 6px ${NEON}`}}/>
+  return <div style={{fontSize:".9rem",color:NEON,fontFamily:"'Courier New',monospace",letterSpacing:".1em",marginBottom:".65rem",display:"flex",alignItems:"center",gap:".5rem",fontWeight:900}}>
+    <div style={{width:3,height:13,background:NEON,borderRadius:2,boxShadow:`0 0 8px ${NEON}`}}/>
     {children}
   </div>;
 }
@@ -1200,58 +1299,89 @@ export default function AvatarPage() {
 
   // ── Shared options content (used in both mobile and desktop panels) ──────────
   function renderOptions() {
+    // Gender toggle button style helper
+    const genderBtn = (g:"male"|"female") => ({
+      flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:".5rem",
+      padding:".65rem",borderRadius:8,cursor:"pointer",
+      border:`2px solid ${state.gender===g?ORANGE:"rgba(255,255,255,0.1)"}`,
+      background:state.gender===g?"rgba(228,106,46,0.18)":"rgba(255,255,255,0.03)",
+      color:state.gender===g?ORANGE:"rgba(240,240,255,0.5)",
+      fontWeight:900,fontSize:".88rem",fontFamily:"'Courier New',monospace",letterSpacing:".1em",
+      transition:"all 150ms",
+      boxShadow:state.gender===g?`0 0 20px rgba(228,106,46,0.35)`:undefined,
+    } as React.CSSProperties);
+
     return (<>
       {category==="BODY"&&(<>
+        {/* ── GENDER ── */}
+        <SectionLabel>GENDER</SectionLabel>
+        <div style={{display:"flex",gap:".6rem",marginBottom:"1.25rem"}}>
+          <button style={genderBtn("male")} onClick={()=>set("gender","male")}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="10" cy="14" r="5"/><line x1="19" y1="5" x2="14.14" y2="9.86"/><polyline points="15 5 19 5 19 9"/>
+            </svg>
+            MALE
+          </button>
+          <button style={genderBtn("female")} onClick={()=>{set("gender","female");if(state.facialHair!=="none")set("facialHair","none");}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="8" r="5"/><line x1="12" y1="13" x2="12" y2="21"/><line x1="9" y1="18" x2="15" y2="18"/>
+            </svg>
+            FEMALE
+          </button>
+        </div>
+        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1.25rem"}}/>
         <SectionLabel>SKIN TONE</SectionLabel>
         <SkinPicker value={state.skinToneIdx} onChange={v=>set("skinToneIdx",v)}/>
-        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"1rem 0"}}/>
+        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"1.25rem 0"}}/>
         <SectionLabel>FACE SHAPE</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem"}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".55rem"}}>
           {FACE_SHAPES_TIERED.map(f=><OptionCard key={f.id} label={f.label} tier={f.tier} locked={f.locked} active={state.faceShape===f.id} onClick={()=>set("faceShape",f.id)}/>)}
         </div>
       </>)}
       {category==="HAIR"&&(<>
         <SectionLabel>STYLE</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".55rem",marginBottom:"1.25rem"}}>
           {HAIR_STYLES_TIERED.map(h=><OptionCard key={h.id} label={h.label} tier={h.tier} locked={h.locked} active={state.hairStyle===h.id} onClick={()=>set("hairStyle",h.id)}/>)}
         </div>
-        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1rem"}}/>
+        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1.25rem"}}/>
         <SectionLabel>COLOR</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:".38rem"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:".45rem"}}>
           {HAIR_COLORS_TIERED.map(h=><ColorCard key={h.id} hex={h.hex} label={h.label} tier={h.tier} locked={h.locked} active={state.hairColor===h.id} onClick={()=>set("hairColor",h.id)}/>)}
         </div>
       </>)}
       {category==="FACE"&&(<>
-        <SectionLabel>FACIAL HAIR</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
-          {FACIAL_HAIR_TIERED.map(f=><OptionCard key={f.id} label={f.label} tier={f.tier} locked={f.locked} active={state.facialHair===f.id} onClick={()=>set("facialHair",f.id)}/>)}
-        </div>
-        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1rem"}}/>
+        {state.gender!=="female"&&(<>
+          <SectionLabel>FACIAL HAIR</SectionLabel>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".55rem",marginBottom:"1.25rem"}}>
+            {FACIAL_HAIR_TIERED.map(f=><OptionCard key={f.id} label={f.label} tier={f.tier} locked={f.locked} active={state.facialHair===f.id} onClick={()=>set("facialHair",f.id)}/>)}
+          </div>
+          <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1.25rem"}}/>
+        </>)}
         <SectionLabel>EYE COLOR</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:".38rem"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:".45rem"}}>
           {EYE_COLORS_TIERED.map(e=><ColorCard key={e.id} hex={e.hex} label={e.label} tier={e.tier} locked={e.locked} active={state.eyeColor===e.id} onClick={()=>set("eyeColor",e.id)}/>)}
         </div>
       </>)}
       {category==="OUTFIT"&&(<>
         <SectionLabel>OUTFIT</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".55rem",marginBottom:"1.25rem"}}>
           {OUTFITS_TIERED.map(o=><OptionCard key={o.id} label={o.label} tier={o.tier} locked={o.locked} active={state.outfit===o.id} onClick={()=>{if(!o.locked)set("outfit",o.id);}}/>)}
         </div>
-        <div style={{padding:".7rem .85rem",borderRadius:8,background:"rgba(228,106,46,0.07)",border:"1px solid rgba(228,106,46,0.18)"}}>
-          <div style={{fontSize:".56rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".08em",fontWeight:900,marginBottom:3}}>UNLOCK EPIC & LEGENDARY SKINS</div>
-          <div style={{fontSize:".52rem",color:"rgba(240,240,255,0.42)",fontFamily:"'Courier New',monospace",lineHeight:1.55}}>Earn through achievements or visit the Shop to unlock exclusive looks.</div>
+        <div style={{padding:".85rem 1rem",borderRadius:10,background:"rgba(228,106,46,0.07)",border:"1px solid rgba(228,106,46,0.18)"}}>
+          <div style={{fontSize:".82rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".06em",fontWeight:900,marginBottom:5}}>UNLOCK EPIC & LEGENDARY SKINS</div>
+          <div style={{fontSize:".75rem",color:"rgba(240,240,255,0.42)",fontFamily:"'Courier New',monospace",lineHeight:1.6}}>Earn through achievements or visit the Shop to unlock exclusive looks.</div>
         </div>
       </>)}
       {category==="EXTRAS"&&(<>
         <SectionLabel>ACCESSORIES</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".45rem",marginBottom:"1rem"}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".55rem",marginBottom:"1.25rem"}}>
           {ACCESSORIES_TIERED.map(a=><OptionCard key={a.id} label={a.label} tier={a.tier} locked={a.locked} active={state.accessories.includes(a.id)} onClick={()=>{if(!a.locked)set("accessories",toggleAcc(state,a.id));}}/>)}
         </div>
-        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1rem"}}/>
+        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1.25rem"}}/>
         <SectionLabel>BACKGROUND COLOR</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:".35rem"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:".45rem"}}>
           {BG_COLORS.map(c=>(
-            <button key={c} onClick={()=>set("bgColor",c)} style={{paddingBottom:"100%",borderRadius:6,background:c,border:`2px solid ${state.bgColor===c?NEON:"transparent"}`,cursor:"pointer",position:"relative",boxShadow:state.bgColor===c?`0 0 12px rgba(56,217,245,0.5)`:undefined,transform:state.bgColor===c?"scale(1.12)":"scale(1)",transition:"all 120ms"}}/>
+            <button key={c} onClick={()=>set("bgColor",c)} style={{paddingBottom:"100%",borderRadius:8,background:c,border:`2.5px solid ${state.bgColor===c?NEON:"transparent"}`,cursor:"pointer",position:"relative",boxShadow:state.bgColor===c?`0 0 14px rgba(56,217,245,0.55)`:undefined,transform:state.bgColor===c?"scale(1.14)":"scale(1)",transition:"all 120ms"}}/>
           ))}
         </div>
       </>)}
@@ -1285,8 +1415,8 @@ export default function AvatarPage() {
             </>
           )}
           <div style={{flex:1,textAlign:"center"}}>
-            <div style={{fontSize:isMobile?".62rem":".72rem",fontWeight:900,letterSpacing:isMobile?".12em":".2em",color:"rgba(240,240,255,0.88)",fontFamily:"'Courier New',monospace"}}>BOWLER IDENTITY</div>
-            {!isMobile&&<div style={{fontSize:".52rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".14em",marginTop:1}}>CUSTOMIZE YOUR CHARACTER</div>}
+            <div style={{fontSize:isMobile?".88rem":".72rem",fontWeight:900,letterSpacing:isMobile?".1em":".2em",color:"rgba(240,240,255,0.88)",fontFamily:"'Courier New',monospace"}}>BOWLER IDENTITY</div>
+            {!isMobile&&<div style={{fontSize:".62rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".12em",marginTop:2}}>CUSTOMIZE YOUR CHARACTER</div>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:isMobile?".4rem":".65rem",flexShrink:0}}>
             {!loggedIn&&!isMobile&&<span style={{fontSize:".62rem",color:"rgba(240,240,255,0.28)",fontFamily:"'Courier New',monospace"}}>LOG IN TO SAVE</span>}
@@ -1309,7 +1439,7 @@ export default function AvatarPage() {
           <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0}}>
 
             {/* Compact 3D canvas preview — always visible so you see changes live */}
-            <div style={{height:210,position:"relative",flexShrink:0,background:"#050510",borderBottom:"1px solid rgba(56,217,245,0.09)"}}>
+            <div style={{height:240,position:"relative",flexShrink:0,background:"#050510",borderBottom:"1px solid rgba(56,217,245,0.09)"}}>
               <div aria-hidden="true" style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse 60% 40% at 50% 0%,rgba(56,217,245,0.04),transparent 60%)"}}/>
               <CornerBracket pos="tl" size={14}/>
               <CornerBracket pos="tr" size={14}/>
@@ -1318,69 +1448,78 @@ export default function AvatarPage() {
                 LVL 1
               </div>
               <div style={{position:"absolute",bottom:8,left:"50%",transform:"translateX(-50%)",background:"rgba(5,5,15,0.9)",border:"1px solid rgba(56,217,245,0.28)",borderRadius:4,padding:".18rem .65rem",backdropFilter:"blur(8px)",whiteSpace:"nowrap",zIndex:2,pointerEvents:"none"}}>
-                <span style={{fontSize:".52rem",color:"rgba(240,240,255,0.9)",fontFamily:"'Courier New',monospace",letterSpacing:".08em",fontWeight:900}}>{playerName}</span>
+                <span style={{fontSize:".82rem",color:"rgba(240,240,255,0.9)",fontFamily:"'Courier New',monospace",letterSpacing:".08em",fontWeight:900}}>{playerName}</span>
               </div>
             </div>
 
-            {/* Horizontal category strip + mini avatar + reset */}
-            <div style={{display:"flex",flexShrink:0,background:"rgba(6,6,14,0.92)",borderBottom:"1px solid rgba(56,217,245,0.09)",overflowX:"auto",WebkitOverflowScrolling:"touch" as any}}>
-              {/* Mini player avatar bubble */}
-              <div style={{display:"flex",alignItems:"center",padding:"0 .6rem",borderRight:"1px solid rgba(255,255,255,0.06)",flexShrink:0}}>
-                <div style={{width:34,height:34,borderRadius:"50%",border:`2px solid ${ORANGE}`,overflow:"hidden",position:"relative",background:"rgba(0,0,0,0.5)",boxShadow:`0 0 12px rgba(228,106,46,0.35)`,flexShrink:0}}>
-                  <div style={{position:"absolute",top:-17,left:"50%",transform:"translateX(-50%)"}}>
-                    <CharacterSVG state={state} w={68} h={128}/>
-                  </div>
+            {/* ── CATEGORY CAROUSEL ── */}
+            <div style={{flexShrink:0,background:"rgba(6,6,14,0.96)",borderBottom:"1px solid rgba(56,217,245,0.12)"}}>
+              {/* Active category indicator bar */}
+              <div style={{display:"flex",alignItems:"center",padding:".4rem .75rem .0rem",gap:".5rem"}}>
+                <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:".35rem"}}>
+                  {CATS.map(cat=>(
+                    <div key={cat.id} style={{
+                      height:3,borderRadius:2,transition:"all 300ms",
+                      flex:category===cat.id?3:1,
+                      background:category===cat.id?ORANGE:"rgba(255,255,255,0.1)",
+                      boxShadow:category===cat.id?`0 0 8px ${ORANGE}`:undefined,
+                    }}/>
+                  ))}
                 </div>
+                {/* Reset button */}
+                <button onClick={()=>setState(DEFAULTS)} style={{
+                  display:"flex",alignItems:"center",gap:".3rem",
+                  padding:".28rem .6rem",borderRadius:20,border:"1px solid rgba(255,255,255,0.1)",
+                  background:"rgba(255,255,255,0.04)",color:"rgba(240,240,255,0.4)",
+                  cursor:"pointer",fontSize:".72rem",fontFamily:"'Courier New',monospace",letterSpacing:".06em",
+                  touchAction:"manipulation",flexShrink:0,
+                }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.32"/></svg>
+                  RESET
+                </button>
               </div>
 
-              {/* Category buttons */}
-              {CATS.map(cat=>(
-                <button key={cat.id} onClick={()=>setCategory(cat.id)} style={{
-                  display:"flex",flexDirection:"column",alignItems:"center",gap:".18rem",
-                  padding:".52rem .7rem",flexShrink:0,border:"none",
-                  background:category===cat.id?"rgba(228,106,46,0.12)":"transparent",
-                  color:category===cat.id?ORANGE:"rgba(240,240,255,0.38)",
-                  borderBottom:category===cat.id?`2.5px solid ${ORANGE}`:"2.5px solid transparent",
-                  cursor:"pointer",minWidth:54,touchAction:"manipulation",WebkitTapHighlightColor:"transparent" as any,
-                }}>
-                  {cat.icon}
-                  <span style={{fontSize:".42rem",fontFamily:"'Courier New',monospace",letterSpacing:".08em",textTransform:"uppercase"}}>{cat.label}</span>
-                </button>
-              ))}
-
-              {/* Reset at end */}
-              <button onClick={()=>setState(DEFAULTS)} style={{
-                display:"flex",flexDirection:"column",alignItems:"center",gap:".18rem",
-                padding:".52rem .65rem",flexShrink:0,border:"none",
-                background:"transparent",color:"rgba(240,240,255,0.28)",
-                borderBottom:"2.5px solid transparent",cursor:"pointer",minWidth:46,
-                marginLeft:"auto",touchAction:"manipulation",
-              }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.32"/></svg>
-                <span style={{fontSize:".42rem",fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>RESET</span>
-              </button>
+              {/* Category tabs row */}
+              <div style={{display:"flex",overflowX:"auto",WebkitOverflowScrolling:"touch" as any,padding:".4rem .5rem .6rem",gap:".5rem",scrollbarWidth:"none"}}>
+                {CATS.map(cat=>(
+                  <button key={cat.id} onClick={()=>setCategory(cat.id)} style={{
+                    display:"flex",flexDirection:"column",alignItems:"center",gap:".32rem",
+                    padding:".65rem .9rem",flexShrink:0,borderRadius:12,
+                    border:`2px solid ${category===cat.id?ORANGE:"rgba(255,255,255,0.08)"}`,
+                    background:category===cat.id?"rgba(228,106,46,0.15)":"rgba(255,255,255,0.03)",
+                    color:category===cat.id?ORANGE:"rgba(240,240,255,0.45)",
+                    cursor:"pointer",minWidth:68,touchAction:"manipulation",
+                    WebkitTapHighlightColor:"transparent" as any,
+                    boxShadow:category===cat.id?`0 0 16px rgba(228,106,46,0.35)`:undefined,
+                    transition:"all 200ms",
+                  }}>
+                    {cat.icon}
+                    <span style={{fontSize:".78rem",fontWeight:900,fontFamily:"'Courier New',monospace",letterSpacing:".06em",textTransform:"uppercase"}}>{cat.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Options panel header (tier legend) */}
-            <div style={{padding:".55rem .875rem .35rem",borderBottom:"1px solid rgba(255,255,255,0.04)",flexShrink:0,background:"rgba(6,6,14,0.92)"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".3rem"}}>
-                <div style={{fontSize:".58rem",fontWeight:900,color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".14em"}}>{category} OPTIONS</div>
-                <div style={{fontSize:".48rem",color:"rgba(240,240,255,0.28)",fontFamily:"'Courier New',monospace"}}>
+            <div style={{padding:".65rem 1rem .45rem",borderBottom:"1px solid rgba(255,255,255,0.05)",flexShrink:0,background:"rgba(6,6,14,0.92)"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".4rem"}}>
+                <div style={{fontSize:".9rem",fontWeight:900,color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".12em"}}>{category} OPTIONS</div>
+                <div style={{fontSize:".72rem",color:"rgba(240,240,255,0.32)",fontFamily:"'Courier New',monospace"}}>
                   {category==="BODY"?`${SKIN_TONES.length} TONES`:category==="HAIR"?`${HAIR_STYLES_TIERED.length} STYLES`:category==="FACE"?`${FACE_SHAPES_TIERED.length+FACIAL_HAIR_TIERED.length} OPTIONS`:category==="OUTFIT"?`${OUTFITS_TIERED.length} LOOKS`:`${ACCESSORIES_TIERED.length} ITEMS`}
                 </div>
               </div>
-              <div style={{display:"flex",gap:3}}>
+              <div style={{display:"flex",gap:4}}>
                 {(["common","rare","epic","legendary"] as Tier[]).map(t=>(
-                  <div key={t} style={{display:"flex",alignItems:"center",gap:2,background:`rgba(${hexToRgb(TIERS[t].color)},0.07)`,border:`1px solid rgba(${hexToRgb(TIERS[t].color)},0.2)`,borderRadius:4,padding:"1px 5px"}}>
-                    <div style={{width:4,height:4,borderRadius:"50%",background:TIERS[t].color}}/>
-                    <span style={{fontSize:".38rem",color:TIERS[t].color,fontFamily:"'Courier New',monospace",letterSpacing:".06em",textTransform:"uppercase"}}>{t}</span>
+                  <div key={t} style={{display:"flex",alignItems:"center",gap:3,background:`rgba(${hexToRgb(TIERS[t].color)},0.07)`,border:`1px solid rgba(${hexToRgb(TIERS[t].color)},0.2)`,borderRadius:5,padding:"2px 7px"}}>
+                    <div style={{width:5,height:5,borderRadius:"50%",background:TIERS[t].color}}/>
+                    <span style={{fontSize:".62rem",color:TIERS[t].color,fontFamily:"'Courier New',monospace",letterSpacing:".04em",textTransform:"uppercase"}}>{t}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Scrollable options */}
-            <div style={{flex:1,padding:".75rem .875rem",overflowY:"auto",WebkitOverflowScrolling:"touch" as any}}>
+            <div style={{flex:1,padding:"1rem 1rem",overflowY:"auto",WebkitOverflowScrolling:"touch" as any}}>
               {renderOptions()}
             </div>
           </div>

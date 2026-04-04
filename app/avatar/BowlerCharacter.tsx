@@ -36,6 +36,7 @@ export interface AvatarState {
   outfit:       string;
   accessories:  string[];
   bgColor:      string;
+  gender:       "male" | "female";
 }
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
@@ -216,8 +217,8 @@ function HairMesh({ style, color }: { style: string; color: string }) {
 
   if (style === "buzz") return (
     <group>
-      <mesh position={[0,0.01,0]} scale={[1.01,1.01,1.01]}>
-        <sphereGeometry args={[0.43, 32, 22, 0, Math.PI*2, 0, Math.PI*0.55]} />
+      <mesh position={[0,0.02,0]} scale={[1.02,1.02,1.02]}>
+        <sphereGeometry args={[0.44, 32, 22, 0, Math.PI*2, 0, Math.PI*0.55]} />
         {mat}
       </mesh>
       {([-1,1] as number[]).map((s,i) => (
@@ -256,8 +257,8 @@ function HairMesh({ style, color }: { style: string; color: string }) {
 
   if (style === "pompadour") return (
     <group>
-      <mesh position={[0,0.01,-0.05]}>
-        <sphereGeometry args={[0.445, 32, 22, 0, Math.PI*2, 0, Math.PI*0.62]} />
+      <mesh position={[0,0.02,0.01]}>
+        <sphereGeometry args={[0.455, 32, 22, 0, Math.PI*2, 0, Math.PI*0.62]} />
         {mat}
       </mesh>
       {/* pompadour volume */}
@@ -605,10 +606,10 @@ function Head({ state }: { state: AvatarState }) {
         <meshStandardMaterial color={skin} roughness={0.62} />
       </mesh>
 
-      {/* ── CHEEKBONE VOLUMES ── */}
+      {/* ── CHEEKBONE VOLUMES (subtle — not chipmunk) ── */}
       {([-1,1] as number[]).map((s,i) => (
-        <mesh key={i} position={[s*0.29,-0.02,0.24]} scale={[0.68,0.72,0.62]}>
-          <sphereGeometry args={[0.28,20,14]} />
+        <mesh key={i} position={[s*0.26,-0.04,0.30]} scale={[0.36,0.40,0.32]}>
+          <sphereGeometry args={[0.22,16,12]} />
           <meshStandardMaterial color={skin} roughness={0.63} />
         </mesh>
       ))}
@@ -808,7 +809,7 @@ function Head({ state }: { state: AvatarState }) {
 }
 
 // ─── TORSO ────────────────────────────────────────────────────────────────────
-function Torso({ outfit, outfitDk }: { outfit: string; outfitDk: string }) {
+function Torso({ outfit, outfitDk, gender = "male" }: { outfit: string; outfitDk: string; gender?: "male"|"female" }) {
   const torsoPoints = useMemo(() => [
     new THREE.Vector2(0.30, -0.54),  // waist
     new THREE.Vector2(0.325,  -0.38),
@@ -831,13 +832,21 @@ function Torso({ outfit, outfitDk }: { outfit: string; outfitDk: string }) {
         <Mat color={outfit} roughness={0.8} />
       </mesh>
 
-      {/* pec highlights */}
-      {([-1,1] as number[]).map((s,i) => (
-        <mesh key={i} position={[s*0.15,0.28,0.34]} scale={[0.82,0.7,0.52]}>
-          <sphereGeometry args={[0.2,16,12]} />
-          <Mat color={hi} roughness={0.82} />
-        </mesh>
-      ))}
+      {/* chest — male pec definition vs female bust */}
+      {gender === "female"
+        ? ([-1,1] as number[]).map((s,i) => (
+            <mesh key={i} position={[s*0.13,0.25,0.37]} scale={[0.76,0.88,0.78]}>
+              <sphereGeometry args={[0.22,18,14]} />
+              <Mat color={hi} roughness={0.80} />
+            </mesh>
+          ))
+        : ([-1,1] as number[]).map((s,i) => (
+            <mesh key={i} position={[s*0.14,0.18,0.38]} scale={[0.92,0.55,0.38]}>
+              <sphereGeometry args={[0.18,14,10]} />
+              <Mat color={hi} roughness={0.84} />
+            </mesh>
+          ))
+      }
 
       {/* shoulder caps */}
       {([-1,1] as number[]).map((s,i) => (
@@ -889,17 +898,17 @@ function Arm({ side, outfit, skin, holdingBall }: {
   const dk = darken(outfit, 0.18);
 
   return (
-    <group position={[s*0.438, 0.5, 0]}>
-      <group rotation={[holdingBall ? 0.5 : 0.07, 0, s*-0.36]}>
+    <group position={[s*0.44, 0.50, 0.04]}>
+      <group rotation={[holdingBall ? 0.52 : 0.22, 0, s*-0.58]}>
         {/* upper arm */}
-        <mesh position={[0,-0.22,0]} scale={[0.86,1,0.86]} castShadow>
-          <capsuleGeometry args={[0.12,0.36,8,14]} />
+        <mesh position={[0,-0.22,0]} scale={[0.94,1,0.94]} castShadow>
+          <capsuleGeometry args={[0.13,0.40,8,14]} />
           <Mat color={outfit} roughness={0.8} />
         </mesh>
         {/* bicep swell */}
-        <mesh position={[0,-0.14,0.05]} scale={[0.72,0.58,0.62]}>
-          <sphereGeometry args={[0.13,14,10]} />
-          <Mat color={lighten(outfit,0.05)} roughness={0.82} />
+        <mesh position={[0,-0.14,0.05]} scale={[0.78,0.62,0.68]}>
+          <sphereGeometry args={[0.14,14,10]} />
+          <Mat color={lighten(outfit,0.06)} roughness={0.82} />
         </mesh>
         {/* elbow */}
         <mesh position={[0,-0.42,0]}>
@@ -1053,7 +1062,7 @@ export default function BowlerCharacter({ state }: { state: AvatarState }) {
 
       {/* TORSO */}
       <group position={[0, 1.0, 0]}>
-        <Torso outfit={outfit} outfitDk={outfitDk} />
+        <Torso outfit={outfit} outfitDk={outfitDk} gender={state.gender ?? "male"} />
       </group>
 
       {/* ARMS */}
