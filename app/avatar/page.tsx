@@ -184,13 +184,13 @@ type AvatarState = {
   bgColor:string;
   // Memoji-style
   freckles:"none"|"light"|"heavy";
-  browStyle:string;
-  eyeShape:string;
+  browStyle:"default"|"thin"|"thick"|"arched"|"angled"|"straight";
+  eyeShape:"round"|"almond"|"narrow"|"downturned";
   eyelashes:boolean;
-  noseStyle:string;
-  mouthShape:string;
+  noseStyle:"default"|"small"|"wide"|"long"|"button";
+  mouthShape:"default"|"smile"|"neutral"|"small"|"full";
   lipColor:string;
-  earSize:string;
+  earSize:"default"|"small"|"large";
   age:"young"|"adult"|"mature";
   eyewear:string;
   headwear:string;
