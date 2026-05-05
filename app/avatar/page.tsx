@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useDevice } from "@/app/hooks/useDevice";
@@ -9,1667 +9,1279 @@ const AvatarStage = dynamic(() => import("./AvatarStage"), {
   loading: () => (
     <div style={{
       width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",
-      background:"rgba(4,4,12,0.8)",flexDirection:"column",gap:"1rem",
+      flexDirection:"column",gap:"1rem",
     }}>
       <div style={{
-        width:48,height:48,border:"3px solid rgba(56,217,245,0.15)",
-        borderTop:"3px solid #38d9f5",borderRadius:"50%",
+        width:44,height:44,border:"3px solid rgba(0,0,0,0.08)",
+        borderTop:"3px solid #007AFF",borderRadius:"50%",
         animation:"spin 1s linear infinite",
       }}/>
-      <span style={{fontSize:".62rem",color:"rgba(240,240,255,0.4)",fontFamily:"'Courier New',monospace",letterSpacing:".12em"}}>
-        LOADING 3D ENGINE
+      <span style={{fontSize:".82rem",color:"rgba(60,60,67,0.55)",letterSpacing:".02em",fontWeight:500}}>
+        Loading…
       </span>
     </div>
   ),
 });
 
-// ─── Tokens ──────────────────────────────────────────────────
-const ORANGE = "#e46a2e";
-const BG     = "#0a0a12";
-const PANEL  = "rgba(14,14,28,0.92)";
-const BORDER = "rgba(255,255,255,0.08)";
-const TEXT   = "#f0f0ff";
-const MUTED  = "rgba(240,240,255,0.50)";
-const NEON   = "#38d9f5";
-const NEON2  = "#f538d9";
+// ─── DESIGN TOKENS — clean, Apple/Memoji-inspired ─────────────────────────
+const C = {
+  bg:        "#F2F2F7",
+  bgGrad:    "linear-gradient(180deg,#FAFAFE 0%,#EFEFF4 100%)",
+  surface:   "#FFFFFF",
+  surfaceMuted:"#F7F7FA",
+  divider:   "rgba(60,60,67,0.10)",
+  text:      "#1C1C1E",
+  textMute:  "rgba(60,60,67,0.62)",
+  textLight: "rgba(60,60,67,0.36)",
+  accent:    "#007AFF",
+  accentSoft:"rgba(0,122,255,0.12)",
+  accentRing:"rgba(0,122,255,0.36)",
+  shadow:    "0 1px 3px rgba(0,0,0,0.06),0 4px 14px rgba(0,0,0,0.04)",
+  shadowSm:  "0 1px 3px rgba(0,0,0,0.08)",
+  shadowMd:  "0 4px 14px rgba(0,0,0,0.10)",
+  shadowLg:  "0 8px 28px rgba(0,0,0,0.16)",
+  duxOrange: "#e46a2e",
+  red:       "#FF3B30",
+};
 
-// ─── Data ─────────────────────────────────────────────────────
+// ─── PALETTES ─────────────────────────────────────────────────────────────
 const SKIN_TONES = [
   "#FDDBB4","#F8CDA0","#F0BC8A","#E8A87C",
   "#D4906A","#C07858","#A86040","#8C4A2C",
   "#7A3A20","#5C2810","#3E1808","#2A0E04",
 ];
-const HAIR_COLORS = [
-  {id:"blonde",hex:"#C8A456",label:"Blonde"},
-  {id:"brown", hex:"#5C2E18",label:"Brown"},
-  {id:"black", hex:"#150A04",label:"Black"},
-  {id:"red",   hex:"#8A2010",label:"Red"},
-  {id:"auburn",hex:"#5A2018",label:"Auburn"},
-  {id:"gray",  hex:"#787878",label:"Gray"},
-  {id:"white", hex:"#D8D8D0",label:"White"},
-  {id:"platinum",hex:"#C8C8BC",label:"Platinum"},
+const HAIR_COLORS: { id:string; hex:string; label:string }[] = [
+  {id:"black",   hex:"#150A04", label:"Black"},
+  {id:"brown",   hex:"#5C2E18", label:"Brown"},
+  {id:"chestnut",hex:"#7B3F1B", label:"Chestnut"},
+  {id:"auburn",  hex:"#8A3B20", label:"Auburn"},
+  {id:"red",     hex:"#9F2A18", label:"Red"},
+  {id:"blonde",  hex:"#D4B36A", label:"Blonde"},
+  {id:"platinum",hex:"#E0DCC8", label:"Platinum"},
+  {id:"silver",  hex:"#B8B8B8", label:"Silver"},
+  {id:"white",   hex:"#EAEAE0", label:"White"},
+  {id:"pink",    hex:"#E89AB8", label:"Pink"},
+  {id:"blue",    hex:"#5887BF", label:"Blue"},
+  {id:"purple",  hex:"#8A6FBF", label:"Purple"},
 ];
 const EYE_COLORS = [
-  {id:"brown",hex:"#4A2C10"},{id:"blue",hex:"#2860A8"},
-  {id:"green",hex:"#285830"},{id:"hazel",hex:"#6A5030"},
-  {id:"gray", hex:"#607080"},{id:"amber",hex:"#906810"},
+  {id:"brown",label:"Brown",hex:"#4A2C10"},
+  {id:"hazel",label:"Hazel",hex:"#7A5828"},
+  {id:"amber",label:"Amber",hex:"#A87010"},
+  {id:"green",label:"Green",hex:"#3A7444"},
+  {id:"blue", label:"Blue", hex:"#3878C8"},
+  {id:"sky",  label:"Sky",  hex:"#7AB4D8"},
+  {id:"gray", label:"Gray", hex:"#7A8898"},
+  {id:"violet",label:"Violet",hex:"#8060A0"},
 ];
-const HAIR_STYLES      = [{id:"pompadour",label:"Pompadour"},{id:"short",label:"Short"},{id:"buzz",label:"Buzz"},{id:"bob",label:"Bob"},{id:"long",label:"Long"},{id:"curly",label:"Curly"},{id:"bun",label:"Bun"},{id:"bald",label:"Bald"}];
-const FACE_SHAPES      = [{id:"oval",label:"Oval"},{id:"round",label:"Round"},{id:"square",label:"Square"},{id:"heart",label:"Heart"}];
-const FACIAL_HAIR_LIST = [{id:"none",label:"None"},{id:"stubble",label:"Stubble"},{id:"mustache",label:"Mustache"},{id:"beard-short",label:"Short Beard"},{id:"beard-full",label:"Full Beard"}];
-const OUTFITS          = [{id:"bowling-shirt",label:"Bowling Shirt"},{id:"letterman",label:"Letterman"},{id:"jersey",label:"Jersey"},{id:"polo",label:"Polo"},{id:"hoodie",label:"Hoodie"}];
-const ACCESSORIES_LIST = [{id:"glasses",label:"Glasses"},{id:"sunglasses",label:"Shades"},{id:"hat",label:"Cap"},{id:"headband",label:"Headband"},{id:"earrings",label:"Earrings"}];
+const LIP_COLORS = [
+  {id:"natural", label:"Natural", hex:"#C77860"},
+  {id:"pink",    label:"Pink",    hex:"#D8758C"},
+  {id:"red",     label:"Red",     hex:"#C03040"},
+  {id:"berry",   label:"Berry",   hex:"#9B3A60"},
+  {id:"nude",    label:"Nude",    hex:"#B8806B"},
+  {id:"plum",    label:"Plum",    hex:"#7B4060"},
+  {id:"coral",   label:"Coral",   hex:"#E08868"},
+  {id:"deep",    label:"Deep",    hex:"#5A2030"},
+];
+const BG_COLORS = [
+  "#FFB088","#F2A0BC","#FF9A9A","#C8A0F0",
+  "#9DB8F0","#88D0F0","#88E0C8","#A4E098",
+  "#FFD888","#F2BF80","#D4D4DC","#3C3C44",
+];
 
+// ─── STYLE OPTIONS ────────────────────────────────────────────────────────
+const HAIR_STYLES = [
+  {id:"bald",     label:"Bald"},
+  {id:"buzz",     label:"Buzz Cut"},
+  {id:"short",    label:"Short"},
+  {id:"pompadour",label:"Pompadour"},
+  {id:"bob",      label:"Bob"},
+  {id:"long",     label:"Long"},
+  {id:"curly",    label:"Curly"},
+  {id:"bun",      label:"Top Bun"},
+];
+const BROW_STYLES = [
+  {id:"default", label:"Natural"},
+  {id:"thin",    label:"Thin"},
+  {id:"thick",   label:"Thick"},
+  {id:"arched",  label:"Arched"},
+  {id:"angled",  label:"Angled"},
+  {id:"straight",label:"Straight"},
+];
+const EYE_SHAPES = [
+  {id:"almond",     label:"Almond"},
+  {id:"round",      label:"Round"},
+  {id:"narrow",     label:"Narrow"},
+  {id:"downturned", label:"Downturned"},
+];
+const NOSE_STYLES = [
+  {id:"default", label:"Natural"},
+  {id:"small",   label:"Small"},
+  {id:"button",  label:"Button"},
+  {id:"wide",    label:"Wide"},
+  {id:"long",    label:"Long"},
+];
+const MOUTH_SHAPES = [
+  {id:"default", label:"Natural"},
+  {id:"smile",   label:"Smile"},
+  {id:"neutral", label:"Neutral"},
+  {id:"small",   label:"Small"},
+  {id:"full",    label:"Full"},
+];
+const EAR_SIZES = [
+  {id:"small",   label:"Small"},
+  {id:"default", label:"Medium"},
+  {id:"large",   label:"Large"},
+];
+const FACE_SHAPES = [
+  {id:"oval",  label:"Oval"},
+  {id:"round", label:"Round"},
+  {id:"square",label:"Square"},
+  {id:"heart", label:"Heart"},
+];
+const FRECKLES_OPTS = [
+  {id:"none",  label:"None"},
+  {id:"light", label:"Light"},
+  {id:"heavy", label:"Heavy"},
+];
+const FACIAL_HAIRS = [
+  {id:"none",       label:"Clean"},
+  {id:"stubble",    label:"Stubble"},
+  {id:"mustache",   label:"Mustache"},
+  {id:"beard-short",label:"Goatee"},
+  {id:"beard-full", label:"Full Beard"},
+];
+const EYEWEAR = [
+  {id:"none",       label:"None"},
+  {id:"glasses",    label:"Glasses"},
+  {id:"sunglasses", label:"Shades"},
+];
+const HEADWEAR = [
+  {id:"none",     label:"None"},
+  {id:"hat",      label:"Cap"},
+  {id:"headband", label:"Headband"},
+];
+const OUTFITS = [
+  {id:"bowling-shirt", label:"Bowling"},
+  {id:"polo",          label:"Polo"},
+  {id:"letterman",     label:"Letterman"},
+  {id:"jersey",        label:"Jersey"},
+  {id:"hoodie",        label:"Hoodie"},
+];
+
+// ─── STATE TYPE ───────────────────────────────────────────────────────────
 type AvatarState = {
-  skinToneIdx:number; hairStyle:string; hairColor:string;
-  eyeColor:string; faceShape:string; facialHair:string;
-  outfit:string; accessories:string[]; bgColor:string;
+  skinToneIdx:number;
   gender:"male"|"female";
-};
-const DEFAULTS:AvatarState = {
-  skinToneIdx:3, hairStyle:"pompadour", hairColor:"brown",
-  eyeColor:"brown", faceShape:"oval", facialHair:"none",
-  outfit:"bowling-shirt", accessories:[], bgColor:"#e46a2e",
-  gender:"male",
+  hairStyle:string;
+  hairColor:string;
+  eyeColor:string;
+  faceShape:string;
+  facialHair:string;
+  outfit:string;
+  accessories:string[];   // legacy: derived from eyewear/headwear/earrings
+  bgColor:string;
+  // Memoji-style
+  freckles:"none"|"light"|"heavy";
+  browStyle:string;
+  eyeShape:string;
+  eyelashes:boolean;
+  noseStyle:string;
+  mouthShape:string;
+  lipColor:string;
+  earSize:string;
+  age:"young"|"adult"|"mature";
+  eyewear:string;
+  headwear:string;
+  earrings:boolean;
 };
 
-// ─── Color math ───────────────────────────────────────────────
+const DEFAULTS: AvatarState = {
+  skinToneIdx:3, gender:"male", hairStyle:"short", hairColor:"brown",
+  eyeColor:"brown", faceShape:"oval", facialHair:"none",
+  outfit:"bowling-shirt", accessories:[], bgColor:"#FFB088",
+  freckles:"none", browStyle:"default", eyeShape:"almond", eyelashes:false,
+  noseStyle:"default", mouthShape:"default", lipColor:"natural",
+  earSize:"default", age:"adult", eyewear:"none", headwear:"none", earrings:false,
+};
+
+// ─── COLOR MATH ───────────────────────────────────────────────────────────
 function hx(hex:string):[number,number,number]{return[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}
 function rh(r:number,g:number,b:number){return"#"+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");}
 function dk(hex:string,a:number){const[r,g,b]=hx(hex);return rh(r*(1-a),g*(1-a),b*(1-a));}
 function lt(hex:string,a:number){const[r,g,b]=hx(hex);return rh(r+(255-r)*a,g+(255-g)*a,b+(255-b)*a);}
-function shirtColor(o:string){return o==="bowling-shirt"?"#C03018":o==="letterman"?"#1A3A8C":o==="jersey"?"#186030":o==="polo"?"#284888":"#282838";}
 
-// ─────────────────────────────────────────────────────────────
-//  BOWLING ALLEY BACKGROUND SCENE
-// ─────────────────────────────────────────────────────────────
-function AlleyScene({w=520,h=340}:{w?:number;h?:number}) {
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} xmlns="http://www.w3.org/2000/svg" style={{display:"block"}}>
-      <defs>
-        <linearGradient id="ceil" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#0a0818"/>
-          <stop offset="100%" stopColor="#16122a"/>
-        </linearGradient>
-        <linearGradient id="floor" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#2a2010"/>
-          <stop offset="60%" stopColor="#1a1408"/>
-          <stop offset="100%" stopColor="#0e0c06"/>
-        </linearGradient>
-        <linearGradient id="lane1" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#d4a84a"/>
-          <stop offset="40%" stopColor="#b8922e"/>
-          <stop offset="100%" stopColor="#8a6818"/>
-        </linearGradient>
-        <linearGradient id="lane2" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#c89830"/>
-          <stop offset="40%" stopColor="#a87c20"/>
-          <stop offset="100%" stopColor="#7a5810"/>
-        </linearGradient>
-        <radialGradient id="lanelight" cx="50%" cy="0%" r="80%">
-          <stop offset="0%" stopColor="rgba(255,220,140,0.18)"/>
-          <stop offset="100%" stopColor="rgba(255,220,140,0)"/>
-        </radialGradient>
-        <radialGradient id="spot1" cx="30%" cy="5%" r="40%">
-          <stop offset="0%" stopColor="rgba(56,217,245,0.12)"/>
-          <stop offset="100%" stopColor="rgba(56,217,245,0)"/>
-        </radialGradient>
-        <radialGradient id="spot2" cx="70%" cy="5%" r="40%">
-          <stop offset="0%" stopColor="rgba(245,56,217,0.10)"/>
-          <stop offset="100%" stopColor="rgba(245,56,217,0)"/>
-        </radialGradient>
-        <filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
-        <filter id="blur4"><feGaussianBlur stdDeviation="4"/></filter>
-        <filter id="glow6">
-          <feGaussianBlur stdDeviation="6" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-
-      {/* Ceiling */}
-      <rect x="0" y="0" width={w} height={h*0.38} fill="url(#ceil)"/>
-      {/* Ceiling neon strips */}
-      {[0.2,0.5,0.8].map((x,i)=>(
-        <g key={i}>
-          <rect x={w*x-1} y="8" width="2" height={h*0.34} fill={i===1?NEON:NEON2} opacity="0.6" filter="url(#blur2)"/>
-          <rect x={w*x-4} y="8" width="8" height={h*0.34} fill={i===1?NEON:NEON2} opacity="0.08" filter="url(#blur4)"/>
-        </g>
-      ))}
-
-      {/* Floor */}
-      <rect x="0" y={h*0.38} width={w} height={h*0.62} fill="url(#floor)"/>
-
-      {/* Lanes — perspective projection */}
-      {[
-        {lx:30,rx:180,vanX:140},
-        {lx:170,rx:350,vanX:260},
-        {lx:340,rx:490,vanX:380},
-      ].map(({lx,rx,vanX},i)=>{
-        const vy = h*0.38;
-        const ty = h*0.88;
-        const vanY = h*0.38;
-        // Lane as trapezoid
-        const vanXn = vanX;
-        const spread = 18;
-        return (
-          <g key={i}>
-            {/* Lane surface */}
-            <path
-              d={`M${vanXn-spread},${vanY} L${vanXn+spread},${vanY} L${rx},${ty} L${lx},${ty} Z`}
-              fill={`url(#lane${i%2===0?"1":"2"})`}
-              opacity="0.92"
-            />
-            {/* Lane shine */}
-            <path
-              d={`M${vanXn-spread},${vanY} L${vanXn+spread},${vanY} L${rx},${ty} L${lx},${ty} Z`}
-              fill="url(#lanelight)" opacity="0.7"
-            />
-            {/* Lane boards — wood grain lines */}
-            {[0.15,0.3,0.45,0.6,0.75,0.9].map((t,j)=>{
-              const y = vanY + (ty-vanY)*t;
-              const halfW = spread + (((rx-lx)/2)-spread)*t;
-              return <line key={j} x1={vanXn-halfW} y1={y} x2={vanXn+halfW} y2={y}
-                stroke="rgba(0,0,0,0.12)" strokeWidth={0.5+t} />;
-            })}
-            {/* Foul line */}
-            <line
-              x1={vanXn-spread*0.9} y1={vanY + (ty-vanY)*0.08}
-              x2={vanXn+spread*0.9} y2={vanY + (ty-vanY)*0.08}
-              stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"
-            />
-            {/* Arrow markers */}
-            {[-1,0,1].map((d,k)=>{
-              const ay = vanY + (ty-vanY)*0.22;
-              const ax = vanXn + d*(spread*0.35);
-              return <polygon key={k}
-                points={`${ax},${ay-3} ${ax-2},${ay+3} ${ax+2},${ay+3}`}
-                fill="rgba(255,200,100,0.5)"
-              />;
-            })}
-            {/* Pins silhouette far end */}
-            {[-2,-1,0,1,2].map((d,k)=>{
-              const px = vanXn + d*3.5;
-              const py = vanY + 4;
-              return <ellipse key={k} cx={px} cy={py} rx="1.5" ry="2.5"
-                fill="white" opacity="0.5" />;
-            })}
-          </g>
-        );
-      })}
-
-      {/* Gutters */}
-      <rect x="28" y={h*0.38} width="6" height={h*0.5} fill="#111008" opacity="0.7" rx="1"/>
-      <rect x={w-34} y={h*0.38} width="6" height={h*0.5} fill="#111008" opacity="0.7" rx="1"/>
-
-      {/* Overhead lane lights */}
-      {[140,260,380].map((x,i)=>(
-        <g key={i}>
-          <ellipse cx={x} cy={h*0.37} rx="22" ry="5" fill="rgba(255,240,180,0.15)" filter="url(#blur4)"/>
-          <rect x={x-10} y="0" width="20" height={h*0.37} fill="rgba(255,240,180,0.04)"/>
-          {/* Light fixture */}
-          <rect x={x-12} y="12" width="24" height="8" rx="2" fill="#1a1828" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8"/>
-          <rect x={x-10} y="14" width="20" height="4" rx="1" fill="rgba(255,240,180,0.7)"/>
-        </g>
-      ))}
-
-      {/* Colored spot lights */}
-      <rect x="0" y="0" width={w} height={h} fill="url(#spot1)" opacity="0.8"/>
-      <rect x="0" y="0" width={w} height={h} fill="url(#spot2)" opacity="0.8"/>
-
-      {/* Scoreboard screen top-center */}
-      <rect x={w/2-55} y="4" width="110" height="30" rx="4"
-        fill="#0a0818" stroke="rgba(56,217,245,0.4)" strokeWidth="1.2"/>
-      <text x={w/2} y="17" textAnchor="middle" fill={NEON}
-        fontSize="7" fontWeight="900" fontFamily="monospace" letterSpacing="2">DUX BOWLING</text>
-      <text x={w/2} y="28" textAnchor="middle" fill="rgba(255,255,255,0.5)"
-        fontSize="6" fontFamily="monospace">LANE 4 · WALKERSVILLE</text>
-
-      {/* Ball return machine (right side) */}
-      <rect x={w-28} y={h*0.52} width="24" height="50" rx="4" fill="#1a1420" stroke="rgba(255,255,255,0.1)" strokeWidth="0.8"/>
-      <circle cx={w-16} cy={h*0.60} r="9" fill="#222" stroke={NEON} strokeWidth="1" opacity="0.7"/>
-      <circle cx={w-16} cy={h*0.60} r="6" fill="#111" opacity="0.8"/>
-
-      {/* Floor reflection */}
-      <rect x="0" y={h*0.75} width={w} height={h*0.25}
-        fill="url(#floor)" opacity="0.5"/>
-    </svg>
-  );
+// ─── DERIVE LEGACY accessories[] FROM NEW FIELDS ──────────────────────────
+function syncAccessories(s:AvatarState):AvatarState {
+  const acc:string[] = [];
+  if (s.eyewear === "glasses")    acc.push("glasses");
+  if (s.eyewear === "sunglasses") acc.push("sunglasses");
+  if (s.headwear === "hat")       acc.push("hat");
+  if (s.headwear === "headband")  acc.push("headband");
+  if (s.earrings)                 acc.push("earrings");
+  return { ...s, accessories: acc };
 }
 
-// ─────────────────────────────────────────────────────────────
-//  FULL BODY CARTOON CHARACTER — 3/4 VIEW
-// ─────────────────────────────────────────────────────────────
-function CharacterSVG({state,w=220,h=420}:{state:AvatarState;w?:number;h?:number}) {
-  const skin  = SKIN_TONES[state.skinToneIdx];
-  const skD   = dk(skin,0.22); const skDD = dk(skin,0.40); const skL = lt(skin,0.22); const skLL = lt(skin,0.42);
-  const hair  = HAIR_COLORS.find(h=>h.id===state.hairColor)?.hex??"#5C2E18";
-  const hrD   = dk(hair,0.30); const hrL = lt(hair,0.22);
-  const eye   = EYE_COLORS.find(e=>e.id===state.eyeColor)?.hex??"#4A2C10";
-  const shirt = shirtColor(state.outfit);
-  const shD   = dk(shirt,0.25); const shL = lt(shirt,0.22);
-  const pant  = "#2a2848"; const pntD = dk(pant,0.3); const pntL = lt(pant,0.2);
-  const shoe  = "#1a1010"; const shoL  = lt(shoe,0.3);
+// ═══════════════════════════════════════════════════════════════════════════
+// THUMBNAIL COMPONENTS — mini SVG previews per option
+// Each thumbnail is rendered on a soft circular gradient background
+// matching Memoji's option preview style.
+// ═══════════════════════════════════════════════════════════════════════════
 
-  // Cartoon proportions — big head, chunky body, visible legs
-  // Head center: (110, 110), radius ~55
-  // Torso: y 195–310
-  // Legs: y 310–390
-  // Feet: y 385–405
-
-  const uid = (s:string) => `ch-${s}-${state.skinToneIdx}-${state.hairColor}`;
-
-  return (
-    <svg viewBox="0 0 220 420" width={w} height={h} xmlns="http://www.w3.org/2000/svg" style={{display:"block",overflow:"visible"}}>
-      <defs>
-        {/* Face lighting */}
-        <radialGradient id={uid("face")} cx="38%" cy="28%" r="70%" fx="38%" fy="28%">
-          <stop offset="0%"   stopColor={skLL}/>
-          <stop offset="30%"  stopColor={skin}/>
-          <stop offset="72%"  stopColor={skD}/>
-          <stop offset="100%" stopColor={skDD}/>
-        </radialGradient>
-        {/* Hair */}
-        <radialGradient id={uid("hair")} cx="38%" cy="22%" r="72%">
-          <stop offset="0%"   stopColor={hrL}/>
-          <stop offset="50%"  stopColor={hair}/>
-          <stop offset="100%" stopColor={hrD}/>
-        </radialGradient>
-        {/* Shirt */}
-        <linearGradient id={uid("shirt")} x1="5%" y1="0%" x2="95%" y2="100%">
-          <stop offset="0%"   stopColor={shL}/>
-          <stop offset="55%"  stopColor={shirt}/>
-          <stop offset="100%" stopColor={shD}/>
-        </linearGradient>
-        {/* Pants */}
-        <linearGradient id={uid("pants")} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%"   stopColor={pntL}/>
-          <stop offset="100%" stopColor={pntD}/>
-        </linearGradient>
-        {/* Skin neck/arms */}
-        <linearGradient id={uid("skin-v")} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%"   stopColor={skD}/>
-          <stop offset="30%"  stopColor={skin}/>
-          <stop offset="70%"  stopColor={skL}/>
-          <stop offset="100%" stopColor={skD}/>
-        </linearGradient>
-        {/* Iris */}
-        <radialGradient id={uid("iris")} cx="32%" cy="28%" r="68%">
-          <stop offset="0%"   stopColor={lt(eye,0.4)}/>
-          <stop offset="55%"  stopColor={eye}/>
-          <stop offset="100%" stopColor={dk(eye,0.45)}/>
-        </radialGradient>
-        {/* Ground shadow */}
-        <radialGradient id={uid("shadow")} cx="50%" cy="50%" r="50%">
-          <stop offset="0%"   stopColor="rgba(0,0,0,0.45)"/>
-          <stop offset="100%" stopColor="rgba(0,0,0,0)"/>
-        </radialGradient>
-        {/* Rim light (from behind) */}
-        <filter id={uid("rim")}>
-          <feGaussianBlur stdDeviation="2.5" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        {/* Ambient occlusion */}
-        <filter id={uid("ao")}>
-          <feGaussianBlur stdDeviation="3" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        {/* SSS lips */}
-        <filter id={uid("sss")}>
-          <feGaussianBlur stdDeviation="1.2" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-
-      {/* Ground shadow */}
-      <ellipse cx="110" cy="410" rx="62" ry="10" fill={`url(#${uid("shadow")})`}/>
-
-      {/* ── SHOES ── */}
-      <Shoes shoe={shoe} shoL={shoL} pant={pant}/>
-
-      {/* ── LEGS ── */}
-      <Legs pant={pant} pntD={pntD} pntL={pntL} gradId={uid("pants")}/>
-
-      {/* ── BODY / SHIRT ── */}
-      <Body3D outfit={state.outfit} shirt={shirt} shD={shD} shL={shL} gradId={uid("shirt")} skin={skin} skD={skD}/>
-
-      {/* ── LEFT ARM (back) ── */}
-      <Arm side="left" shirt={shirt} shD={shD} shL={shL} skin={skin} skD={skD} skL={skL}/>
-
-      {/* ── NECK ── */}
-      <path d="M98,192 C96,204 96,214 98,222 L122,222 C124,214 124,204 122,192 Z" fill={`url(#${uid("skin-v")})`}/>
-      <path d="M104,194 C102,208 102,218 103,222" stroke={skD} strokeWidth="2" fill="none" opacity="0.25" strokeLinecap="round"/>
-
-      {/* ── HEAD ── */}
-      <Head3D
-        faceShape={state.faceShape} hairStyle={state.hairStyle}
-        skin={skin} skD={skD} skDD={skDD} skL={skL} skLL={skLL}
-        hair={hair} hrD={hrD} hrL={hrL}
-        eye={eye} facGrad={uid("face")} hairGrad={uid("hair")} irisGrad={uid("iris")} sssF={uid("sss")}
-        facialHair={state.facialHair}
-        accessories={state.accessories}
-      />
-
-      {/* ── RIGHT ARM (front) ── */}
-      <Arm side="right" shirt={shirt} shD={shD} shL={shL} skin={skin} skD={skD} skL={skL}/>
-    </svg>
-  );
-}
-
-// ── SHOES ────────────────────────────────────────────────────
-function Shoes({shoe,shoL,pant}:{shoe:string;shoL:string;pant:string}) {
-  return (
-    <g>
-      {/* Left shoe */}
-      <path d="M76,390 C68,390 62,396 62,400 C62,406 72,408 84,407 C94,406 98,402 96,398 L88,390 Z"
-        fill={shoe}/>
-      <path d="M68,394 C66,396 66,400 70,402" stroke={shoL} strokeWidth="1.5" fill="none" opacity="0.5" strokeLinecap="round"/>
-      <path d="M62,400 C70,398 84,400 96,398" stroke={shoL} strokeWidth="1" fill="none" opacity="0.3"/>
-      {/* Right shoe (3/4 view — slightly offset) */}
-      <path d="M118,392 C110,392 106,396 108,402 C110,407 122,408 134,406 C144,404 148,398 146,395 L136,390 Z"
-        fill={dk(shoe,0.1)}/>
-      <path d="M112,395 C110,398 111,402 116,404" stroke={shoL} strokeWidth="1.5" fill="none" opacity="0.4" strokeLinecap="round"/>
-      <path d="M108,401 C118,399 134,401 146,395" stroke={shoL} strokeWidth="1" fill="none" opacity="0.25"/>
-    </g>
-  );
-}
-
-// ── LEGS ─────────────────────────────────────────────────────
-function Legs({pant,pntD,pntL,gradId}:{pant:string;pntD:string;pntL:string;gradId:string}) {
-  return (
-    <g>
-      {/* Left leg */}
-      <path d="M82,312 C80,334 78,358 78,388 L96,390 C96,360 96,336 96,312 Z"
-        fill={`url(#${gradId})`}/>
-      {/* Left leg crease */}
-      <path d="M88,318 C87,340 86,362 86,386" stroke={pntD} strokeWidth="2" fill="none" opacity="0.35" strokeLinecap="round"/>
-      <path d="M84,330 C82,340 82,348 84,358" stroke={pntL} strokeWidth="1.5" fill="none" opacity="0.2" strokeLinecap="round"/>
-
-      {/* Right leg (front, slightly wider) */}
-      <path d="M112,312 C114,334 118,360 120,390 L136,388 C134,360 132,336 128,312 Z"
-        fill={pant}/>
-      {/* Right leg crease */}
-      <path d="M124,318 C123,342 122,364 122,386" stroke={pntD} strokeWidth="2" fill="none" opacity="0.4" strokeLinecap="round"/>
-      <path d="M116,326 C115,340 115,354 117,366" stroke={pntL} strokeWidth="1.5" fill="none" opacity="0.25" strokeLinecap="round"/>
-
-      {/* Belt */}
-      <path d="M80,310 C86,308 100,306 110,306 C120,306 134,308 140,310 L140,318 C134,316 120,314 110,314 C100,314 86,316 80,318 Z"
-        fill={dk(pant,0.4)} opacity="0.9"/>
-      {/* Belt buckle */}
-      <rect x="106" y="308" width="8" height="8" rx="1.5" fill="rgba(200,180,120,0.8)"/>
-      <rect x="108" y="310" width="4" height="4" rx="1" fill="rgba(180,160,100,0.6)"/>
-    </g>
-  );
-}
-
-// ── BODY (SHIRT) ──────────────────────────────────────────────
-function Body3D({outfit,shirt,shD,shL,gradId,skin,skD}:{outfit:string;shirt:string;shD:string;shL:string;gradId:string;skin:string;skD:string}) {
-  const accent = outfit==="letterman"?"#C8A020":outfit==="bowling-shirt"?"#F0E096":"#fff";
-  return (
-    <g>
-      {/* Main torso */}
-      <path d="M72,222 C66,234 62,252 62,272 L62,310 L158,310 L158,272 C158,252 154,234 148,222 C140,218 128,216 110,216 C92,216 80,218 72,222 Z"
-        fill={`url(#${gradId})`}/>
-
-      {/* Chest muscle definition */}
-      <path d="M76,240 C82,252 92,258 108,258 C124,258 136,252 140,240"
-        fill="none" stroke={shD} strokeWidth="2.5" opacity="0.22" strokeLinecap="round"/>
-
-      {/* Shoulder width — 3D curve */}
-      <path d="M62,228 C58,230 56,238 58,248 L66,248" fill={shD} opacity="0.3"/>
-      <path d="M158,228 C162,230 164,238 162,248 L154,248" fill={shD} opacity="0.2"/>
-
-      {/* Torso shadow left */}
-      <path d="M62,240 L66,310" stroke={shD} strokeWidth="10" fill="none" opacity="0.25" strokeLinecap="round"/>
-
-      {/* Outfit details */}
-      {outfit==="bowling-shirt" && (
-        <>
-          <path d="M110,224 L110,308" stroke={accent} strokeWidth="2" opacity="0.35"/>
-          {[242,260,278,296].map(y=>(
-            <ellipse key={y} cx="110" cy={y} rx="3.5" ry="2.5" fill={accent} opacity="0.7"/>
-          ))}
-          {/* Chest pocket */}
-          <path d="M76,246 L76,264 L94,264 L94,246 Z" fill="none" stroke={accent} strokeWidth="1.5" opacity="0.4" strokeLinejoin="round"/>
-          <path d="M76,250 L94,250" stroke={accent} strokeWidth="1" opacity="0.3"/>
-          {/* Retro side stripe */}
-          <path d="M66,232 L64,310" stroke={accent} strokeWidth="4" opacity="0.15"/>
-          <path d="M154,232 L156,310" stroke={accent} strokeWidth="4" opacity="0.12"/>
-          {/* Bowling pin on chest */}
-          <ellipse cx="130" cy="255" rx="7" ry="10" fill={accent} opacity="0.18"/>
-          <ellipse cx="130" cy="252" rx="4" ry="3" fill={accent} opacity="0.15"/>
-        </>
-      )}
-      {outfit==="letterman" && (
-        <>
-          <path d="M62,248 L68,248 L68,270 L62,270 Z" fill={accent} opacity="0.75"/>
-          <path d="M158,248 L152,248 L152,270 L158,270 Z" fill={accent} opacity="0.75"/>
-          <text x="92" y="280" fontSize="28" fontWeight="900" fill={accent} opacity="0.8" fontFamily="Georgia,serif">D</text>
-        </>
-      )}
-      {outfit==="jersey" && (
-        <>
-          <path d="M68,252 L152,252" stroke={accent} strokeWidth="4" opacity="0.3"/>
-          <path d="M68,264 L152,264" stroke={accent} strokeWidth="2.5" opacity="0.2"/>
-          <text x="88" y="296" fontSize="34" fontWeight="900" fill={accent} opacity="0.42" fontFamily="Impact,sans-serif">42</text>
-        </>
-      )}
-      {outfit==="hoodie" && (
-        <>
-          <path d="M80,222 C72,214 68,228" stroke={shL} strokeWidth="3" fill="none" opacity="0.5"/>
-          <path d="M140,222 C148,214 152,228" stroke={shL} strokeWidth="3" fill="none" opacity="0.5"/>
-          <path d="M90,286 L90,308 C90,310 94,312 110,312 C126,312 130,310 130,308 L130,286 Z" fill={shD} opacity="0.45"/>
-          <path d="M103,226 C101,240 100,256 101,270" stroke={shD} strokeWidth="2" fill="none" opacity="0.4" strokeLinecap="round"/>
-          <path d="M117,226 C119,240 120,256 119,270" stroke={shD} strokeWidth="2" fill="none" opacity="0.4" strokeLinecap="round"/>
-        </>
-      )}
-      {outfit==="polo" && (
-        <>
-          <path d="M102,224 L102,252" stroke={shD} strokeWidth="2.5" opacity="0.4"/>
-          {[232,244,256].map(y=><circle key={y} cx="101" cy={y} r="2.5" fill={shD} opacity="0.6"/>)}
-        </>
-      )}
-
-      {/* Collar */}
-      <Collar3D outfit={outfit} shirt={shirt} shD={shD} shL={shL}/>
-    </g>
-  );
-}
-
-function Collar3D({outfit,shirt,shD,shL}:{outfit:string;shirt:string;shD:string;shL:string}) {
-  if (outfit==="hoodie") return (
-    <g>
-      <path d="M88,224 C94,232 104,238 110,238 C116,238 126,232 132,224" fill={shD} opacity="0.5"/>
-      <path d="M90,226 C98,234 108,238 110,239 C112,238 122,234 130,226" stroke={lt(shirt,0.1)} strokeWidth="1.5" fill="none" opacity="0.3"/>
-    </g>
-  );
-  if (outfit==="polo") return (
-    <g>
-      <path d="M90,222 L96,238 L110,232 L124,238 L130,222 L124,228 L110,232 L96,228 Z" fill={shL} opacity="0.85"/>
-      <path d="M90,222 L96,238 L110,232 L124,238 L130,222" stroke={shD} strokeWidth="1" fill="none" opacity="0.4"/>
-    </g>
-  );
-  return (
-    <g>
-      <path d="M90,224 C86,228 84,238 86,246 L98,240 L110,236 Z" fill={shL} opacity="0.8"/>
-      <path d="M130,224 C134,228 136,238 134,246 L122,240 L110,236 Z" fill={shL} opacity="0.75"/>
-      <path d="M90,224 L98,240" stroke={shD} strokeWidth="1" fill="none" opacity="0.35"/>
-      <path d="M130,224 L122,240" stroke={shD} strokeWidth="1" fill="none" opacity="0.35"/>
-    </g>
-  );
-}
-
-// ── ARM ───────────────────────────────────────────────────────
-function Arm({side,shirt,shD,shL,skin,skD,skL}:{side:"left"|"right";shirt:string;shD:string;shL:string;skin:string;skD:string;skL:string}) {
-  const left = side==="left";
-  // Left arm goes behind body, right arm in front
-  const ax  = left ? 58  : 162;
-  const ay  = 232;
-  const elx = left ? 48  : 172;
-  const ely = 282;
-  const hx2  = left ? 50  : 168;
-  const hy  = 318;
-  return (
-    <g opacity={left?0.88:1}>
-      {/* Upper arm */}
-      <path
-        d={left
-          ? `M${ax},${ay} C${ax-4},${ay+18} ${elx-2},${ely-14} ${elx},${ely} L${ax+14},${ely} C${ax+16},${ely-14} ${ax+12},${ay+18} ${ax+10},${ay} Z`
-          : `M${ax},${ay} C${ax+4},${ay+18} ${elx+2},${ely-14} ${elx},${ely} L${ax-14},${ely} C${ax-16},${ely-14} ${ax-12},${ay+18} ${ax-10},${ay} Z`}
-        fill={shirt}
-      />
-      {/* Upper arm shadow */}
-      <path
-        d={left ? `M${ax+2},${ay+10} C${ax},${ay+28} ${elx},${ely-8} ${elx+2},${ely}` : `M${ax-2},${ay+10} C${ax},${ay+28} ${elx},${ely-8} ${elx-2},${ely}`}
-        stroke={shD} strokeWidth="5" fill="none" opacity="0.28" strokeLinecap="round"
-      />
-      {/* Forearm */}
-      <path
-        d={left
-          ? `M${elx},${ely} C${elx-2},${ely+16} ${hx2-2},${hy-14} ${hx2},${hy} L${hx2+12},${hy} C${hx2+14},${hy-14} ${elx+14},${ely+16} ${elx+14},${ely} Z`
-          : `M${elx},${ely} C${elx+2},${ely+16} ${hx2+2},${hy-14} ${hx2},${hy} L${hx2-12},${hy} C${hx2-14},${hy-14} ${elx-14},${ely+16} ${elx-14},${ely} Z`}
-        fill={shirt}
-      />
-      {/* Cuff */}
-      <path
-        d={left
-          ? `M${hx2-2},${hy-4} C${hx2-1},${hy+4} ${hx2+12},${hy+4} ${hx2+13},${hy-4} Z`
-          : `M${hx2-12},${hy-4} C${hx2-12},${hy+4} ${hx2+2},${hy+4} ${hx2+2},${hy-4} Z`}
-        fill={shD} opacity="0.7"
-      />
-      {/* Hand */}
-      <Hand3D side={side} skin={skin} skD={skD} skL={skL} hx={hx2} hy={hy}/>
-    </g>
-  );
-}
-
-function Hand3D({side,skin,skD,skL,hx:HX,hy:HY}:{side:"left"|"right";skin:string;skD:string;skL:string;hx:number;hy:number}) {
-  const flip = side==="left" ? 1 : -1;
-  const cx = HX+6;
-  return (
-    <g>
-      <ellipse cx={cx} cy={HY+10} rx="11" ry="13" fill={skin}/>
-      <path d={`M${cx-9},${HY+4} C${cx-8},${HY-2} ${cx},${HY-4} ${cx+8*flip},${HY-2} C${cx+9*flip},${HY+4}`}
-        stroke={skD} strokeWidth="1.2" fill="none" opacity="0.35"/>
-      {[-5,0,5,9].map((dx,i)=>(
-        <line key={i} x1={cx+dx} y1={HY+4} x2={cx+dx} y2={HY-3}
-          stroke={skin} strokeWidth="4.5" strokeLinecap="round" opacity="0.9"/>
-      ))}
-      <ellipse cx={cx-12*flip} cy={HY+8} rx="4" ry="7" fill={skin}
-        transform={`rotate(${22*flip},${cx-12*flip},${HY+8})`}/>
-      <path d={`M${cx-8},${HY+10} C${cx},${HY+6} ${cx+8},${HY+10}`}
-        stroke={skD} strokeWidth="1" fill="none" opacity="0.3" strokeLinecap="round"/>
-      <ellipse cx={cx} cy={HY+10} rx="8" ry="5" fill={skL} opacity="0.15"/>
-    </g>
-  );
-}
-
-// ── HEAD (3/4 view, cartoon proportions) ─────────────────────
-function Head3D({faceShape,hairStyle,skin,skD,skDD,skL,skLL,hair,hrD,hrL,eye,facGrad,hairGrad,irisGrad,sssF,facialHair,accessories}:{
-  faceShape:string;hairStyle:string;skin:string;skD:string;skDD:string;skL:string;skLL:string;
-  hair:string;hrD:string;hrL:string;eye:string;facGrad:string;hairGrad:string;irisGrad:string;sssF:string;
-  facialHair:string;accessories:string[];
-}) {
-  // Cartoon head — large cranium (~r55), smaller jaw
-  const cx=110, cy=112;
-  const fw = faceShape==="square"?56:faceShape==="heart"?52:faceShape==="round"?60:54;
-  const fh = faceShape==="oval"?72:faceShape==="square"?62:66;
-  const jawW = faceShape==="square"?50:faceShape==="heart"?36:faceShape==="round"?52:46;
-
-  return (
-    <g>
-      {/* Back hair (behind head) */}
-      {hairStyle!=="bald"&&hairStyle!=="buzz"&&hairStyle!=="short"&&(
-        <BackHair3D style={hairStyle} hair={hair} hrD={hrD} hrL={hrL} gradId={hairGrad} cx={cx} cy={cy} fw={fw} fh={fh}/>
-      )}
-
-      {/* Head shape — organic bezier */}
-      <path
-        d={`M${cx-fw},${cy-8}
-            C${cx-fw},${cy-fh-4} ${cx-fw+10},${cy-fh-12} ${cx},${cy-fh-4}
-            C${cx+fw-10},${cy-fh-12} ${cx+fw},${cy-fh-4} ${cx+fw},${cy-8}
-            C${cx+fw},${cy+26} ${cx+jawW/2+4},${cy+fh-4} ${cx+4},${cy+fh+6}
-            C${cx-4},${cy+fh+10} ${cx-jawW/2-4},${cy+fh-4} ${cx-fw},${cy+26}
-            Z`}
-        fill={`url(#${facGrad})`}
-      />
-
-      {/* Forehead highlight */}
-      <ellipse cx={cx-6} cy={cy-fh+18} rx={fw*0.55} ry={fh*0.30}
-        fill={skLL} opacity="0.45"/>
-
-      {/* Cheek glow */}
-      <ellipse cx={cx-fw+22} cy={cy+14} rx="20" ry="12" fill={skL} opacity="0.30"/>
-      <ellipse cx={cx+fw-22} cy={cy+14} rx="20" ry="12" fill={skL} opacity="0.28"/>
-
-      {/* Temple shadow */}
-      <path d={`M${cx-fw+3},${cy-12} C${cx-fw-2},${cy+4} ${cx-fw+2},${cy+22} ${cx-fw+10},${cy+34}`}
-        stroke={skDD} strokeWidth="7" fill="none" opacity="0.16" strokeLinecap="round"/>
-      <path d={`M${cx+fw-3},${cy-12} C${cx+fw+2},${cy+4} ${cx+fw-2},${cy+22} ${cx+fw-10},${cy+34}`}
-        stroke={skDD} strokeWidth="7" fill="none" opacity="0.14" strokeLinecap="round"/>
-
-      {/* Chin highlight */}
-      <ellipse cx={cx} cy={cy+fh} rx="16" ry="6" fill={skL} opacity="0.22"/>
-
-      {/* ── EARS ── */}
-      <Ear3D side="left"  skin={skin} skD={skD} skL={skL} cy={cy}/>
-      <Ear3D side="right" skin={skin} skD={skD} skL={skL} cy={cy}/>
-
-      {/* ── EYEBROWS ── */}
-      <Eyebrow3D side="left"  hair={hair} hrD={hrD} hrL={hrL} faceShape={faceShape} cx={cx} cy={cy}/>
-      <Eyebrow3D side="right" hair={hair} hrD={hrD} hrL={hrL} faceShape={faceShape} cx={cx} cy={cy}/>
-
-      {/* ── EYES ── */}
-      <Eye3D side="left"  eye={eye} irisGrad={irisGrad} skin={skin} skD={skD} skL={skL} cx={cx} cy={cy}/>
-      <Eye3D side="right" eye={eye} irisGrad={irisGrad} skin={skin} skD={skD} skL={skL} cx={cx} cy={cy}/>
-
-      {/* ── NOSE ── */}
-      <Nose3D skin={skin} skD={skD} skL={skL} cx={cx} cy={cy}/>
-
-      {/* ── MOUTH ── */}
-      <Mouth3D skin={skin} skD={skD} skL={skL} sssF={sssF} cx={cx} cy={cy}/>
-
-      {/* ── FRONT HAIR ── */}
-      {hairStyle!=="bald"&&(
-        <FrontHair3D style={hairStyle} hair={hair} hrD={hrD} hrL={hrL} gradId={hairGrad} cx={cx} cy={cy} fw={fw} fh={fh}/>
-      )}
-
-      {/* ── FACIAL HAIR ── */}
-      {facialHair!=="none"&&<FacialHair3D style={facialHair} hair={hair} hrD={hrD} cx={cx} cy={cy}/>}
-
-      {/* ── ACCESSORIES ── */}
-      {accessories.includes("glasses")    && <Glasses3D cx={cx} cy={cy}/>}
-      {accessories.includes("sunglasses") && <Sunglasses3D cx={cx} cy={cy}/>}
-      {accessories.includes("hat")        && <Hat3D hair={hair} hrD={hrD} hrL={hrL} cx={cx} cy={cy} fw={fw}/>}
-      {accessories.includes("headband")   && <Headband3D cx={cx} cy={cy} fw={fw}/>}
-      {accessories.includes("earrings")   && <Earrings3D cy={cy}/>}
-    </g>
-  );
-}
-
-function Ear3D({side,skin,skD,skL,cy}:{side:"left"|"right";skin:string;skD:string;skL:string;cy:number}) {
-  const x = side==="left" ? 55 : 165;
-  const flip = side==="left" ? 1 : -1;
-  return (
-    <g>
-      <ellipse cx={x} cy={cy+6} rx="10" ry="14" fill={skin} stroke={skD} strokeWidth="0.8"/>
-      <ellipse cx={x+flip*2} cy={cy+6} rx="5" ry="8" fill={skD} opacity="0.25"/>
-      <path d={side==="left" ? `M${x-6},${cy-6} C${x-9},${cy+4} ${x-9},${cy+16} ${x-5},${cy+22}` : `M${x+6},${cy-6} C${x+9},${cy+4} ${x+9},${cy+16} ${x+5},${cy+22}`}
-        stroke={skL} strokeWidth="2.5" fill="none" opacity="0.4" strokeLinecap="round"/>
-      <ellipse cx={x} cy={cy+19} rx="6" ry="4" fill={skin}/>
-    </g>
-  );
-}
-
-function Eyebrow3D({side,hair,hrD,hrL,faceShape,cx,cy}:{side:"left"|"right";hair:string;hrD:string;hrL:string;faceShape:string;cx:number;cy:number}) {
-  const bx = side==="left" ? cx-22 : cx+22;
-  const arch = faceShape==="round"?5:faceShape==="heart"?7:4;
-  return (
-    <g>
-      <path d={`M${bx-13},${cy-36+arch} C${bx-7},${cy-42-arch} ${bx+3},${cy-43-arch} ${bx+13},${cy-38+arch} C${bx+9},${cy-36+arch} ${bx+3},${cy-40-arch} ${bx-7},${cy-36+arch} Z`}
-        fill={hair} opacity="0.92"/>
-      <path d={`M${bx-11},${cy-37+arch} C${bx-4},${cy-41-arch} ${bx+2},${cy-41-arch} ${bx+9},${cy-38+arch}`}
-        stroke={lt(hair,0.3)} strokeWidth="1" fill="none" opacity="0.4" strokeLinecap="round"/>
-    </g>
-  );
-}
-
-function Eye3D({side,eye,irisGrad,skin,skD,skL,cx,cy}:{side:"left"|"right";eye:string;irisGrad:string;skin:string;skD:string;skL:string;cx:number;cy:number}) {
-  const ex = side==="left" ? cx-22 : cx+22;
-  const ey2 = cy-18;
-  return (
-    <g>
-      {/* Socket shadow */}
-      <ellipse cx={ex} cy={ey2} rx="15" ry="11" fill={dk(skin,0.25)} opacity="0.32"/>
-      {/* Sclera */}
-      <path d={`M${ex-12},${ey2} C${ex-12},${ey2-8} ${ex+12},${ey2-8} ${ex+12},${ey2} C${ex+12},${ey2+7} ${ex-12},${ey2+7} ${ex-12},${ey2} Z`}
-        fill="#F5EEE4"/>
-      {/* Iris clip */}
-      <clipPath id={`eye3d-${side}`}>
-        <path d={`M${ex-12},${ey2} C${ex-12},${ey2-8} ${ex+12},${ey2-8} ${ex+12},${ey2} C${ex+12},${ey2+7} ${ex-12},${ey2+7} ${ex-12},${ey2} Z`}/>
-      </clipPath>
-      <circle cx={ex} cy={ey2+1} r="8" fill={`url(#${irisGrad})`} clipPath={`url(#eye3d-${side})`}/>
-      {/* Iris texture */}
-      <circle cx={ex} cy={ey2+1} r="8" fill="none" stroke={dk(eye,0.3)} strokeWidth="1.5" strokeDasharray="1.8 2.2" opacity="0.3" clipPath={`url(#eye3d-${side})`}/>
-      {/* Limbal ring */}
-      <circle cx={ex} cy={ey2+1} r="8" fill="none" stroke={dk(eye,0.6)} strokeWidth="1.2" opacity="0.55" clipPath={`url(#eye3d-${side})`}/>
-      {/* Pupil */}
-      <circle cx={ex} cy={ey2+1} r="4.2" fill="#0A0605" clipPath={`url(#eye3d-${side})`}/>
-      {/* Specular */}
-      <ellipse cx={ex+3} cy={ey2-3} rx="3.5" ry="2.5" fill="white" opacity="0.18" clipPath={`url(#eye3d-${side})`}/>
-      <circle cx={ex+3.5} cy={ey2-3.5} r="1.8" fill="white" opacity="0.9" clipPath={`url(#eye3d-${side})`}/>
-      <circle cx={ex-3} cy={ey2+3} r="1" fill="white" opacity="0.3" clipPath={`url(#eye3d-${side})`}/>
-      {/* Upper lid */}
-      <path d={`M${ex-12},${ey2} C${ex-5},${ey2-12} ${ex+5},${ey2-12} ${ex+12},${ey2}`}
-        stroke={dk(skin,0.4)} strokeWidth="1.5" fill="none" opacity="0.6" strokeLinecap="round"/>
-      {/* Lash line */}
-      <path d={`M${ex-12},${ey2-1} C${ex-5},${ey2-11} ${ex+4},${ey2-11} ${ex+12},${ey2-2}`}
-        stroke="#0A0605" strokeWidth="2.2" fill="none" opacity="0.9" strokeLinecap="round"/>
-      {/* Individual lashes */}
-      {[-9,-4,1,6,10].map((dx,i)=>{
-        const lx=ex+dx; const ly=ey2-9; const ang=(dx/12)*0.4;
-        return <line key={i} x1={lx} y1={ly} x2={lx+Math.sin(ang)*4} y2={ly-Math.cos(ang)*5-(i===2?1:0)}
-          stroke="#0A0605" strokeWidth={i===2?"1.8":"1.4"} opacity="0.7" strokeLinecap="round"/>;
-      })}
-      {/* Lower lash */}
-      <path d={`M${ex-10},${ey2+6} C${ex},${ey2+9} ${ex+10},${ey2+6}`}
-        stroke={dk(skin,0.4)} strokeWidth="1" fill="none" opacity="0.35" strokeLinecap="round"/>
-      {/* Tear duct */}
-      <circle cx={side==="left"?ex-11:ex+11} cy={ey2+1} r="1.8" fill={lt(skin,0.15)} opacity="0.55"/>
-    </g>
-  );
-}
-
-function Nose3D({skin,skD,skL,cx,cy}:{skin:string;skD:string;skL:string;cx:number;cy:number}) {
-  return (
-    <g>
-      <path d={`M${cx-2},${cy-2} C${cx-4},${cy+12} ${cx-6},${cy+22} ${cx-10},${cy+26}`}
-        stroke={skL} strokeWidth="2" fill="none" opacity="0.4" strokeLinecap="round"/>
-      <path d={`M${cx-4},${cy-1} C${cx-7},${cy+14} ${cx-10},${cy+22} ${cx-13},${cy+26}`}
-        stroke={skD} strokeWidth="2" fill="none" opacity="0.2" strokeLinecap="round"/>
-      <path d={`M${cx-14},${cy+24} C${cx-17},${cy+27} ${cx-17},${cy+32} ${cx-13},${cy+34} C${cx-8},${cy+36} ${cx+8},${cy+36} ${cx+13},${cy+34} C${cx+17},${cy+32} ${cx+17},${cy+27} ${cx+14},${cy+24} C${cx+8},${cy+28} ${cx-8},${cy+28} ${cx-14},${cy+24} Z`}
-        fill={skD} opacity="0.22"/>
-      <ellipse cx={cx} cy={cy+28} rx="6" ry="4" fill={skL} opacity="0.28"/>
-      <path d={`M${cx-14},${cy+28} C${cx-17},${cy+30} ${cx-17},${cy+34} ${cx-14},${cy+35} C${cx-11},${cy+36} ${cx-9},${cy+33} ${cx-10},${cy+30} Z`}
-        fill={skD} opacity="0.4"/>
-      <path d={`M${cx+14},${cy+28} C${cx+17},${cy+30} ${cx+17},${cy+34} ${cx+14},${cy+35} C${cx+11},${cy+36} ${cx+9},${cy+33} ${cx+10},${cy+30} Z`}
-        fill={skD} opacity="0.4"/>
-      <circle cx={cx-14} cy={cy+31} r="1.3" fill={skL} opacity="0.28"/>
-      <circle cx={cx+14} cy={cy+31} r="1.3" fill={skL} opacity="0.28"/>
-    </g>
-  );
-}
-
-function Mouth3D({skin,skD,skL,sssF,cx,cy}:{skin:string;skD:string;skL:string;sssF:string;cx:number;cy:number}) {
-  const lip = dk(skin,0.26); const lipL = lt(lip,0.22);
-  return (
-    <g filter={`url(#${sssF})`}>
-      {/* Philtrum */}
-      <path d={`M${cx-5},${cy+44} C${cx-4},${cy+48} ${cx-4},${cy+50} ${cx-3},${cy+53}`}
-        stroke={skD} strokeWidth="1.5" fill="none" opacity="0.25" strokeLinecap="round"/>
-      <path d={`M${cx+5},${cy+44} C${cx+4},${cy+48} ${cx+4},${cy+50} ${cx+3},${cy+53}`}
-        stroke={skD} strokeWidth="1.5" fill="none" opacity="0.25" strokeLinecap="round"/>
-      {/* Corners */}
-      <circle cx={cx-16} cy={cy+54} r="2.5" fill={skD} opacity="0.25"/>
-      <circle cx={cx+16} cy={cy+54} r="2.5" fill={skD} opacity="0.25"/>
-      {/* Upper lip */}
-      <path d={`M${cx-16},${cy+54} C${cx-10},${cy+48} ${cx-4},${cy+46} ${cx},${cy+49} C${cx+4},${cy+46} ${cx+10},${cy+48} ${cx+16},${cy+54} C${cx+10},${cy+56} ${cx+4},${cy+56} ${cx},${cy+56} C${cx-4},${cy+56} ${cx-10},${cy+56} ${cx-16},${cy+54} Z`}
-        fill={lip}/>
-      {/* Cupid's bow highlight */}
-      <path d={`M${cx-12},${cy+50} C${cx-6},${cy+47} ${cx},${cy+49} C${cx+6},${cy+47} ${cx+12},${cy+50}`}
-        stroke={lipL} strokeWidth="1.2" fill="none" opacity="0.5" strokeLinecap="round"/>
-      {/* Lower lip */}
-      <path d={`M${cx-16},${cy+55} C${cx-10},${cy+62} ${cx-4},${cy+64} ${cx},${cy+64} C${cx+4},${cy+64} ${cx+10},${cy+62} ${cx+16},${cy+55} C${cx+10},${cy+57} ${cx+4},${cy+58} ${cx},${cy+58} C${cx-4},${cy+58} ${cx-10},${cy+57} ${cx-16},${cy+55} Z`}
-        fill={lt(lip,0.08)}/>
-      {/* Lower lip highlight */}
-      <ellipse cx={cx} cy={cy+60} rx="10" ry="3.5" fill={lipL} opacity="0.4"/>
-      <ellipse cx={cx} cy={cy+58} rx="5" ry="2.5" fill={lipL} opacity="0.55"/>
-      {/* Lip line */}
-      <path d={`M${cx-15},${cy+54} C${cx-6},${cy+54} ${cx+6},${cy+54} ${cx+15},${cy+54}`}
-        stroke={dk(lip,0.3)} strokeWidth="0.8" fill="none" opacity="0.55"/>
-    </g>
-  );
-}
-
-function BackHair3D({style,hair,hrD,hrL,gradId,cx,cy,fw,fh}:{style:string;hair:string;hrD:string;hrL:string;gradId:string;cx:number;cy:number;fw:number;fh:number}) {
-  if (style==="long") return <g>
-    <path d={`M${cx-fw+2},${cy} C${cx-fw-4},${cy+30} ${cx-fw},${cy+80} ${cx-fw+8},${cy+110} L${cx-fw+20},${cy+115} C${cx-fw+14},${cy+82} ${cx-fw+8},${cy+34} ${cx-fw+10},${cy+2} Z`} fill={`url(#${gradId})`}/>
-    <path d={`M${cx+fw-2},${cy} C${cx+fw+4},${cy+30} ${cx+fw},${cy+80} ${cx+fw-8},${cy+110} L${cx+fw-20},${cy+115} C${cx+fw-14},${cy+82} ${cx+fw-8},${cy+34} ${cx+fw-10},${cy+2} Z`} fill={`url(#${gradId})`}/>
-    <ellipse cx={cx} cy={cy+fh+50} rx={fw-8} ry="42" fill={hrD} opacity="0.6"/>
-  </g>;
-  if (style==="bob") return <path d={`M${cx-fw},${cy} C${cx-fw-4},${cy+18} ${cx-fw-2},${cy+48} ${cx-fw+8},${cy+70} C${cx-fw+24},${cy+74} ${cx+fw-24},${cy+74} ${cx+fw-8},${cy+70} C${cx+fw+2},${cy+48} ${cx+fw+4},${cy+18} ${cx+fw},${cy} Z`} fill={`url(#${gradId})`} opacity="0.95"/>;
-  if (style==="curly") return <g>{[[cx-fw+4,cy+20,22],[cx-fw+2,cy+48,20],[cx+fw-4,cy+20,22],[cx+fw-2,cy+48,20],[cx,cy+fh+22,24]].map(([bx,by,r],i)=><circle key={i} cx={bx} cy={by} r={r} fill={i%2===0?hair:hrD} opacity="0.88"/>)}</g>;
-  if (style==="bun") return <circle cx={cx} cy={cy-fh-14} r="22" fill={`url(#${gradId})`}/>;
-  return null;
-}
-
-function FrontHair3D({style,hair,hrD,hrL,gradId,cx,cy,fw,fh}:{style:string;hair:string;hrD:string;hrL:string;gradId:string;cx:number;cy:number;fw:number;fh:number}) {
-  if (style==="bald") return null;
-  const hy = cy-fh;
-  if (style==="pompadour") return <g>
-    <path d={`M${cx-fw},${cy-6} C${cx-fw},${hy-6} ${cx-fw+10},${hy-16} ${cx},${hy-8} C${cx+fw-10},${hy-16} ${cx+fw},${hy-6} ${cx+fw},${cy-6} C${cx+fw-4},${cy-18} ${cx+fw-16},${cy-26} ${cx},${cy-22} C${cx-fw+16},${cy-26} ${cx-fw+4},${cy-18} ${cx-fw},${cy-6} Z`} fill={`url(#${gradId})`}/>
-    <path d={`M${cx-fw+4},${cy-8} C${cx-fw+8},${hy-2} ${cx-fw+18},${hy-10} ${cx},${hy-4} C${cx+fw-18},${hy-10} ${cx+fw-8},${hy-2} ${cx+fw-4},${cy-8}`} fill={hrD} opacity="0.45"/>
-    <path d={`M${cx-fw*0.5},${cy-22} C${cx-fw*0.3},${hy-10} ${cx-fw*0.1},${hy-14} ${cx+fw*0.15},${hy-6}`} stroke={hrL} strokeWidth="10" fill="none" opacity="0.4" strokeLinecap="round"/>
-    {[cx-fw*0.6,cx-fw*0.3,cx,cx+fw*0.3,cx+fw*0.5].map((x,i)=><path key={i} d={`M${x},${cy-14} C${x-2},${cy-28} ${x+2},${hy-6} ${x+3},${hy-2}`} stroke={hrD} strokeWidth="1.2" fill="none" opacity="0.2" strokeLinecap="round"/>)}
-  </g>;
-  if (style==="short") return <g>
-    <path d={`M${cx-fw},${cy-4} C${cx-fw},${hy-4} ${cx-fw+8},${hy-12} ${cx},${hy-6} C${cx+fw-8},${hy-12} ${cx+fw},${hy-4} ${cx+fw},${cy-4} C${cx+fw-6},${cy-18} ${cx+8},${cy-20} ${cx-8},${cy-20} C${cx-fw+6},${cy-18} ${cx-fw},${cy-4} Z`} fill={`url(#${gradId})`}/>
-    <path d={`M${cx-8},${cy-18} C${cx-4},${cy-24} ${cx+4},${cy-22} ${cx+8},${cy-18}`} stroke={hrL} strokeWidth="6" fill="none" opacity="0.3" strokeLinecap="round"/>
-    <path d={`M${cx-fw},${cy-4} C${cx-fw+8},${cy-2} ${cx-fw/2},${cy} ${cx},${cy} C${cx+fw/2},${cy} ${cx+fw-8},${cy-2} ${cx+fw},${cy-4}`} stroke={hrD} strokeWidth="2" fill="none" opacity="0.45"/>
-  </g>;
-  if (style==="buzz") return <g>
-    <path d={`M${cx-fw},${cy-4} C${cx-fw},${hy-2} ${cx-fw+8},${hy-10} ${cx},${hy-4} C${cx+fw-8},${hy-10} ${cx+fw},${hy-2} ${cx+fw},${cy-4} Z`} fill={hair} opacity="0.82"/>
-    {[cx-fw*0.7,cx-fw*0.4,cx-fw*0.1,cx+fw*0.2,cx+fw*0.5,cx+fw*0.7].flatMap((x,i)=>[cy-10,cy-18,cy-26].map((y,j)=><circle key={`${i}-${j}`} cx={x+(i%2)*2} cy={y} r="1.3" fill={hrD} opacity="0.4"/>))}
-    <path d={`M${cx-fw},${cy-4} C${cx-fw/2},${cy} ${cx},${cy} C${cx+fw/2},${cy} ${cx+fw},${cy-4}`} stroke={hrD} strokeWidth="2.5" fill="none" opacity="0.5"/>
-  </g>;
-  if (style==="bob") return <g>
-    <path d={`M${cx-fw},${cy-2} C${cx-fw+2},${hy-4} ${cx-fw+10},${hy-12} ${cx},${hy-6} C${cx+fw-10},${hy-12} ${cx+fw-2},${hy-4} ${cx+fw},${cy-2} Z`} fill={`url(#${gradId})`}/>
-    <path d={`M${cx-fw},${cy-2} C${cx-fw/2},${cy+2} ${cx},${cy+2} C${cx+fw/2},${cy+2} ${cx+fw},${cy-2}`} stroke={hrD} strokeWidth="3" fill="none" opacity="0.55"/>
-    <path d={`M${cx-fw*0.5},${hy+6} C${cx-fw*0.2},${hy-4} ${cx+fw*0.1},${hy-8} ${cx+fw*0.4},${hy}`} stroke={hrL} strokeWidth="9" fill="none" opacity="0.35" strokeLinecap="round"/>
-  </g>;
-  if (style==="long") return <g>
-    <path d={`M${cx-fw},${cy-2} C${cx-fw+2},${hy-4} ${cx-fw+10},${hy-12} ${cx},${hy-6} C${cx+fw-10},${hy-12} ${cx+fw-2},${hy-4} ${cx+fw},${cy-2} Z`} fill={`url(#${gradId})`}/>
-    <path d={`M${cx},${hy-6} L${cx},${cy-2}`} stroke={hrD} strokeWidth="2" fill="none" opacity="0.4"/>
-    <path d={`M${cx-fw*0.4},${hy} C${cx-fw*0.1},${hy-8} ${cx+fw*0.1},${hy-6} ${cx+fw*0.4},${hy}`} stroke={hrL} strokeWidth="9" fill="none" opacity="0.4" strokeLinecap="round"/>
-  </g>;
-  if (style==="curly") return <g>{[[cx-fw*0.7,cy-18,18],[cx-fw*0.3,cy-26,20],[cx,cy-28,20],[cx+fw*0.3,cy-24,18],[cx+fw*0.6,cy-18,16],[cx-fw*0.5,cy-8,16],[cx+fw*0.5,cy-8,16]].map(([bx,by,r],i)=><circle key={i} cx={bx} cy={by} r={r} fill={i%3===0?hair:i%3===1?hrD:lt(hair,0.1)} opacity="0.92"/>)}</g>;
-  if (style==="bun") return <g>
-    <path d={`M${cx-fw},${cy-4} C${cx-fw+2},${hy-2} ${cx-fw+10},${hy-10} ${cx},${hy-4} C${cx+fw-10},${hy-10} ${cx+fw-2},${hy-2} ${cx+fw},${cy-4} Z`} fill={`url(#${gradId})`}/>
-    <circle cx={cx} cy={cy-fh-14} r="22" fill={`url(#${gradId})`}/>
-    <circle cx={cx} cy={cy-fh-14} r="16" fill={hrD} opacity="0.3"/>
-    <ellipse cx={cx-8} cy={cy-fh-20} rx="7" ry="5" fill={hrL} opacity="0.3" transform={`rotate(-20,${cx-8},${cy-fh-20})`}/>
-    <ellipse cx={cx} cy={cy-fh-2} rx="20" ry="5" fill={hrD} opacity="0.65"/>
-  </g>;
-  return null;
-}
-
-function FacialHair3D({style,hair,hrD,cx,cy}:{style:string;hair:string;hrD:string;cx:number;cy:number}) {
-  const my = cy+52;
-  if (style==="stubble") return <g opacity="0.55">{[cx-14,cx-8,cx-2,cx+4,cx+10,cx+15].flatMap((x,i)=>[my+2,my+6,my+10].map((y,j)=><circle key={`${i}-${j}`} cx={x+(i%2)} cy={y+(j%2)} r={0.9+Math.random()*0.7} fill={hair} opacity={0.5+Math.random()*0.35}/>))}</g>;
-  if (style==="mustache") return <g><path d={`M${cx-15},${my-2} C${cx-9},${my-7} ${cx-4},${my-9} ${cx},${my-7} C${cx+4},${my-9} ${cx+9},${my-7} ${cx+15},${my-2} C${cx+9},${my+2} ${cx+4},${my+1} ${cx},${my+1} C${cx-4},${my+1} ${cx-9},${my+2} ${cx-15},${my-2} Z`} fill={hair}/><path d={`M${cx-13},${my-4} C${cx-7},${my-7} ${cx},${my-7}`} stroke={lt(hair,0.3)} strokeWidth="1.5" fill="none" opacity="0.45" strokeLinecap="round"/></g>;
-  if (style==="beard-short") return <g>
-    <path d={`M${cx-15},${my-2} C${cx-9},${my-7} ${cx-4},${my-9} ${cx},${my-7} C${cx+4},${my-9} ${cx+9},${my-7} ${cx+15},${my-2} C${cx+9},${my+2} ${cx+4},${my+1} ${cx},${my+1} C${cx-4},${my+1} ${cx-9},${my+2} ${cx-15},${my-2} Z`} fill={hair}/>
-    <path d={`M${cx-18},${my+2} C${cx-18},${my+16} ${cx-14},${my+26} ${cx-6},${my+30} C${cx+6},${my+30} ${cx+14},${my+26} ${cx+18},${my+16} C${cx+18},${my+6} ${cx+12},${my+4} ${cx},${my+4} C${cx-12},${my+4} ${cx-18},${my+6} ${cx-18},${my+2} Z`} fill={hair} opacity="0.88"/>
-    <path d={`M${cx-4},${my+2} C${cx-3},${my+14} ${cx-2},${my+22} ${cx-1},${my+28}`} stroke={lt(hair,0.25)} strokeWidth="2.5" fill="none" opacity="0.3" strokeLinecap="round"/>
-  </g>;
-  if (style==="beard-full") return <g>
-    <path d={`M${cx-15},${my-4} C${cx-9},${my-9} ${cx-4},${my-11} ${cx},${my-9} C${cx+4},${my-11} ${cx+9},${my-9} ${cx+15},${my-4} C${cx+9},${my+1} ${cx+4},${my} ${cx},${my} C${cx-4},${my} ${cx-9},${my+1} ${cx-15},${my-4} Z`} fill={hair}/>
-    <path d={`M${cx-22},${my+2} C${cx-24},${my+22} ${cx-20},${my+44} ${cx-10},${my+52} C${cx+10},${my+52} ${cx+20},${my+44} ${cx+22},${my+22} C${cx+22},${my+6} ${cx+14},${my+4} ${cx},${my+4} C${cx-14},${my+4} ${cx-22},${my+6} ${cx-22},${my+2} Z`} fill={hair} opacity="0.9"/>
-    <path d={`M${cx-22},${my+4} C${cx-22},${my+22} ${cx-18},${my+40} ${cx-10},${my+50}`} stroke={hrD} strokeWidth="5" fill="none" opacity="0.28" strokeLinecap="round"/>
-    <path d={`M${cx-2},${my+4} C${cx-1},${my+20} ${cx},${my+36} ${cx+1},${my+48}`} stroke={lt(hair,0.28)} strokeWidth="3.5" fill="none" opacity="0.3" strokeLinecap="round"/>
-  </g>;
-  return null;
-}
-
-function Glasses3D({cx,cy}:{cx:number;cy:number}) {
-  const ey = cy-18;
-  return <g>
-    <path d={`M${cx-28},${ey+2} L${cx-22},${ey+2}`} stroke="#2A2420" strokeWidth="2.5" strokeLinecap="round"/>
-    <path d={`M${cx+22},${ey+2} L${cx+28},${ey+2}`} stroke="#2A2420" strokeWidth="2.5" strokeLinecap="round"/>
-    <line x1={cx-10} y1={ey+2} x2={cx+10} y2={ey+2} stroke="#2A2420" strokeWidth="2"/>
-    <rect x={cx-22} y={ey-7} width="32" height="18" rx="8" fill="rgba(180,210,255,0.12)" stroke="#2A2420" strokeWidth="2"/>
-    <rect x={cx+10} y={ey-7} width="32" height="18" rx="8" fill="rgba(180,210,255,0.12)" stroke="#2A2420" strokeWidth="2"/>
-    <path d={`M${cx-20},${ey-5} C${cx-16},${ey-7} ${cx-10},${ey-6}`} stroke="white" strokeWidth="1.5" fill="none" opacity="0.45" strokeLinecap="round"/>
-    <path d={`M${cx+12},${ey-5} C${cx+16},${ey-7} ${cx+22},${ey-6}`} stroke="white" strokeWidth="1.5" fill="none" opacity="0.45" strokeLinecap="round"/>
-  </g>;
-}
-
-function Sunglasses3D({cx,cy}:{cx:number;cy:number}) {
-  const ey = cy-18;
-  return <g>
-    <path d={`M${cx-28},${ey+2} L${cx-22},${ey+2}`} stroke="#111" strokeWidth="2.5" strokeLinecap="round"/>
-    <path d={`M${cx+22},${ey+2} L${cx+28},${ey+2}`} stroke="#111" strokeWidth="2.5" strokeLinecap="round"/>
-    <line x1={cx-10} y1={ey+2} x2={cx+10} y2={ey+2} stroke="#1a1a1a" strokeWidth="2.2"/>
-    <rect x={cx-22} y={ey-7} width="32" height="18" rx="8" fill="#111" stroke="#2a2a2a" strokeWidth="1.8"/>
-    <rect x={cx+10} y={ey-7} width="32" height="18" rx="8" fill="#111" stroke="#2a2a2a" strokeWidth="1.8"/>
-    <path d={`M${cx-20},${ey-5} L${cx-12},${ey-5} L${cx-15},${ey+1} Z`} fill="white" opacity="0.09"/>
-    <path d={`M${cx+12},${ey-5} L${cx+20},${ey-5} L${cx+17},${ey+1} Z`} fill="white" opacity="0.09"/>
-  </g>;
-}
-
-function Hat3D({hair,hrD,hrL,cx,cy,fw}:{hair:string;hrD:string;hrL:string;cx:number;cy:number;fw:number}) {
-  const fh2 = 72; const hy = cy-fh2;
-  const brim = dk(hair,0.32);
-  return <g>
-    <path d={`M${cx-fw},${cy-6} C${cx-fw+2},${hy-6} ${cx-fw+12},${hy-16} ${cx},${hy-10} C${cx+fw-12},${hy-16} ${cx+fw-2},${hy-6} ${cx+fw},${cy-6} C${cx+fw-8},${cy-20} ${cx+8},${cy-22} ${cx-8},${cy-22} C${cx-fw+8},${cy-20} ${cx-fw},${cy-6} Z`} fill={hair}/>
-    <path d={`M${cx-fw+4},${cy-8} C${cx-fw+6},${hy-2} ${cx-fw+14},${hy-10} ${cx},${hy-6} C${cx+fw-14},${hy-10} ${cx+fw-6},${hy-2} ${cx+fw-4},${cy-8}`} fill={hrD} opacity="0.4"/>
-    <path d={`M${cx-fw*0.5},${cy-20} C${cx-fw*0.2},${hy-8} ${cx+fw*0.15},${hy-10}`} stroke={hrL} strokeWidth="8" fill="none" opacity="0.38" strokeLinecap="round"/>
-    <ellipse cx={cx} cy={cy-6} rx={fw+6} ry="12" fill={brim}/>
-    <path d={`M${cx-fw-4},${cy-9} C${cx-fw/2},${cy-4} ${cx},${cy-4} C${cx+fw/2},${cy-4} ${cx+fw+4},${cy-9}`} stroke={lt(brim,0.18)} strokeWidth="2" fill="none" opacity="0.4" strokeLinecap="round"/>
-    <path d={`M${cx-fw},${cy-6} C${cx-fw+6},${cy-1} ${cx},${cy-1} C${cx+fw},${cy-1} ${cx+fw},${cy-6}`} stroke={hrD} strokeWidth="2" fill="none" opacity="0.4"/>
-    <circle cx={cx} cy={hy-8} r="4.5" fill={hrD}/>
-  </g>;
-}
-
-function Headband3D({cx,cy,fw}:{cx:number;cy:number;fw:number}) {
-  const hy = cy-68;
-  return <g>
-    <path d={`M${cx-fw+2},${hy+14} C${cx-fw/2},${hy+8} ${cx},${hy+6} C${cx+fw/2},${hy+8} ${cx+fw-2},${hy+14} C${cx+fw-4},${hy+20} ${cx+fw/2},${hy+16} ${cx},${hy+16} C${cx-fw/2},${hy+16} ${cx-fw+4},${hy+20} ${cx-fw+2},${hy+14} Z`} fill={ORANGE}/>
-    <path d={`M${cx-fw+4},${hy+13} C${cx-fw/2+2},${hy+8} ${cx},${hy+7} C${cx+fw/2-2},${hy+8} ${cx+fw-4},${hy+13}`} stroke="rgba(255,255,255,0.35)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-  </g>;
-}
-
-function Earrings3D({cy}:{cy:number}) {
-  return <g>
-    <circle cx={54} cy={cy+22} r="5.5" fill="#C8940C"/>
-    <circle cx={54} cy={cy+22} r="4"   fill="#E8B420"/>
-    <circle cx={52} cy={cy+20} r="1.4" fill="white" opacity="0.5"/>
-    <circle cx={166} cy={cy+22} r="5.5" fill="#C8940C"/>
-    <circle cx={166} cy={cy+22} r="4"   fill="#E8B420"/>
-    <circle cx={164} cy={cy+20} r="1.4" fill="white" opacity="0.5"/>
-  </g>;
-}
-
-// ─── TIER SYSTEM ─────────────────────────────────────────────────
-const TIERS = {
-  common:    {label:"COMMON",    color:"#9ca3af", glow:"rgba(156,163,175,0.25)"},
-  rare:      {label:"RARE",      color:"#60a5fa", glow:"rgba(96,165,250,0.35)" },
-  epic:      {label:"EPIC",      color:"#a78bfa", glow:"rgba(167,139,250,0.4)" },
-  legendary: {label:"LEGENDARY", color:"#fbbf24", glow:"rgba(251,191,36,0.5)"  },
-} as const;
-type Tier = keyof typeof TIERS;
-
-// ─── TIERED ITEM DATA ─────────────────────────────────────────────
-const HAIR_STYLES_TIERED = [
-  {id:"pompadour",label:"Pompadour",tier:"common"    as Tier,locked:false},
-  {id:"short",    label:"Short Cut",tier:"common"    as Tier,locked:false},
-  {id:"buzz",     label:"Buzz Cut", tier:"common"    as Tier,locked:false},
-  {id:"bob",      label:"Bob",      tier:"rare"      as Tier,locked:false},
-  {id:"long",     label:"Long",     tier:"rare"      as Tier,locked:false},
-  {id:"curly",    label:"Curly",    tier:"rare"      as Tier,locked:false},
-  {id:"bun",      label:"Top Bun",  tier:"epic"      as Tier,locked:false},
-  {id:"bald",     label:"Shaved",   tier:"common"    as Tier,locked:false},
-  {id:"mohawk",   label:"Mohawk",   tier:"epic"      as Tier,locked:true },
-  {id:"dreads",   label:"Dreads",   tier:"legendary" as Tier,locked:true },
-];
-const OUTFITS_TIERED = [
-  {id:"bowling-shirt",label:"Bowling Shirt",tier:"common"    as Tier,locked:false},
-  {id:"polo",         label:"Polo",         tier:"common"    as Tier,locked:false},
-  {id:"letterman",    label:"Letterman",    tier:"rare"      as Tier,locked:false},
-  {id:"jersey",       label:"Jersey",       tier:"rare"      as Tier,locked:false},
-  {id:"hoodie",       label:"Hoodie",       tier:"rare"      as Tier,locked:false},
-  {id:"champion",     label:"Champion",     tier:"epic"      as Tier,locked:true },
-  {id:"golden-pin",   label:"Golden Pin",   tier:"legendary" as Tier,locked:true },
-];
-const ACCESSORIES_TIERED = [
-  {id:"glasses",   label:"Glasses",  tier:"common"    as Tier,locked:false},
-  {id:"sunglasses",label:"Shades",   tier:"rare"      as Tier,locked:false},
-  {id:"hat",       label:"Cap",      tier:"common"    as Tier,locked:false},
-  {id:"headband",  label:"Headband", tier:"rare"      as Tier,locked:false},
-  {id:"earrings",  label:"Earrings", tier:"epic"      as Tier,locked:false},
-  {id:"chain",     label:"Chain",    tier:"epic"      as Tier,locked:true },
-  {id:"crown",     label:"Crown",    tier:"legendary" as Tier,locked:true },
-];
-const FACE_SHAPES_TIERED = [
-  {id:"oval",  label:"Oval",  tier:"common" as Tier,locked:false},
-  {id:"round", label:"Round", tier:"common" as Tier,locked:false},
-  {id:"square",label:"Square",tier:"rare"   as Tier,locked:false},
-  {id:"heart", label:"Heart", tier:"rare"   as Tier,locked:false},
-];
-const FACIAL_HAIR_TIERED = [
-  {id:"none",       label:"Clean",      tier:"common" as Tier,locked:false},
-  {id:"stubble",    label:"Stubble",    tier:"common" as Tier,locked:false},
-  {id:"mustache",   label:"Mustache",   tier:"rare"   as Tier,locked:false},
-  {id:"beard-short",label:"Short Beard",tier:"rare"   as Tier,locked:false},
-  {id:"beard-full", label:"Full Beard", tier:"epic"   as Tier,locked:false},
-];
-const HAIR_COLORS_TIERED = HAIR_COLORS.map((h,i)=>({...h,tier:(i>=6?"epic":"common") as Tier,locked:false}));
-const EYE_COLORS_TIERED  = [
-  {id:"brown",label:"Brown",hex:"#4A2C10",tier:"common" as Tier,locked:false},
-  {id:"blue", label:"Blue", hex:"#2860A8",tier:"common" as Tier,locked:false},
-  {id:"green",label:"Green",hex:"#285830",tier:"common" as Tier,locked:false},
-  {id:"hazel",label:"Hazel",hex:"#6A5030",tier:"rare"   as Tier,locked:false},
-  {id:"gray", label:"Gray", hex:"#607080",tier:"rare"   as Tier,locked:false},
-  {id:"amber",label:"Amber",hex:"#906810",tier:"epic"   as Tier,locked:false},
-];
-
-// ─── CATEGORY TYPE ────────────────────────────────────────────────
-type Category = "BODY"|"HAIR"|"FACE"|"OUTFIT"|"EXTRAS";
-interface CatConfig {id:Category;label:string;icon:ReactNode}
-
-// ─── HELPERS ──────────────────────────────────────────────────────
-function hexToRgb(hex:string):string {
-  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  return `${r},${g},${b}`;
-}
-
-// ─── CATEGORY ICONS ───────────────────────────────────────────────
-function IconBody({s=26,c="currentColor"}:{s?:number;c?:string}) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 32 32" fill="none" stroke={c} strokeLinecap="round" strokeLinejoin="round">
-      {/* Head */}
-      <circle cx="16" cy="7" r="4.5" strokeWidth="1.8"/>
-      {/* Neck */}
-      <line x1="16" y1="11.5" x2="16" y2="13.5" strokeWidth="1.8"/>
-      {/* Torso */}
-      <path d="M9 14 C9 13 10 12.5 16 12.5 C22 12.5 23 13 23 14 L24 22 L8 22 Z" strokeWidth="1.6"/>
-      {/* Left arm */}
-      <path d="M9 14.5 C7 15.5 5.5 18 5 21" strokeWidth="1.8"/>
-      {/* Right arm */}
-      <path d="M23 14.5 C25 15.5 26.5 18 27 21" strokeWidth="1.8"/>
-      {/* Left leg */}
-      <path d="M11 22 L10 29" strokeWidth="1.8"/>
-      {/* Right leg */}
-      <path d="M21 22 L22 29" strokeWidth="1.8"/>
-      {/* Feet */}
-      <path d="M8.5 29 L12 29" strokeWidth="2" strokeLinecap="round"/>
-      <path d="M20 29 L24 29" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-  );
-}
-function IconHair({s=26,c="currentColor"}:{s?:number;c?:string}) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 32 32" fill="none" stroke={c} strokeLinecap="round" strokeLinejoin="round">
-      {/* Skull base */}
-      <path d="M6 18 C6 10 10 5 16 5 C22 5 26 10 26 18" strokeWidth="1.8"/>
-      {/* Side strands */}
-      <path d="M6 18 C5.5 20 6 22 8 23" strokeWidth="1.8"/>
-      <path d="M26 18 C26.5 20 26 22 24 23" strokeWidth="1.8"/>
-      {/* Hair top wave */}
-      <path d="M8 13 C10 9 13 8 16 8 C19 8 22 9 24 13" strokeWidth="2"/>
-      {/* Hair strands detail */}
-      <path d="M11 7 C11 5 12 3.5 13 3" strokeWidth="1.5"/>
-      <path d="M16 6 C16 4 16.5 3 17 2.5" strokeWidth="1.5"/>
-      <path d="M21 7 C22 5 22.5 3.5 22 3" strokeWidth="1.5"/>
-      {/* Comb teeth at bottom */}
-      <path d="M10 24 L10 28" strokeWidth="1.6"/>
-      <path d="M13.5 24 L13.5 28" strokeWidth="1.6"/>
-      <path d="M17 24 L17 28" strokeWidth="1.6"/>
-      <path d="M20.5 24 L20.5 28" strokeWidth="1.6"/>
-    </svg>
-  );
-}
-function IconFace({s=26,c="currentColor"}:{s?:number;c?:string}) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 32 32" fill="none" stroke={c} strokeLinecap="round" strokeLinejoin="round">
-      {/* Face outline */}
-      <path d="M16 3 C10 3 6 8 6 14 C6 20 10 26 16 26 C22 26 26 20 26 14 C26 8 22 3 16 3 Z" strokeWidth="1.8"/>
-      {/* Left eye */}
-      <ellipse cx="11.5" cy="13" rx="2.2" ry="2.5" strokeWidth="1.6"/>
-      <circle cx="11.5" cy="13.5" r="1" fill={c} stroke="none"/>
-      <circle cx="12.1" cy="12.6" r="0.5" fill="currentColor" opacity="0.6" stroke="none"/>
-      {/* Right eye */}
-      <ellipse cx="20.5" cy="13" rx="2.2" ry="2.5" strokeWidth="1.6"/>
-      <circle cx="20.5" cy="13.5" r="1" fill={c} stroke="none"/>
-      <circle cx="21.1" cy="12.6" r="0.5" fill="currentColor" opacity="0.6" stroke="none"/>
-      {/* Eyebrows */}
-      <path d="M9 10 C10 9 13 9 14 10" strokeWidth="1.6"/>
-      <path d="M18 10 C19 9 22 9 23 10" strokeWidth="1.6"/>
-      {/* Nose */}
-      <path d="M16 14.5 L15 18 C15 19 17 19 17 18 L16 14.5" strokeWidth="1.4"/>
-      {/* Smile */}
-      <path d="M11 21 C12.5 23.5 19.5 23.5 21 21" strokeWidth="1.8"/>
-      {/* Ear stubs */}
-      <path d="M6 14 C4.5 13.5 4 15 4.5 16" strokeWidth="1.6"/>
-      <path d="M26 14 C27.5 13.5 28 15 27.5 16" strokeWidth="1.6"/>
-    </svg>
-  );
-}
-function IconOutfit({s=26,c="currentColor"}:{s?:number;c?:string}) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 32 32" fill="none" stroke={c} strokeLinecap="round" strokeLinejoin="round">
-      {/* Left sleeve */}
-      <path d="M7 6 L3 11 L7 13 L10 8" strokeWidth="1.8"/>
-      {/* Right sleeve */}
-      <path d="M25 6 L29 11 L25 13 L22 8" strokeWidth="1.8"/>
-      {/* Body */}
-      <path d="M10 8 L10 28 L22 28 L22 8" strokeWidth="1.8"/>
-      {/* Collar V-neck */}
-      <path d="M10 8 C12 7 14 10 16 11 C18 10 20 7 22 8" strokeWidth="1.8"/>
-      {/* Center button line */}
-      <line x1="16" y1="11" x2="16" y2="28" strokeWidth="1.2" strokeDasharray="1.5 2"/>
-      {/* Buttons */}
-      <circle cx="16" cy="15" r="1" fill={c} stroke="none"/>
-      <circle cx="16" cy="19.5" r="1" fill={c} stroke="none"/>
-      <circle cx="16" cy="24" r="1" fill={c} stroke="none"/>
-      {/* Chest pocket */}
-      <rect x="11" y="13" width="5" height="4" rx="0.5" strokeWidth="1.2"/>
-    </svg>
-  );
-}
-function IconExtras({s=26,c="currentColor"}:{s?:number;c?:string}) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 32 32" fill="none" stroke={c} strokeLinecap="round" strokeLinejoin="round">
-      {/* Glasses frames */}
-      <rect x="3" y="11" width="10" height="8" rx="3" strokeWidth="1.8"/>
-      <rect x="19" y="11" width="10" height="8" rx="3" strokeWidth="1.8"/>
-      {/* Bridge */}
-      <line x1="13" y1="15" x2="19" y2="15" strokeWidth="1.8"/>
-      {/* Temple arms */}
-      <line x1="3" y1="15" x2="1" y2="15" strokeWidth="1.8"/>
-      <line x1="29" y1="15" x2="31" y2="15" strokeWidth="1.8"/>
-      {/* Hat above */}
-      <path d="M10 11 C10 7 14 4 16 4 C18 4 22 7 22 11" strokeWidth="1.6"/>
-      <line x1="8" y1="11" x2="24" y2="11" strokeWidth="2"/>
-      {/* Star accessory */}
-      <path d="M16 19 L17.5 22.5 L21.5 22.5 L18.5 24.8 L19.5 28.5 L16 26.5 L12.5 28.5 L13.5 24.8 L10.5 22.5 L14.5 22.5 Z" strokeWidth="1.4"/>
-    </svg>
-  );
-}
-
-// ─── TIER BADGE ───────────────────────────────────────────────────
-function TierBadge({tier}:{tier:Tier}) {
-  const t = TIERS[tier];
+function ThumbBg({ children, bg = "#FFE4D0" }: { children:ReactNode; bg?:string }) {
   return (
     <div style={{
-      position:"absolute",top:5,left:5,zIndex:2,
-      fontSize:".62rem",fontWeight:900,letterSpacing:".06em",
-      fontFamily:"'Courier New',monospace",color:t.color,
-      background:"rgba(0,0,0,0.8)",border:`1px solid ${t.color}`,
-      borderRadius:3,padding:"2px 5px",textTransform:"uppercase",
-      boxShadow:`0 0 6px ${t.glow}`,lineHeight:1.4,
+      width:"100%",height:"100%",position:"relative",
+      borderRadius:"50%",overflow:"hidden",
+      background:`radial-gradient(circle at 50% 35%, ${lt(bg,0.18)} 0%, ${bg} 70%, ${dk(bg,0.10)} 100%)`,
     }}>
-      {tier==="legendary"?"★ LGND":tier==="epic"?"◆ EPIC":tier==="rare"?"◈ RARE":"CMN"}
+      {children}
     </div>
   );
 }
 
-// ─── LOCK OVERLAY ─────────────────────────────────────────────────
-function LockIcon() {
+// Generic stylized head/face base used inside thumbnails
+function FaceBase({ skin = "#E8A87C", showFeatures = true }:{skin?:string;showFeatures?:boolean}) {
+  const skD = dk(skin,0.20); const skL = lt(skin,0.20);
   return (
-    <div style={{
-      position:"absolute",inset:0,display:"flex",flexDirection:"column",
-      alignItems:"center",justifyContent:"center",
-      background:"rgba(0,0,0,0.75)",backdropFilter:"blur(3px)",
-      borderRadius:8,gap:4,zIndex:3,
-    }}>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="11" width="18" height="11" rx="2"/>
-        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+      {/* head */}
+      <ellipse cx="50" cy="52" rx="32" ry="36" fill={skin}/>
+      <ellipse cx="44" cy="44" rx="22" ry="20" fill={skL} opacity="0.45"/>
+      {/* ears */}
+      <ellipse cx="20" cy="54" rx="6" ry="9" fill={skin}/>
+      <ellipse cx="80" cy="54" rx="6" ry="9" fill={skin}/>
+      <ellipse cx="20" cy="54" rx="3" ry="5" fill={skD} opacity="0.35"/>
+      <ellipse cx="80" cy="54" rx="3" ry="5" fill={skD} opacity="0.35"/>
+      {/* neck */}
+      <rect x="42" y="83" width="16" height="12" fill={skin}/>
+      {/* shoulders peek */}
+      <ellipse cx="50" cy="100" rx="40" ry="14" fill={skin}/>
+      {showFeatures && <>
+        {/* eyes */}
+        <ellipse cx="40" cy="50" rx="4" ry="3" fill="#FFF"/>
+        <ellipse cx="60" cy="50" rx="4" ry="3" fill="#FFF"/>
+        <circle cx="40" cy="50" r="2" fill="#3a2410"/>
+        <circle cx="60" cy="50" r="2" fill="#3a2410"/>
+        {/* nose */}
+        <path d="M48 56 Q47 62 50 64 Q53 62 52 56" fill="none" stroke={skD} strokeWidth="0.8" opacity="0.5"/>
+        {/* mouth */}
+        <path d="M44 70 Q50 72 56 70" fill="none" stroke="#9B5040" strokeWidth="1.4" strokeLinecap="round"/>
+      </>}
+    </svg>
+  );
+}
+
+// SKIN tone thumbnail — just a solid color circle
+function SkinThumb({ hex }:{hex:string}) {
+  return <ThumbBg bg={hex}><FaceBase skin={hex}/></ThumbBg>;
+}
+
+// HAIR style thumbnail
+function HairStyleThumb({ style, color = "#5C2E18" }:{style:string;color?:string}) {
+  const dark = dk(color,0.30);
+  return (
+    <ThumbBg>
+      <FaceBase showFeatures={false}/>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        {style==="bald" && null}
+        {style==="buzz" && (
+          <path d="M20 35 Q20 22 50 18 Q80 22 80 35 Q80 38 78 40 Q50 32 22 40 Q20 38 20 35Z" fill={color} opacity="0.95"/>
+        )}
+        {style==="short" && (
+          <>
+            <path d="M18 40 Q18 18 50 14 Q82 18 82 40 Q82 42 80 44 Q80 30 50 28 Q20 30 20 44 Q18 42 18 40Z" fill={color}/>
+            <ellipse cx="32" cy="32" rx="8" ry="4" fill={dark} opacity="0.6"/>
+          </>
+        )}
+        {style==="pompadour" && (
+          <>
+            <path d="M20 38 Q20 24 50 22 Q80 24 80 38 Q80 42 76 44 Q76 32 50 30 Q24 32 24 44 Q20 42 20 38Z" fill={color}/>
+            <path d="M30 24 Q40 6 55 8 Q70 10 72 22 Q60 18 50 18 Q38 18 30 24Z" fill={dark}/>
+            <ellipse cx="48" cy="14" rx="14" ry="7" fill={lt(color,0.15)}/>
+          </>
+        )}
+        {style==="bob" && (
+          <>
+            <path d="M16 38 Q16 22 50 16 Q84 22 84 38 L84 60 Q80 68 50 68 Q20 68 16 60Z" fill={color}/>
+            <ellipse cx="36" cy="32" rx="6" ry="3" fill={lt(color,0.18)} opacity="0.6"/>
+          </>
+        )}
+        {style==="long" && (
+          <>
+            <path d="M14 38 Q14 18 50 14 Q86 18 86 38 L86 92 Q82 96 76 96 L74 50 Q72 60 70 92 L66 96 L62 50 Q60 56 56 96 L46 96 Q44 60 40 50 Q38 60 36 96 L30 96 L28 50 Q24 60 22 96 Q16 96 14 92Z" fill={color}/>
+          </>
+        )}
+        {style==="curly" && (
+          <>
+            <circle cx="30" cy="28" r="9" fill={color}/>
+            <circle cx="44" cy="22" r="9" fill={dark}/>
+            <circle cx="58" cy="20" r="9" fill={color}/>
+            <circle cx="72" cy="26" r="9" fill={dark}/>
+            <circle cx="80" cy="38" r="8" fill={color}/>
+            <circle cx="20" cy="38" r="8" fill={color}/>
+            <circle cx="22" cy="50" r="7" fill={dark}/>
+            <circle cx="78" cy="50" r="7" fill={dark}/>
+          </>
+        )}
+        {style==="bun" && (
+          <>
+            <path d="M20 40 Q20 22 50 18 Q80 22 80 40 Q80 42 78 44 Q78 32 50 30 Q22 32 22 44 Q20 42 20 40Z" fill={color}/>
+            <circle cx="50" cy="14" r="11" fill={color}/>
+            <circle cx="50" cy="14" r="7" fill={dark} opacity="0.4"/>
+          </>
+        )}
       </svg>
-      <span style={{fontSize:".72rem",color:"rgba(255,255,255,0.45)",fontFamily:"'Courier New',monospace",letterSpacing:".06em"}}>LOCKED</span>
-    </div>
+    </ThumbBg>
   );
 }
 
-// ─── OPTION CARD ──────────────────────────────────────────────────
-function OptionCard({label,tier,locked,active,onClick}:{label:string;tier:Tier;locked:boolean;active:boolean;onClick:()=>void}) {
-  const t = TIERS[tier];
+// HAIR color swatch — circular gradient
+function ColorThumb({ hex, ringColor }:{hex:string;ringColor?:string}) {
   return (
-    <button onClick={locked?undefined:onClick} disabled={locked} style={{
-      position:"relative",height:88,width:"100%",
-      borderRadius:10,overflow:"hidden",cursor:locked?"default":"pointer",
-      border:`2px solid ${active?t.color:locked?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.1)"}`,
-      background:active?`rgba(${hexToRgb(t.color)},0.18)`:"rgba(255,255,255,0.03)",
-      transition:"all 150ms",padding:0,
-      boxShadow:active?`0 0 20px ${t.glow},inset 0 0 20px rgba(0,0,0,0.3)`:undefined,
-      transform:active?"scale(1.03)":"scale(1)",
+    <div style={{
+      width:"100%",height:"100%",borderRadius:"50%",
+      background:`radial-gradient(circle at 35% 30%, ${lt(hex,0.22)} 0%, ${hex} 60%, ${dk(hex,0.18)} 100%)`,
+      boxShadow: ringColor ? `inset 0 0 0 2px ${ringColor}` : undefined,
+    }}/>
+  );
+}
+
+// BROW style thumbnail
+function BrowStyleThumb({ style }:{style:string}) {
+  return (
+    <ThumbBg>
+      <FaceBase showFeatures={false}/>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        {/* eyes (reference) */}
+        <ellipse cx="40" cy="55" rx="3.5" ry="2.5" fill="#FFF"/>
+        <ellipse cx="60" cy="55" rx="3.5" ry="2.5" fill="#FFF"/>
+        <circle cx="40" cy="55" r="1.6" fill="#3a2410"/>
+        <circle cx="60" cy="55" r="1.6" fill="#3a2410"/>
+        {/* brows — vary by style */}
+        {style==="default"  && <><path d="M32 44 Q40 41 48 44" stroke="#4a2818" strokeWidth="2.4" fill="none" strokeLinecap="round"/><path d="M52 44 Q60 41 68 44" stroke="#4a2818" strokeWidth="2.4" fill="none" strokeLinecap="round"/></>}
+        {style==="thin"     && <><path d="M32 45 L48 44" stroke="#4a2818" strokeWidth="1.4" fill="none" strokeLinecap="round"/><path d="M52 44 L68 45" stroke="#4a2818" strokeWidth="1.4" fill="none" strokeLinecap="round"/></>}
+        {style==="thick"    && <><path d="M30 45 Q40 40 48 44" stroke="#3a1f10" strokeWidth="4.2" fill="none" strokeLinecap="round"/><path d="M52 44 Q60 40 70 45" stroke="#3a1f10" strokeWidth="4.2" fill="none" strokeLinecap="round"/></>}
+        {style==="arched"   && <><path d="M32 46 Q39 38 48 45" stroke="#4a2818" strokeWidth="2.6" fill="none" strokeLinecap="round"/><path d="M52 45 Q61 38 68 46" stroke="#4a2818" strokeWidth="2.6" fill="none" strokeLinecap="round"/></>}
+        {style==="angled"   && <><path d="M32 47 L42 41 L48 44" stroke="#4a2818" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M52 44 L58 41 L68 47" stroke="#4a2818" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>}
+        {style==="straight" && <><path d="M32 44 L48 44" stroke="#4a2818" strokeWidth="2.8" fill="none" strokeLinecap="round"/><path d="M52 44 L68 44" stroke="#4a2818" strokeWidth="2.8" fill="none" strokeLinecap="round"/></>}
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// EYE shape thumbnail
+function EyeShapeThumb({ shape, color = "#4A2C10" }:{shape:string;color?:string}) {
+  return (
+    <ThumbBg>
+      <FaceBase showFeatures={false}/>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        {/* brows */}
+        <path d="M30 42 Q40 38 48 42" stroke="#4a2818" strokeWidth="2" fill="none" strokeLinecap="round"/>
+        <path d="M52 42 Q60 38 70 42" stroke="#4a2818" strokeWidth="2" fill="none" strokeLinecap="round"/>
+        {/* eyes — vary scale & shape */}
+        {shape==="almond" && <>
+          <ellipse cx="40" cy="55" rx="6" ry="4" fill="#FFF" stroke="#2a1810" strokeWidth="0.5"/>
+          <ellipse cx="60" cy="55" rx="6" ry="4" fill="#FFF" stroke="#2a1810" strokeWidth="0.5"/>
+          <circle cx="40" cy="55" r="3" fill={color}/>
+          <circle cx="60" cy="55" r="3" fill={color}/>
+          <circle cx="41" cy="54" r="0.9" fill="#FFF"/>
+          <circle cx="61" cy="54" r="0.9" fill="#FFF"/>
+        </>}
+        {shape==="round" && <>
+          <circle cx="40" cy="55" r="5" fill="#FFF" stroke="#2a1810" strokeWidth="0.5"/>
+          <circle cx="60" cy="55" r="5" fill="#FFF" stroke="#2a1810" strokeWidth="0.5"/>
+          <circle cx="40" cy="55" r="3" fill={color}/>
+          <circle cx="60" cy="55" r="3" fill={color}/>
+          <circle cx="41" cy="54" r="0.9" fill="#FFF"/>
+          <circle cx="61" cy="54" r="0.9" fill="#FFF"/>
+        </>}
+        {shape==="narrow" && <>
+          <ellipse cx="40" cy="55" rx="7" ry="2.4" fill="#FFF" stroke="#2a1810" strokeWidth="0.5"/>
+          <ellipse cx="60" cy="55" rx="7" ry="2.4" fill="#FFF" stroke="#2a1810" strokeWidth="0.5"/>
+          <ellipse cx="40" cy="55" rx="2" ry="2.2" fill={color}/>
+          <ellipse cx="60" cy="55" rx="2" ry="2.2" fill={color}/>
+        </>}
+        {shape==="downturned" && <>
+          <ellipse cx="40" cy="55" rx="6" ry="3.5" fill="#FFF" stroke="#2a1810" strokeWidth="0.5" transform="rotate(-8 40 55)"/>
+          <ellipse cx="60" cy="55" rx="6" ry="3.5" fill="#FFF" stroke="#2a1810" strokeWidth="0.5" transform="rotate(8 60 55)"/>
+          <circle cx="40" cy="55" r="2.6" fill={color}/>
+          <circle cx="60" cy="55" r="2.6" fill={color}/>
+        </>}
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// NOSE style thumbnail
+function NoseStyleThumb({ style }:{style:string}) {
+  return (
+    <ThumbBg>
+      <FaceBase showFeatures={false}/>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        <ellipse cx="40" cy="48" rx="3.5" ry="2.5" fill="#FFF"/>
+        <ellipse cx="60" cy="48" rx="3.5" ry="2.5" fill="#FFF"/>
+        {style==="default" && <path d="M48 52 Q46 64 50 66 Q54 64 52 52" fill="rgba(0,0,0,0.04)" stroke="#9b6d50" strokeWidth="1.4" strokeLinecap="round"/>}
+        {style==="small"   && <path d="M49 56 Q48 62 50 64 Q52 62 51 56" fill="rgba(0,0,0,0.04)" stroke="#9b6d50" strokeWidth="1.2" strokeLinecap="round"/>}
+        {style==="button"  && <ellipse cx="50" cy="60" rx="4" ry="3" fill="rgba(0,0,0,0.05)" stroke="#9b6d50" strokeWidth="1.2"/>}
+        {style==="wide"    && <path d="M44 54 Q42 64 50 66 Q58 64 56 54 Q53 60 47 60Z" fill="rgba(0,0,0,0.05)" stroke="#9b6d50" strokeWidth="1.2" strokeLinecap="round"/>}
+        {style==="long"    && <path d="M48 50 Q46 70 50 72 Q54 70 52 50" fill="rgba(0,0,0,0.04)" stroke="#9b6d50" strokeWidth="1.4" strokeLinecap="round"/>}
+        {/* nostrils */}
+        <ellipse cx={style==="wide"?46:48} cy={style==="long"?68:62} rx="1" ry="0.7" fill="#7a4030"/>
+        <ellipse cx={style==="wide"?54:52} cy={style==="long"?68:62} rx="1" ry="0.7" fill="#7a4030"/>
+        {/* mouth ref */}
+        <path d="M44 76 Q50 78 56 76" stroke="#9B5040" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// MOUTH shape thumbnail
+function MouthShapeThumb({ shape, lipHex = "#C77860" }:{shape:string;lipHex?:string}) {
+  return (
+    <ThumbBg>
+      <FaceBase showFeatures={false}/>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        <ellipse cx="40" cy="48" rx="3.5" ry="2.5" fill="#FFF"/>
+        <ellipse cx="60" cy="48" rx="3.5" ry="2.5" fill="#FFF"/>
+        <path d="M49 58 Q48 64 50 65 Q52 64 51 58" fill="none" stroke="#9b6d50" strokeWidth="1.2"/>
+        {shape==="default" && <path d="M40 74 Q50 78 60 74 Q56 72 50 73 Q44 72 40 74Z" fill={lipHex}/>}
+        {shape==="smile"   && <><path d="M36 72 Q50 82 64 72 Q56 75 50 75 Q44 75 36 72Z" fill={lipHex}/><path d="M38 72 Q50 76 62 72" stroke={dk(lipHex,0.25)} strokeWidth="0.5" fill="none"/></>}
+        {shape==="neutral" && <path d="M42 75 L58 75 Q56 73.5 50 74 Q44 73.5 42 75Z" fill={lipHex}/>}
+        {shape==="small"   && <path d="M44 74 Q50 76 56 74 Q53 72.5 50 73 Q47 72.5 44 74Z" fill={lipHex}/>}
+        {shape==="full"    && <><path d="M38 72 Q50 76 62 72 Q56 70 50 71 Q44 70 38 72Z" fill={lipHex}/><path d="M38 73 Q50 80 62 73 Q56 78 50 78 Q44 78 38 73Z" fill={dk(lipHex,0.08)}/></>}
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// EAR size thumbnail
+function EarSizeThumb({ size }:{size:string}) {
+  const scale = size==="small"?0.7:size==="large"?1.3:1.0;
+  return (
+    <ThumbBg>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        <ellipse cx="50" cy="55" rx="28" ry="32" fill="#E8A87C"/>
+        <ellipse cx={50-22} cy="56" rx={6*scale} ry={9*scale} fill="#E8A87C"/>
+        <ellipse cx={50+22} cy="56" rx={6*scale} ry={9*scale} fill="#E8A87C"/>
+        <ellipse cx={50-22} cy="56" rx={3*scale} ry={5*scale} fill="#A86040" opacity="0.4"/>
+        <ellipse cx={50+22} cy="56" rx={3*scale} ry={5*scale} fill="#A86040" opacity="0.4"/>
+        {/* tiny features for context */}
+        <ellipse cx="42" cy="50" rx="2" ry="1.5" fill="#FFF"/>
+        <ellipse cx="58" cy="50" rx="2" ry="1.5" fill="#FFF"/>
+        <path d="M44 65 Q50 67 56 65" stroke="#9B5040" strokeWidth="1" fill="none"/>
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// FACE shape thumbnail
+function FaceShapeThumb({ shape }:{shape:string}) {
+  const path =
+    shape==="round"  ? "M50,16 C76,16 84,38 84,54 C84,76 70,90 50,90 C30,90 16,76 16,54 C16,38 24,16 50,16Z" :
+    shape==="square" ? "M22,30 L78,30 L82,68 Q82,86 50,90 Q18,86 18,68Z" :
+    shape==="heart"  ? "M50,18 C70,18 86,30 86,46 C86,66 68,90 50,92 C32,90 14,66 14,46 C14,30 30,18 50,18Z" :
+                       "M50,12 C72,12 82,32 82,52 C82,76 68,92 50,92 C32,92 18,76 18,52 C18,32 28,12 50,12Z"; // oval
+  return (
+    <ThumbBg>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        <path d={path} fill="#E8A87C"/>
+        <ellipse cx="40" cy="48" rx="3" ry="2" fill="#FFF"/>
+        <ellipse cx="60" cy="48" rx="3" ry="2" fill="#FFF"/>
+        <circle cx="40" cy="48" r="1.4" fill="#3a2410"/>
+        <circle cx="60" cy="48" r="1.4" fill="#3a2410"/>
+        <path d="M44 68 Q50 72 56 68" stroke="#9B5040" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// FRECKLES thumbnail
+function FrecklesThumb({ density }:{density:string}) {
+  const dots = density==="heavy"?14:density==="light"?6:0;
+  const positions = Array.from({length:dots}).map((_,i) => {
+    const angle = (i/dots)*Math.PI*2;
+    const r = 5 + Math.random()*8;
+    return [50 + Math.cos(angle)*15 + (i%3-1)*4, 50 + Math.sin(angle)*8 + (i%2)*3];
+  });
+  return (
+    <ThumbBg>
+      <FaceBase showFeatures={false}/>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        <ellipse cx="40" cy="48" rx="3" ry="2" fill="#FFF"/>
+        <ellipse cx="60" cy="48" rx="3" ry="2" fill="#FFF"/>
+        <circle cx="40" cy="48" r="1.4" fill="#3a2410"/>
+        <circle cx="60" cy="48" r="1.4" fill="#3a2410"/>
+        <path d="M44 68 Q50 72 56 68" stroke="#9B5040" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+        {positions.map(([x,y],i) => (
+          <circle key={i} cx={x} cy={y} r="0.9" fill="#7B3A20" opacity="0.7"/>
+        ))}
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// FACIAL HAIR thumbnail
+function FacialHairThumb({ style, color = "#3A1F10" }:{style:string;color?:string}) {
+  return (
+    <ThumbBg>
+      <FaceBase showFeatures={false}/>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        <ellipse cx="40" cy="48" rx="3" ry="2" fill="#FFF"/>
+        <ellipse cx="60" cy="48" rx="3" ry="2" fill="#FFF"/>
+        {style==="none" && <path d="M44 70 Q50 73 56 70" stroke="#9B5040" strokeWidth="1.4" fill="none" strokeLinecap="round"/>}
+        {style==="stubble" && <>
+          <path d="M44 70 Q50 72 56 70" stroke="#9B5040" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+          {Array.from({length:18}).map((_,i)=>{
+            const x = 32+(i%6)*7; const y = 72+Math.floor(i/6)*4;
+            return <circle key={i} cx={x} cy={y} r="0.6" fill={color} opacity="0.55"/>;
+          })}
+        </>}
+        {style==="mustache" && <>
+          <path d="M40 66 Q44 62 50 64 Q56 62 60 66 Q56 70 50 68 Q44 70 40 66Z" fill={color}/>
+          <path d="M44 74 Q50 76 56 74" stroke="#9B5040" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+        </>}
+        {style==="beard-short" && <>
+          <path d="M40 66 Q44 64 50 65 Q56 64 60 66" fill={color}/>
+          <path d="M38 72 Q42 80 50 82 Q58 80 62 72 Q56 74 50 74 Q44 74 38 72Z" fill={color}/>
+        </>}
+        {style==="beard-full" && <>
+          <path d="M30 66 Q44 60 50 62 Q56 60 70 66 Q72 76 70 84 Q60 92 50 92 Q40 92 30 84 Q28 76 30 66Z" fill={color}/>
+          <ellipse cx="50" cy="74" rx="6" ry="3" fill={dk(color,0.15)}/>
+        </>}
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// EYEWEAR thumbnail
+function EyewearThumb({ kind }:{kind:string}) {
+  return (
+    <ThumbBg>
+      <FaceBase/>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        {kind==="glasses" && <g>
+          <rect x="28" y="44" width="20" height="14" rx="6" fill="rgba(180,210,255,0.18)" stroke="#2a2420" strokeWidth="2"/>
+          <rect x="52" y="44" width="20" height="14" rx="6" fill="rgba(180,210,255,0.18)" stroke="#2a2420" strokeWidth="2"/>
+          <line x1="48" y1="51" x2="52" y2="51" stroke="#2a2420" strokeWidth="2"/>
+        </g>}
+        {kind==="sunglasses" && <g>
+          <rect x="28" y="44" width="20" height="14" rx="6" fill="#1a1a1a" stroke="#0a0a0a" strokeWidth="2"/>
+          <rect x="52" y="44" width="20" height="14" rx="6" fill="#1a1a1a" stroke="#0a0a0a" strokeWidth="2"/>
+          <line x1="48" y1="51" x2="52" y2="51" stroke="#0a0a0a" strokeWidth="2"/>
+          <path d="M32 47 L40 47" stroke="white" strokeWidth="1" opacity="0.4"/>
+          <path d="M56 47 L64 47" stroke="white" strokeWidth="1" opacity="0.4"/>
+        </g>}
+        {kind==="none" && null}
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// HEADWEAR thumbnail
+function HeadwearThumb({ kind }:{kind:string}) {
+  return (
+    <ThumbBg>
+      <FaceBase/>
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        {kind==="hat" && <g>
+          <ellipse cx="50" cy="28" rx="32" ry="6" fill="#2A1F10"/>
+          <path d="M28 28 Q26 14 50 10 Q74 14 72 28Z" fill="#3A2818"/>
+          <ellipse cx="42" cy="20" rx="6" ry="3" fill="#5A3828" opacity="0.7"/>
+        </g>}
+        {kind==="headband" && <g>
+          <rect x="20" y="30" width="60" height="6" rx="3" fill={C.duxOrange}/>
+          <rect x="35" y="31" width="30" height="2" rx="1" fill="rgba(255,255,255,0.4)"/>
+        </g>}
+        {kind==="none" && null}
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// OUTFIT thumbnail
+function OutfitThumb({ outfit }:{outfit:string}) {
+  const colors:Record<string,string> = {
+    "bowling-shirt":"#C03018","letterman":"#1A3A8C","jersey":"#186030","polo":"#284888","hoodie":"#282838",
+  };
+  const c = colors[outfit] ?? "#C03018";
+  const cD = dk(c,0.20);
+  return (
+    <ThumbBg bg="#F4F2EE">
+      <svg viewBox="0 0 100 100" style={{width:"100%",height:"100%",position:"absolute",inset:0}}>
+        {/* shoulders + body */}
+        <path d="M14 50 Q22 38 36 32 Q40 30 44 30 L56 30 Q60 30 64 32 Q78 38 86 50 L86 100 L14 100Z" fill={c}/>
+        {/* darker shadow side */}
+        <path d="M14 50 Q22 38 36 32 L36 100 L14 100Z" fill={cD} opacity="0.4"/>
+        {/* collar v-neck */}
+        {outfit==="polo" || outfit==="bowling-shirt" ? (
+          <path d="M44 30 L50 42 L56 30 L52 28 L48 28Z" fill={lt(c,0.10)} opacity="0.7"/>
+        ) : outfit==="hoodie" ? (
+          <path d="M40 30 Q50 40 60 30 L60 26 L40 26Z" fill={cD}/>
+        ) : (
+          <path d="M44 30 L56 30 L54 36 L46 36Z" fill={cD}/>
+        )}
+        {/* button strip for bowling shirt */}
+        {outfit==="bowling-shirt" && <>
+          <line x1="50" y1="40" x2="50" y2="98" stroke={cD} strokeWidth="0.8"/>
+          <circle cx="50" cy="56" r="1.2" fill={lt(c,0.30)}/>
+          <circle cx="50" cy="68" r="1.2" fill={lt(c,0.30)}/>
+          <circle cx="50" cy="80" r="1.2" fill={lt(c,0.30)}/>
+        </>}
+        {/* letterman badge */}
+        {outfit==="letterman" && <text x="50" y="76" textAnchor="middle" fontSize="22" fontWeight="900" fill="#C8A020" fontFamily="Georgia,serif">D</text>}
+        {/* jersey number */}
+        {outfit==="jersey" && <text x="50" y="78" textAnchor="middle" fontSize="22" fontWeight="900" fill={lt(c,0.30)} fontFamily="Impact,sans-serif">42</text>}
+        {/* hoodie strings */}
+        {outfit==="hoodie" && <>
+          <line x1="46" y1="38" x2="46" y2="58" stroke={lt(c,0.20)} strokeWidth="1"/>
+          <line x1="54" y1="38" x2="54" y2="58" stroke={lt(c,0.20)} strokeWidth="1"/>
+        </>}
+        {/* polo button */}
+        {outfit==="polo" && <>
+          <line x1="50" y1="42" x2="50" y2="60" stroke={cD} strokeWidth="1"/>
+          <circle cx="50" cy="48" r="1" fill={cD}/>
+        </>}
+      </svg>
+    </ThumbBg>
+  );
+}
+
+// BG color thumbnail
+function BgColorThumb({ hex }:{hex:string}) {
+  return (
+    <div style={{
+      width:"100%",height:"100%",borderRadius:"50%",
+      background:`radial-gradient(circle at 35% 30%, ${lt(hex,0.18)} 0%, ${hex} 65%, ${dk(hex,0.10)} 100%)`,
+    }}/>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATEGORY ICONS — monochrome line icons (Memoji-style)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const Ico = ({size=22,c="currentColor",children}:{size?:number;c?:string;children:ReactNode}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+);
+const IconSkin    = (p:any)=> <Ico {...p}><circle cx="12" cy="12" r="9"/><path d="M5 16 Q12 14 19 16"/><path d="M9 10 L9.01 10"/><path d="M15 10 L15.01 10"/></Ico>;
+const IconHair    = (p:any)=> <Ico {...p}><path d="M5 14 Q5 4 12 4 Q19 4 19 14"/><path d="M7 14 L7 18"/><path d="M17 14 L17 18"/><path d="M9 5 Q12 1 15 5"/></Ico>;
+const IconBrows   = (p:any)=> <Ico {...p}><path d="M3 10 Q7 6 11 10"/><path d="M13 10 Q17 6 21 10"/><circle cx="7" cy="14" r="1.5"/><circle cx="17" cy="14" r="1.5"/></Ico>;
+const IconEyes    = (p:any)=> <Ico {...p}><ellipse cx="7" cy="12" rx="3" ry="2"/><ellipse cx="17" cy="12" rx="3" ry="2"/><circle cx="7" cy="12" r="1" fill={p?.c||"currentColor"}/><circle cx="17" cy="12" r="1" fill={p?.c||"currentColor"}/></Ico>;
+const IconNose    = (p:any)=> <Ico {...p}><path d="M11 5 Q9 12 8 16 Q9 19 12 19 Q15 19 16 16 Q15 12 13 5"/><circle cx="10" cy="17" r="0.8"/><circle cx="14" cy="17" r="0.8"/></Ico>;
+const IconMouth   = (p:any)=> <Ico {...p}><path d="M5 12 Q12 16 19 12 Q15 9 12 10 Q9 9 5 12Z"/></Ico>;
+const IconEars    = (p:any)=> <Ico {...p}><path d="M9 4 Q5 4 4 8 Q3 14 6 18 Q9 21 11 18"/><path d="M9 9 Q9 14 11 16"/></Ico>;
+const IconFace    = (p:any)=> <Ico {...p}><path d="M12 3 C7 3 4 7 4 12 C4 17 7 21 12 21 C17 21 20 17 20 12 C20 7 17 3 12 3Z"/><path d="M9 10 L9.01 10"/><path d="M15 10 L15.01 10"/><path d="M9 16 Q12 18 15 16"/></Ico>;
+const IconBeard   = (p:any)=> <Ico {...p}><path d="M7 10 Q12 9 17 10"/><path d="M5 14 Q5 20 12 22 Q19 20 19 14 Q15 13 12 13 Q9 13 5 14Z"/></Ico>;
+const IconGlasses = (p:any)=> <Ico {...p}><circle cx="6" cy="13" r="3"/><circle cx="18" cy="13" r="3"/><line x1="9" y1="13" x2="15" y2="13"/></Ico>;
+const IconHat     = (p:any)=> <Ico {...p}><path d="M5 10 Q5 4 12 4 Q19 4 19 10"/><line x1="3" y1="11" x2="21" y2="11"/></Ico>;
+const IconShirt   = (p:any)=> <Ico {...p}><path d="M7 4 L4 7 L7 9 L9 6 M17 4 L20 7 L17 9 L15 6"/><path d="M9 6 L9 20 L15 20 L15 6"/></Ico>;
+const IconBg      = (p:any)=> <Ico {...p}><circle cx="12" cy="12" r="9"/><path d="M3 12 Q6 4 12 4 Q15 9 12 12 Q9 15 3 12Z"/></Ico>;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATEGORIES
+// ═══════════════════════════════════════════════════════════════════════════
+
+type CatId = "skin"|"hair"|"brows"|"eyes"|"face"|"nose"|"mouth"|"ears"|"facial-hair"|"eyewear"|"headwear"|"outfit"|"background";
+const CATEGORIES: { id: CatId; label: string; Icon: (p:any)=>ReactNode }[] = [
+  {id:"skin",       label:"Skin",        Icon:IconSkin},
+  {id:"hair",       label:"Hair",        Icon:IconHair},
+  {id:"brows",      label:"Brows",       Icon:IconBrows},
+  {id:"eyes",       label:"Eyes",        Icon:IconEyes},
+  {id:"face",       label:"Face",        Icon:IconFace},
+  {id:"nose",       label:"Nose",        Icon:IconNose},
+  {id:"mouth",      label:"Mouth",       Icon:IconMouth},
+  {id:"ears",       label:"Ears",        Icon:IconEars},
+  {id:"facial-hair",label:"Facial Hair", Icon:IconBeard},
+  {id:"eyewear",    label:"Eyewear",     Icon:IconGlasses},
+  {id:"headwear",   label:"Headwear",    Icon:IconHat},
+  {id:"outfit",     label:"Clothing",    Icon:IconShirt},
+  {id:"background", label:"Background",  Icon:IconBg},
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REUSABLE UI COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function CategoryPill({active, onClick, Icon, label, mobile}:{active:boolean;onClick:()=>void;Icon:(p:any)=>ReactNode;label:string;mobile:boolean}) {
+  const size = mobile ? 44 : 48;
+  return (
+    <button onClick={onClick} aria-label={label} style={{
+      display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:4,
+      width:size+8,minWidth:size+8,padding:"6px 4px",
+      borderRadius:14,border:"none",
+      background:active?C.accentSoft:"transparent",
+      color:active?C.accent:C.textMute,
+      cursor:"pointer",transition:"all 200ms",
+      WebkitTapHighlightColor:"transparent" as any,touchAction:"manipulation",
     }}>
       <div style={{
-        position:"absolute",inset:0,display:"flex",alignItems:"flex-end",
-        justifyContent:"center",padding:"0 6px 12px",
+        width:size,height:size,borderRadius:"50%",
+        display:"flex",alignItems:"center",justifyContent:"center",
+        background:active?C.accent:"transparent",
+        color:active?"#FFF":C.textMute,
+        boxShadow:active?`0 4px 12px ${C.accentRing}`:"none",
+        transition:"all 200ms",
       }}>
-        <span style={{
-          fontSize:".82rem",fontWeight:900,textAlign:"center",lineHeight:1.2,
-          color:active?t.color:locked?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.82)",
-          fontFamily:"'Courier New',monospace",letterSpacing:".04em",textTransform:"uppercase",
-        }}>{label}</span>
+        <Icon size={mobile?22:24} c="currentColor"/>
       </div>
-      <TierBadge tier={tier}/>
-      {active&&<div style={{position:"absolute",top:6,right:6,width:8,height:8,borderRadius:"50%",background:t.color,boxShadow:`0 0 10px ${t.color}`,zIndex:2}}/>}
-      {locked&&<LockIcon/>}
+      <span style={{
+        fontSize:".62rem",fontWeight:600,letterSpacing:".01em",
+        color:active?C.accent:C.textLight,
+        whiteSpace:"nowrap",
+        opacity: mobile && !active ? 0 : 1,
+        height: mobile && !active ? 0 : "auto",
+        transition:"all 200ms",
+      }}>{label}</span>
     </button>
   );
 }
 
-// ─── COLOR CARD ───────────────────────────────────────────────────
-function ColorCard({hex,label,tier,active,locked,onClick}:{hex:string;label:string;tier:Tier;active:boolean;locked:boolean;onClick:()=>void}) {
+function ThumbCard({ active, onClick, label, children }:{active:boolean;onClick:()=>void;label?:string;children:ReactNode}) {
   return (
-    <button onClick={locked?undefined:onClick} disabled={locked} style={{
-      position:"relative",height:68,width:"100%",
-      borderRadius:10,overflow:"hidden",cursor:locked?"default":"pointer",
-      border:`2px solid ${active?NEON:locked?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.1)"}`,
-      background:hex,transition:"all 150ms",padding:0,
-      boxShadow:active?`0 0 18px rgba(56,217,245,0.65)`:undefined,
-      transform:active?"scale(1.1)":"scale(1)",
-      filter:locked?"brightness(0.35) saturate(0.2)":undefined,
+    <button onClick={onClick} style={{
+      display:"flex",flexDirection:"column",alignItems:"center",gap:6,
+      padding:6,borderRadius:18,border:"none",cursor:"pointer",background:"transparent",
+      WebkitTapHighlightColor:"transparent" as any,touchAction:"manipulation",
+      transition:"transform 180ms",
+      transform:active?"scale(1.04)":"scale(1)",
     }}>
-      <TierBadge tier={tier}/>
-      {locked&&<LockIcon/>}
-      {active&&(
-        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",zIndex:2}}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-      )}
-      <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,0.72)",padding:"3px 0",textAlign:"center",zIndex:1}}>
-        <span style={{fontSize:".68rem",color:"rgba(255,255,255,0.92)",fontFamily:"'Courier New',monospace",letterSpacing:".04em",textTransform:"uppercase"}}>{label}</span>
+      <div style={{
+        position:"relative",width:"100%",aspectRatio:"1/1",
+        borderRadius:"50%",overflow:"hidden",
+        boxShadow:active?`0 0 0 3px ${C.accent},0 4px 14px rgba(0,122,255,0.30)`:"0 1px 3px rgba(0,0,0,0.08)",
+        transition:"box-shadow 180ms",
+      }}>
+        {children}
       </div>
+      {label && <span style={{
+        fontSize:".74rem",fontWeight:500,letterSpacing:"-.01em",
+        color:active?C.accent:C.text,
+        textAlign:"center",lineHeight:1.2,
+      }}>{label}</span>}
     </button>
   );
 }
 
-// ─── SKIN PICKER ──────────────────────────────────────────────────
-function SkinPicker({value,onChange}:{value:number;onChange:(v:number)=>void}) {
+function ColorSwatch({ hex, active, onClick, size=40 }:{hex:string;active:boolean;onClick:()=>void;size?:number}) {
   return (
-    <div>
-      <div style={{position:"relative",height:32,display:"flex",alignItems:"center",marginBottom:".6rem"}}>
-        <div style={{
-          position:"absolute",left:0,right:0,height:18,borderRadius:9,
-          background:`linear-gradient(to right,${SKIN_TONES.join(",")})`,
-          boxShadow:"inset 0 2px 6px rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",
-        }}/>
-        <input type="range" min={0} max={SKIN_TONES.length-1} step={1} value={value}
-          onChange={e=>onChange(Number(e.target.value))}
-          style={{position:"relative",width:"100%",height:18,appearance:"none",background:"transparent",cursor:"pointer",zIndex:1}}/>
-      </div>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-        {SKIN_TONES.map((c,i)=>(
-          <button key={i} onClick={()=>onChange(i)} style={{
-            width:34,height:34,borderRadius:6,background:c,padding:0,cursor:"pointer",
-            border:`2.5px solid ${value===i?NEON:"transparent"}`,
-            boxShadow:value===i?`0 0 12px rgba(56,217,245,0.7)`:undefined,
-            transition:"all 120ms",transform:value===i?"scale(1.22)":"scale(1)",
-          }}/>
-        ))}
-      </div>
+    <button onClick={onClick} aria-label={hex} style={{
+      width:size,height:size,minWidth:size,padding:0,
+      borderRadius:"50%",border:"none",cursor:"pointer",
+      background:`radial-gradient(circle at 35% 30%, ${lt(hex,0.22)} 0%, ${hex} 60%, ${dk(hex,0.18)} 100%)`,
+      boxShadow:active?`0 0 0 3px #FFF,0 0 0 6px ${C.accent}`:"0 1px 3px rgba(0,0,0,0.10)",
+      transition:"transform 150ms,box-shadow 150ms",
+      transform:active?"scale(1.05)":"scale(1)",
+      WebkitTapHighlightColor:"transparent" as any,touchAction:"manipulation",
+      flexShrink:0,
+    }}/>
+  );
+}
+
+function SectionHeader({ children, action }:{children:ReactNode;action?:ReactNode}) {
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"0 0 14px"}}>
+      <h3 style={{
+        fontSize:".78rem",fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
+        color:C.textMute,margin:0,
+      }}>{children}</h3>
+      {action}
     </div>
   );
 }
 
-// ─── CATEGORY TAB ─────────────────────────────────────────────────
-function CategoryTab({cat,active,onClick}:{cat:CatConfig;active:boolean;onClick:()=>unknown}) {
+// Toggle switch (iOS-style)
+function Toggle({ on, onChange, label }:{on:boolean;onChange:(v:boolean)=>void;label?:string}) {
   return (
-    <button onClick={onClick} style={{
-      display:"flex",flexDirection:"column",alignItems:"center",gap:".38rem",
-      padding:".7rem .6rem",width:"100%",borderRadius:10,cursor:"pointer",
-      border:`1.5px solid ${active?ORANGE:"rgba(255,255,255,0.07)"}`,
-      background:active?"rgba(228,106,46,0.13)":"rgba(255,255,255,0.02)",
-      color:active?ORANGE:"rgba(240,240,255,0.4)",
-      transition:"all 150ms",
-      boxShadow:active?`0 0 20px rgba(228,106,46,0.30),inset 0 0 20px rgba(228,106,46,0.06)`:undefined,
+    <button onClick={()=>onChange(!on)} aria-label={label||""} style={{
+      width:51,height:31,borderRadius:31,padding:0,border:"none",cursor:"pointer",position:"relative",
+      background:on?"#34C759":"#E9E9EB",transition:"background 220ms",
+      WebkitTapHighlightColor:"transparent" as any,
     }}>
-      {cat.icon}
-      <span style={{fontSize:".75rem",fontWeight:900,fontFamily:"'Courier New',monospace",letterSpacing:".06em",textTransform:"uppercase"}}>{cat.label}</span>
+      <div style={{
+        width:27,height:27,borderRadius:"50%",background:"#FFF",
+        position:"absolute",top:2,left:on?22:2,
+        boxShadow:"0 3px 8px rgba(0,0,0,0.20),0 1px 1px rgba(0,0,0,0.06)",
+        transition:"left 220ms",
+      }}/>
     </button>
   );
 }
 
-// ─── CORNER BRACKETS ──────────────────────────────────────────────
-function CornerBracket({pos,color=NEON,size=20}:{pos:"tl"|"tr"|"bl"|"br";color?:string;size?:number}) {
-  const style:CSSProperties = {position:"absolute",width:size,height:size,opacity:0.65};
-  if(pos==="tl"){style.top=10;style.left=10;style.borderTop=`2px solid ${color}`;style.borderLeft=`2px solid ${color}`;}
-  if(pos==="tr"){style.top=10;style.right=10;style.borderTop=`2px solid ${color}`;style.borderRight=`2px solid ${color}`;}
-  if(pos==="bl"){style.bottom=10;style.left=10;style.borderBottom=`2px solid ${color}`;style.borderLeft=`2px solid ${color}`;}
-  if(pos==="br"){style.bottom=10;style.right=10;style.borderBottom=`2px solid ${color}`;style.borderRight=`2px solid ${color}`;}
-  return <div aria-hidden="true" style={style}/>;
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN PAGE
+// ═══════════════════════════════════════════════════════════════════════════
 
-// ─── SECTION LABEL ────────────────────────────────────────────────
-function SectionLabel({children}:{children:ReactNode}) {
-  return <div style={{fontSize:".9rem",color:NEON,fontFamily:"'Courier New',monospace",letterSpacing:".1em",marginBottom:".65rem",display:"flex",alignItems:"center",gap:".5rem",fontWeight:900}}>
-    <div style={{width:3,height:13,background:NEON,borderRadius:2,boxShadow:`0 0 8px ${NEON}`}}/>
-    {children}
-  </div>;
-}
-
-function toggleAcc(state:AvatarState,id:string):string[] {
-  const G=["glasses","sunglasses"];
-  let n=state.accessories.includes(id)?state.accessories.filter(a=>a!==id):[...state.accessories,id];
-  if(G.includes(id)&&!state.accessories.includes(id)) n=n.filter(a=>!G.includes(a)||a===id);
-  return n;
-}
-
-
-// ─── MAIN PAGE ────────────────────────────────────────────────────
 export default function AvatarPage() {
-  const [state,setState]         = useState<AvatarState>(DEFAULTS);
-  const [saving,setSaving]       = useState(false);
-  const [saved,setSaved]         = useState(false);
-  const [loggedIn,setLoggedIn]   = useState<boolean|null>(null);
-  const [category,setCategory]   = useState<Category>("BODY");
-  const [playerName,setPlayerName] = useState("BOWLER");
-  const [editingName,setEditingName] = useState(false);
-  const nameRef = useRef<HTMLInputElement>(null);
+  const [state, setState] = useState<AvatarState>(DEFAULTS);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [loggedIn, setLoggedIn] = useState<boolean|null>(null);
+  const [category, setCategory] = useState<CatId>("skin");
   const { isMobile, isTablet } = useDevice();
 
+  // Load saved avatar
   useEffect(()=>{
     (async()=>{
-      try{
-        const me=await fetch("/api/auth/me",{cache:"no-store"}).then(r=>r.json());
-        if(!me?.user?.id){setLoggedIn(false);return;}
+      try {
+        const me = await fetch("/api/auth/me",{cache:"no-store"}).then(r=>r.json());
+        if (!me?.user?.id) { setLoggedIn(false); return; }
         setLoggedIn(true);
-        if(me.user.email) setPlayerName(me.user.email.split("@")[0].toUpperCase().slice(0,14));
-        const res=await fetch("/api/profile/avatar",{cache:"no-store"});
-        const data=await res.json();
-        if(data.ok&&data.avatar) setState(prev=>({...prev,...data.avatar}));
-      }catch{setLoggedIn(false);}
+        const res = await fetch("/api/profile/avatar",{cache:"no-store"});
+        const data = await res.json();
+        if (data.ok && data.avatar) {
+          setState(prev => ({...prev, ...data.avatar}));
+        }
+      } catch { setLoggedIn(false); }
     })();
   },[]);
 
-  useEffect(()=>{if(editingName&&nameRef.current)nameRef.current.focus();},[editingName]);
+  function update<K extends keyof AvatarState>(key: K, val: AvatarState[K]) {
+    setState(prev => syncAccessories({ ...prev, [key]: val }));
+  }
 
-  async function saveAvatar(){
+  async function saveAvatar() {
     setSaving(true);
-    try{
-      await fetch("/api/profile/avatar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({avatar:state})});
-      setSaved(true);setTimeout(()=>setSaved(false),2500);
-    }catch{}finally{setSaving(false);}
+    try {
+      const payload = syncAccessories(state);
+      await fetch("/api/profile/avatar",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({avatar:payload}),
+      });
+      setSaved(true);
+      setTimeout(()=>setSaved(false),2500);
+    } catch {} finally { setSaving(false); }
   }
 
-  function set<K extends keyof AvatarState>(key:K,val:AvatarState[K]){setState(prev=>({...prev,[key]:val}));}
+  // Auto-clamp facial hair when switching to female
+  useEffect(()=>{
+    if (state.gender==="female" && state.facialHair!=="none") {
+      update("facialHair","none");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[state.gender]);
 
-  const CATS:CatConfig[] = [
-    {id:"BODY",   label:"Body",   icon:<IconBody   s={20} c="currentColor"/>},
-    {id:"HAIR",   label:"Hair",   icon:<IconHair   s={20} c="currentColor"/>},
-    {id:"FACE",   label:"Face",   icon:<IconFace   s={20} c="currentColor"/>},
-    {id:"OUTFIT", label:"Outfit", icon:<IconOutfit s={20} c="currentColor"/>},
-    {id:"EXTRAS", label:"Extras", icon:<IconExtras s={20} c="currentColor"/>},
-  ];
+  const lipHex = LIP_COLORS.find(l=>l.id===state.lipColor)?.hex ?? "#C77860";
+  const hairHex = HAIR_COLORS.find(h=>h.id===state.hairColor)?.hex ?? "#5C2E18";
+  const eyeHex  = EYE_COLORS.find(e=>e.id===state.eyeColor)?.hex ?? "#4A2C10";
 
-  const BG_COLORS = ["#e46a2e","#2563eb","#16a34a","#dc2626","#7c3aed","#db2777","#0891b2","#ca8a04","#374151","#1c1c1c"];
-
-  // ── Shared options content (used in both mobile and desktop panels) ──────────
-  function renderOptions() {
-    // Gender toggle button style helper
-    const genderBtn = (g:"male"|"female") => ({
-      flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:".5rem",
-      padding:".65rem",borderRadius:8,cursor:"pointer",
-      border:`2px solid ${state.gender===g?ORANGE:"rgba(255,255,255,0.1)"}`,
-      background:state.gender===g?"rgba(228,106,46,0.18)":"rgba(255,255,255,0.03)",
-      color:state.gender===g?ORANGE:"rgba(240,240,255,0.5)",
-      fontWeight:900,fontSize:".88rem",fontFamily:"'Courier New',monospace",letterSpacing:".1em",
-      transition:"all 150ms",
-      boxShadow:state.gender===g?`0 0 20px rgba(228,106,46,0.35)`:undefined,
-    } as React.CSSProperties);
-
-    return (<>
-      {category==="BODY"&&(<>
-        {/* ── GENDER ── */}
-        <SectionLabel>GENDER</SectionLabel>
-        <div style={{display:"flex",gap:".6rem",marginBottom:"1.25rem"}}>
-          <button style={genderBtn("male")} onClick={()=>set("gender","male")}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="10" cy="14" r="5"/><line x1="19" y1="5" x2="14.14" y2="9.86"/><polyline points="15 5 19 5 19 9"/>
-            </svg>
-            MALE
-          </button>
-          <button style={genderBtn("female")} onClick={()=>{set("gender","female");if(state.facialHair!=="none")set("facialHair","none");}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="8" r="5"/><line x1="12" y1="13" x2="12" y2="21"/><line x1="9" y1="18" x2="15" y2="18"/>
-            </svg>
-            FEMALE
-          </button>
-        </div>
-        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1.25rem"}}/>
-        <SectionLabel>SKIN TONE</SectionLabel>
-        <SkinPicker value={state.skinToneIdx} onChange={v=>set("skinToneIdx",v)}/>
-        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"1.25rem 0"}}/>
-        <SectionLabel>FACE SHAPE</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".55rem"}}>
-          {FACE_SHAPES_TIERED.map(f=><OptionCard key={f.id} label={f.label} tier={f.tier} locked={f.locked} active={state.faceShape===f.id} onClick={()=>set("faceShape",f.id)}/>)}
-        </div>
-      </>)}
-      {category==="HAIR"&&(<>
-        <SectionLabel>STYLE</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".55rem",marginBottom:"1.25rem"}}>
-          {HAIR_STYLES_TIERED.map(h=><OptionCard key={h.id} label={h.label} tier={h.tier} locked={h.locked} active={state.hairStyle===h.id} onClick={()=>set("hairStyle",h.id)}/>)}
-        </div>
-        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1.25rem"}}/>
-        <SectionLabel>COLOR</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:".45rem"}}>
-          {HAIR_COLORS_TIERED.map(h=><ColorCard key={h.id} hex={h.hex} label={h.label} tier={h.tier} locked={h.locked} active={state.hairColor===h.id} onClick={()=>set("hairColor",h.id)}/>)}
-        </div>
-      </>)}
-      {category==="FACE"&&(<>
-        {state.gender!=="female"&&(<>
-          <SectionLabel>FACIAL HAIR</SectionLabel>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".55rem",marginBottom:"1.25rem"}}>
-            {FACIAL_HAIR_TIERED.map(f=><OptionCard key={f.id} label={f.label} tier={f.tier} locked={f.locked} active={state.facialHair===f.id} onClick={()=>set("facialHair",f.id)}/>)}
+  // ─── Render content for the active category ──────────────────────────
+  function renderCategory() {
+    switch (category) {
+      case "skin": return (
+        <>
+          {/* Gender toggle */}
+          <SectionHeader>Identity</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
+            {(["male","female"] as const).map(g => (
+              <button key={g} onClick={()=>update("gender",g)} style={{
+                padding:"14px 16px",borderRadius:14,border:`2px solid ${state.gender===g?C.accent:C.divider}`,
+                background:state.gender===g?C.accentSoft:C.surface,
+                color:state.gender===g?C.accent:C.text,
+                fontSize:"1rem",fontWeight:600,cursor:"pointer",
+                display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+                WebkitTapHighlightColor:"transparent" as any,touchAction:"manipulation",
+                transition:"all 180ms",
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {g==="male"
+                    ? <><circle cx="10" cy="14" r="5"/><line x1="19" y1="5" x2="14.14" y2="9.86"/><polyline points="15 5 19 5 19 9"/></>
+                    : <><circle cx="12" cy="8" r="5"/><line x1="12" y1="13" x2="12" y2="21"/><line x1="9" y1="18" x2="15" y2="18"/></>}
+                </svg>
+                {g==="male"?"Male":"Female"}
+              </button>
+            ))}
           </div>
-          <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1.25rem"}}/>
-        </>)}
-        <SectionLabel>EYE COLOR</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:".45rem"}}>
-          {EYE_COLORS_TIERED.map(e=><ColorCard key={e.id} hex={e.hex} label={e.label} tier={e.tier} locked={e.locked} active={state.eyeColor===e.id} onClick={()=>set("eyeColor",e.id)}/>)}
-        </div>
-      </>)}
-      {category==="OUTFIT"&&(<>
-        <SectionLabel>OUTFIT</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".55rem",marginBottom:"1.25rem"}}>
-          {OUTFITS_TIERED.map(o=><OptionCard key={o.id} label={o.label} tier={o.tier} locked={o.locked} active={state.outfit===o.id} onClick={()=>{if(!o.locked)set("outfit",o.id);}}/>)}
-        </div>
-        <div style={{padding:".85rem 1rem",borderRadius:10,background:"rgba(228,106,46,0.07)",border:"1px solid rgba(228,106,46,0.18)"}}>
-          <div style={{fontSize:".82rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".06em",fontWeight:900,marginBottom:5}}>UNLOCK EPIC & LEGENDARY SKINS</div>
-          <div style={{fontSize:".75rem",color:"rgba(240,240,255,0.42)",fontFamily:"'Courier New',monospace",lineHeight:1.6}}>Earn through achievements or visit the Shop to unlock exclusive looks.</div>
-        </div>
-      </>)}
-      {category==="EXTRAS"&&(<>
-        <SectionLabel>ACCESSORIES</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".55rem",marginBottom:"1.25rem"}}>
-          {ACCESSORIES_TIERED.map(a=><OptionCard key={a.id} label={a.label} tier={a.tier} locked={a.locked} active={state.accessories.includes(a.id)} onClick={()=>{if(!a.locked)set("accessories",toggleAcc(state,a.id));}}/>)}
-        </div>
-        <div style={{height:1,background:"rgba(255,255,255,0.055)",margin:"0 0 1.25rem"}}/>
-        <SectionLabel>BACKGROUND COLOR</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:".45rem"}}>
-          {BG_COLORS.map(c=>(
-            <button key={c} onClick={()=>set("bgColor",c)} style={{paddingBottom:"100%",borderRadius:8,background:c,border:`2.5px solid ${state.bgColor===c?NEON:"transparent"}`,cursor:"pointer",position:"relative",boxShadow:state.bgColor===c?`0 0 14px rgba(56,217,245,0.55)`:undefined,transform:state.bgColor===c?"scale(1.14)":"scale(1)",transition:"all 120ms"}}/>
-          ))}
-        </div>
-      </>)}
-    </>);
+
+          {/* Skin Tone */}
+          <SectionHeader>Skin Tone</SectionHeader>
+          <div style={{
+            display:"flex",flexWrap:"wrap",gap:10,marginBottom:24,justifyContent:"flex-start",
+          }}>
+            {SKIN_TONES.map((c,i)=>(
+              <ColorSwatch key={i} hex={c} active={state.skinToneIdx===i} onClick={()=>update("skinToneIdx",i)} size={42}/>
+            ))}
+          </div>
+
+          {/* Freckles */}
+          <SectionHeader>Freckles</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+            {FRECKLES_OPTS.map(f => (
+              <ThumbCard key={f.id} active={state.freckles===f.id} label={f.label} onClick={()=>update("freckles",f.id as any)}>
+                <FrecklesThumb density={f.id}/>
+              </ThumbCard>
+            ))}
+          </div>
+        </>
+      );
+
+      case "hair": return (
+        <>
+          <SectionHeader>Hairstyle</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(4,1fr)":"repeat(4,1fr)",gap:12,marginBottom:24}}>
+            {HAIR_STYLES.map(h => (
+              <ThumbCard key={h.id} active={state.hairStyle===h.id} label={h.label} onClick={()=>update("hairStyle",h.id)}>
+                <HairStyleThumb style={h.id} color={hairHex}/>
+              </ThumbCard>
+            ))}
+          </div>
+          <SectionHeader>Color</SectionHeader>
+          <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+            {HAIR_COLORS.map(c => (
+              <ColorSwatch key={c.id} hex={c.hex} active={state.hairColor===c.id} onClick={()=>update("hairColor",c.id)} size={42}/>
+            ))}
+          </div>
+        </>
+      );
+
+      case "brows": return (
+        <>
+          <SectionHeader>Brow Style</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+            {BROW_STYLES.map(b => (
+              <ThumbCard key={b.id} active={state.browStyle===b.id} label={b.label} onClick={()=>update("browStyle",b.id)}>
+                <BrowStyleThumb style={b.id}/>
+              </ThumbCard>
+            ))}
+          </div>
+        </>
+      );
+
+      case "eyes": return (
+        <>
+          <SectionHeader>Eye Shape</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
+            {EYE_SHAPES.map(s => (
+              <ThumbCard key={s.id} active={state.eyeShape===s.id} label={s.label} onClick={()=>update("eyeShape",s.id)}>
+                <EyeShapeThumb shape={s.id} color={eyeHex}/>
+              </ThumbCard>
+            ))}
+          </div>
+          <SectionHeader>Color</SectionHeader>
+          <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:24}}>
+            {EYE_COLORS.map(c => (
+              <ColorSwatch key={c.id} hex={c.hex} active={state.eyeColor===c.id} onClick={()=>update("eyeColor",c.id)} size={42}/>
+            ))}
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",background:C.surface,borderRadius:14,boxShadow:C.shadowSm}}>
+            <div>
+              <div style={{fontSize:"1rem",fontWeight:600,color:C.text}}>Eyelashes</div>
+              <div style={{fontSize:".82rem",color:C.textMute,marginTop:2}}>Add long lashes to your eyes</div>
+            </div>
+            <Toggle on={state.eyelashes} onChange={v=>update("eyelashes",v)}/>
+          </div>
+        </>
+      );
+
+      case "face": return (
+        <>
+          <SectionHeader>Face Shape</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+            {FACE_SHAPES.map(f => (
+              <ThumbCard key={f.id} active={state.faceShape===f.id} label={f.label} onClick={()=>update("faceShape",f.id)}>
+                <FaceShapeThumb shape={f.id}/>
+              </ThumbCard>
+            ))}
+          </div>
+        </>
+      );
+
+      case "nose": return (
+        <>
+          <SectionHeader>Nose Style</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+            {NOSE_STYLES.map(n => (
+              <ThumbCard key={n.id} active={state.noseStyle===n.id} label={n.label} onClick={()=>update("noseStyle",n.id)}>
+                <NoseStyleThumb style={n.id}/>
+              </ThumbCard>
+            ))}
+          </div>
+        </>
+      );
+
+      case "mouth": return (
+        <>
+          <SectionHeader>Mouth Shape</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24}}>
+            {MOUTH_SHAPES.map(m => (
+              <ThumbCard key={m.id} active={state.mouthShape===m.id} label={m.label} onClick={()=>update("mouthShape",m.id)}>
+                <MouthShapeThumb shape={m.id} lipHex={lipHex}/>
+              </ThumbCard>
+            ))}
+          </div>
+          <SectionHeader>Lip Color</SectionHeader>
+          <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+            {LIP_COLORS.map(c => (
+              <ColorSwatch key={c.id} hex={c.hex} active={state.lipColor===c.id} onClick={()=>update("lipColor",c.id)} size={42}/>
+            ))}
+          </div>
+        </>
+      );
+
+      case "ears": return (
+        <>
+          <SectionHeader>Ear Size</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24}}>
+            {EAR_SIZES.map(e => (
+              <ThumbCard key={e.id} active={state.earSize===e.id} label={e.label} onClick={()=>update("earSize",e.id)}>
+                <EarSizeThumb size={e.id}/>
+              </ThumbCard>
+            ))}
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",background:C.surface,borderRadius:14,boxShadow:C.shadowSm}}>
+            <div>
+              <div style={{fontSize:"1rem",fontWeight:600,color:C.text}}>Earrings</div>
+              <div style={{fontSize:".82rem",color:C.textMute,marginTop:2}}>Wear gold hoops</div>
+            </div>
+            <Toggle on={state.earrings} onChange={v=>update("earrings",v)}/>
+          </div>
+        </>
+      );
+
+      case "facial-hair":
+        if (state.gender === "female") {
+          return (
+            <div style={{textAlign:"center",padding:"40px 20px",color:C.textMute}}>
+              <div style={{fontSize:"3rem",marginBottom:12,opacity:0.3}}>✨</div>
+              <div style={{fontSize:"1rem",fontWeight:600,color:C.text,marginBottom:6}}>Not for this look</div>
+              <div style={{fontSize:".88rem",lineHeight:1.5}}>Switch to Male in Skin to access facial hair styles.</div>
+            </div>
+          );
+        }
+        return (
+          <>
+            <SectionHeader>Facial Hair</SectionHeader>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+              {FACIAL_HAIRS.map(f => (
+                <ThumbCard key={f.id} active={state.facialHair===f.id} label={f.label} onClick={()=>update("facialHair",f.id)}>
+                  <FacialHairThumb style={f.id} color={dk(hairHex,0.10)}/>
+                </ThumbCard>
+              ))}
+            </div>
+          </>
+        );
+
+      case "eyewear": return (
+        <>
+          <SectionHeader>Eyewear</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+            {EYEWEAR.map(e => (
+              <ThumbCard key={e.id} active={state.eyewear===e.id} label={e.label} onClick={()=>update("eyewear",e.id)}>
+                <EyewearThumb kind={e.id}/>
+              </ThumbCard>
+            ))}
+          </div>
+        </>
+      );
+
+      case "headwear": return (
+        <>
+          <SectionHeader>Headwear</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+            {HEADWEAR.map(h => (
+              <ThumbCard key={h.id} active={state.headwear===h.id} label={h.label} onClick={()=>update("headwear",h.id)}>
+                <HeadwearThumb kind={h.id}/>
+              </ThumbCard>
+            ))}
+          </div>
+        </>
+      );
+
+      case "outfit": return (
+        <>
+          <SectionHeader>Clothing</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+            {OUTFITS.map(o => (
+              <ThumbCard key={o.id} active={state.outfit===o.id} label={o.label} onClick={()=>update("outfit",o.id)}>
+                <OutfitThumb outfit={o.id}/>
+              </ThumbCard>
+            ))}
+          </div>
+        </>
+      );
+
+      case "background": return (
+        <>
+          <SectionHeader>Background</SectionHeader>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+            {BG_COLORS.map(c => (
+              <ThumbCard key={c} active={state.bgColor===c} onClick={()=>update("bgColor",c)}>
+                <BgColorThumb hex={c}/>
+              </ThumbCard>
+            ))}
+          </div>
+        </>
+      );
+    }
   }
+
+  // ─── Layout dimensions ──────────────────────────────────────────────
+  const avatarHeight = isMobile ? "46vh" : isTablet ? "50vh" : "62vh";
 
   return (
-    <main style={{height:"100vh",display:"flex",flexDirection:"column",background:BG,fontFamily:"Montserrat,system-ui",color:TEXT,overflow:"hidden"}}>
+    <main style={{
+      minHeight:"100vh",height:"100vh",
+      background:C.bgGrad,
+      display:"flex",flexDirection:"column",
+      fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display',Inter,system-ui,sans-serif",
+      color:C.text,overflow:"hidden",
+    }}>
 
-      {/* ── AMBIENT FX ── */}
-      <div aria-hidden="true" style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,backgroundImage:"linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px)",backgroundSize:"44px 44px"}}/>
-      <div aria-hidden="true" style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,background:"radial-gradient(ellipse 80% 50% at 50% 0%,rgba(56,217,245,0.055),transparent 65%),radial-gradient(ellipse 45% 35% at 10% 60%,rgba(228,106,46,0.06),transparent 60%),radial-gradient(ellipse 45% 50% at 90% 80%,rgba(167,139,250,0.04),transparent 55%)"}}/>
-      <div aria-hidden="true" style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,backgroundImage:"repeating-linear-gradient(0deg,rgba(0,0,0,0.022) 0px,rgba(0,0,0,0.022) 1px,transparent 1px,transparent 4px)"}}/>
-
-      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",height:"100%"}}>
-
-        {/* ══ TOP BAR ══ */}
-        <div style={{display:"flex",alignItems:"center",gap:isMobile?".5rem":"1rem",padding:isMobile?".5rem .875rem":".65rem 1.5rem",borderBottom:"1px solid rgba(56,217,245,0.1)",background:"rgba(8,8,18,0.88)",backdropFilter:"blur(16px)",flexShrink:0}}>
-
-          <Link href="/profile" style={{display:"flex",alignItems:"center",gap:".35rem",color:"rgba(240,240,255,0.38)",textDecoration:"none",fontSize:isMobile?".65rem":".7rem",fontFamily:"'Courier New',monospace",letterSpacing:".06em",flexShrink:0}}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            BACK
-          </Link>
-          <div style={{width:1,height:18,background:"rgba(255,255,255,0.09)",flexShrink:0}}/>
-          {!isMobile && (
-            <>
-              <div style={{display:"flex",alignItems:"center",gap:".45rem",flexShrink:0}}>
-                <span style={{fontSize:".68rem",color:NEON,fontFamily:"'Courier New',monospace",letterSpacing:".18em",fontWeight:900}}>DUX</span>
-                <span style={{fontSize:".68rem",color:"rgba(255,255,255,0.28)",fontFamily:"'Courier New',monospace",letterSpacing:".1em"}}>BOWLING</span>
-              </div>
-            </>
-          )}
-          <div style={{flex:1,textAlign:"center"}}>
-            <div style={{fontSize:isMobile?".88rem":".72rem",fontWeight:900,letterSpacing:isMobile?".1em":".2em",color:"rgba(240,240,255,0.88)",fontFamily:"'Courier New',monospace"}}>BOWLER IDENTITY</div>
-            {!isMobile&&<div style={{fontSize:".62rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".12em",marginTop:2}}>CUSTOMIZE YOUR CHARACTER</div>}
+      {/* ── TOP BAR ── */}
+      <div style={{
+        flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:isMobile?"12px 16px":"14px 24px",
+        borderBottom:`1px solid ${C.divider}`,
+        background:"rgba(255,255,255,0.85)",
+        backdropFilter:"blur(20px)",
+        WebkitBackdropFilter:"blur(20px)" as any,
+        zIndex:10,
+      }}>
+        <Link href="/profile" style={{
+          fontSize:"1rem",color:C.accent,textDecoration:"none",fontWeight:400,
+          padding:"6px 4px",
+        }}>
+          Cancel
+        </Link>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:isMobile?"1rem":"1.06rem",fontWeight:600,color:C.text,letterSpacing:"-.01em"}}>
+            Your Bowler
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:isMobile?".4rem":".65rem",flexShrink:0}}>
-            {!loggedIn&&!isMobile&&<span style={{fontSize:".62rem",color:"rgba(240,240,255,0.28)",fontFamily:"'Courier New',monospace"}}>LOG IN TO SAVE</span>}
-            {saved&&<span style={{fontSize:isMobile?".6rem":".7rem",fontWeight:900,color:"#4ade80",fontFamily:"'Courier New',monospace",letterSpacing:".06em",animation:"savedFlash .4s ease"}}>✓ {isMobile?"":"SAVED"}</span>}
-            <button onClick={saveAvatar} disabled={saving||!loggedIn} style={{display:"flex",alignItems:"center",gap:".4rem",padding:isMobile?".45rem .75rem":".5rem 1.3rem",borderRadius:6,cursor:saving||!loggedIn?"default":"pointer",background:saving||!loggedIn?"transparent":ORANGE,border:`1.5px solid ${saving||!loggedIn?"rgba(228,106,46,0.28)":ORANGE}`,color:"white",fontWeight:900,fontSize:isMobile?".65rem":".72rem",fontFamily:"'Courier New',monospace",letterSpacing:".08em",textTransform:"uppercase",opacity:saving||!loggedIn?0.45:1,boxShadow:saving||!loggedIn?undefined:"0 0 22px rgba(228,106,46,0.55)",transition:"all 150ms",touchAction:"manipulation",whiteSpace:"nowrap"}}>
-              {saving
-                ?<><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{animation:"spin 1s linear infinite"}}><path d="M21 12a9 9 0 1 1-18 0"/></svg>{!isMobile&&"SAVING"}</>
-                :isMobile
-                  ?<><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>SAVE</>
-                  :<><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>SAVE LOADOUT</>
-              }
-            </button>
+        </div>
+        <button onClick={saveAvatar} disabled={saving||!loggedIn} style={{
+          fontSize:"1rem",fontWeight:600,
+          color:saving||!loggedIn?C.textLight:C.accent,
+          background:"none",border:"none",
+          cursor:saving||!loggedIn?"default":"pointer",
+          padding:"6px 4px",
+          display:"flex",alignItems:"center",gap:6,
+        }}>
+          {saving ? "Saving…" : saved ? <><span style={{color:"#34C759"}}>✓ Done</span></> : "Done"}
+        </button>
+      </div>
+
+      {/* ── BODY ── */}
+      <div style={{flex:1,display:"flex",flexDirection:isMobile||isTablet?"column":"row",overflow:"hidden",minHeight:0}}>
+
+        {/* ── AVATAR PREVIEW ── */}
+        <div style={{
+          flex:isMobile||isTablet?"0 0 auto":"1 1 auto",
+          height:isMobile||isTablet?avatarHeight:"auto",
+          minWidth:0,minHeight:0,position:"relative",
+          display:"flex",alignItems:"center",justifyContent:"center",
+          background:C.bgGrad,
+          padding:isMobile?"16px":"24px",
+        }}>
+          {/* Soft gradient circle backdrop matching bgColor */}
+          <div aria-hidden="true" style={{
+            position:"absolute",
+            width:isMobile?"min(82vw,360px)":"min(56vh,460px)",
+            height:isMobile?"min(82vw,360px)":"min(56vh,460px)",
+            borderRadius:"50%",
+            background:`radial-gradient(circle at 50% 35%, ${lt(state.bgColor,0.18)} 0%, ${state.bgColor} 65%, ${dk(state.bgColor,0.10)} 100%)`,
+            boxShadow:"0 24px 60px rgba(0,0,0,0.18),inset 0 -10px 40px rgba(0,0,0,0.12)",
+          }}/>
+          {/* 3D canvas on top of backdrop */}
+          <div style={{
+            position:"relative",
+            width:isMobile?"min(78vw,340px)":"min(54vh,440px)",
+            height:isMobile?"min(78vw,340px)":"min(54vh,440px)",
+            zIndex:1,
+          }}>
+            <AvatarStage state={syncAccessories(state)}/>
           </div>
         </div>
 
-        {/* ══ RESPONSIVE BODY ══ */}
+        {/* ── BOTTOM SHEET (mobile/tablet) or RIGHT PANEL (desktop) ── */}
+        <div style={{
+          flex:isMobile||isTablet?"1 1 auto":"0 0 460px",
+          background:C.surface,
+          borderTop:isMobile||isTablet?`1px solid ${C.divider}`:"none",
+          borderLeft:isMobile||isTablet?"none":`1px solid ${C.divider}`,
+          borderTopLeftRadius:isMobile||isTablet?22:0,
+          borderTopRightRadius:isMobile||isTablet?22:0,
+          boxShadow:isMobile||isTablet?"0 -8px 28px rgba(0,0,0,0.08)":"none",
+          display:"flex",flexDirection:"column",
+          minHeight:0,minWidth:0,overflow:"hidden",position:"relative",
+        }}>
+          {/* Drag indicator (mobile) */}
+          {(isMobile||isTablet) && (
+            <div aria-hidden="true" style={{
+              width:36,height:5,borderRadius:3,background:"#D1D1D6",
+              margin:"8px auto 4px",flexShrink:0,
+            }}/>
+          )}
 
-        {/* ─── MOBILE LAYOUT (<641px) ─── */}
-        {isMobile && (
-          <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0}}>
-
-            {/* Compact 3D canvas preview — always visible so you see changes live */}
-            <div style={{height:240,position:"relative",flexShrink:0,background:"#050510",borderBottom:"1px solid rgba(56,217,245,0.09)"}}>
-              <div aria-hidden="true" style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse 60% 40% at 50% 0%,rgba(56,217,245,0.04),transparent 60%)"}}/>
-              <CornerBracket pos="tl" size={14}/>
-              <CornerBracket pos="tr" size={14}/>
-              <AvatarStage state={state}/>
-              <div style={{position:"absolute",top:8,right:10,zIndex:2,pointerEvents:"none",fontSize:".48rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900,background:"rgba(228,106,46,0.14)",border:"1px solid rgba(228,106,46,0.28)",borderRadius:4,padding:"2px 6px"}}>
-                LVL 1
-              </div>
-              <div style={{position:"absolute",bottom:8,left:"50%",transform:"translateX(-50%)",background:"rgba(5,5,15,0.9)",border:"1px solid rgba(56,217,245,0.28)",borderRadius:4,padding:".18rem .65rem",backdropFilter:"blur(8px)",whiteSpace:"nowrap",zIndex:2,pointerEvents:"none"}}>
-                <span style={{fontSize:".82rem",color:"rgba(240,240,255,0.9)",fontFamily:"'Courier New',monospace",letterSpacing:".08em",fontWeight:900}}>{playerName}</span>
-              </div>
-            </div>
-
-            {/* ── CATEGORY CAROUSEL ── */}
-            <div style={{flexShrink:0,background:"rgba(6,6,14,0.96)",borderBottom:"1px solid rgba(56,217,245,0.12)"}}>
-              {/* Active category indicator bar */}
-              <div style={{display:"flex",alignItems:"center",padding:".4rem .75rem .0rem",gap:".5rem"}}>
-                <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:".35rem"}}>
-                  {CATS.map(cat=>(
-                    <div key={cat.id} style={{
-                      height:3,borderRadius:2,transition:"all 300ms",
-                      flex:category===cat.id?3:1,
-                      background:category===cat.id?ORANGE:"rgba(255,255,255,0.1)",
-                      boxShadow:category===cat.id?`0 0 8px ${ORANGE}`:undefined,
-                    }}/>
-                  ))}
-                </div>
-                {/* Reset button */}
-                <button onClick={()=>setState(DEFAULTS)} style={{
-                  display:"flex",alignItems:"center",gap:".3rem",
-                  padding:".28rem .6rem",borderRadius:20,border:"1px solid rgba(255,255,255,0.1)",
-                  background:"rgba(255,255,255,0.04)",color:"rgba(240,240,255,0.4)",
-                  cursor:"pointer",fontSize:".72rem",fontFamily:"'Courier New',monospace",letterSpacing:".06em",
-                  touchAction:"manipulation",flexShrink:0,
-                }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.32"/></svg>
-                  RESET
-                </button>
-              </div>
-
-              {/* Category tabs row */}
-              <div style={{display:"flex",overflowX:"auto",WebkitOverflowScrolling:"touch" as any,padding:".4rem .5rem .6rem",gap:".5rem",scrollbarWidth:"none"}}>
-                {CATS.map(cat=>(
-                  <button key={cat.id} onClick={()=>setCategory(cat.id)} style={{
-                    display:"flex",flexDirection:"column",alignItems:"center",gap:".32rem",
-                    padding:".65rem .9rem",flexShrink:0,borderRadius:12,
-                    border:`2px solid ${category===cat.id?ORANGE:"rgba(255,255,255,0.08)"}`,
-                    background:category===cat.id?"rgba(228,106,46,0.15)":"rgba(255,255,255,0.03)",
-                    color:category===cat.id?ORANGE:"rgba(240,240,255,0.45)",
-                    cursor:"pointer",minWidth:68,touchAction:"manipulation",
-                    WebkitTapHighlightColor:"transparent" as any,
-                    boxShadow:category===cat.id?`0 0 16px rgba(228,106,46,0.35)`:undefined,
-                    transition:"all 200ms",
-                  }}>
-                    {cat.icon}
-                    <span style={{fontSize:".78rem",fontWeight:900,fontFamily:"'Courier New',monospace",letterSpacing:".06em",textTransform:"uppercase"}}>{cat.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Options panel header (tier legend) */}
-            <div style={{padding:".65rem 1rem .45rem",borderBottom:"1px solid rgba(255,255,255,0.05)",flexShrink:0,background:"rgba(6,6,14,0.92)"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".4rem"}}>
-                <div style={{fontSize:".9rem",fontWeight:900,color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".12em"}}>{category} OPTIONS</div>
-                <div style={{fontSize:".72rem",color:"rgba(240,240,255,0.32)",fontFamily:"'Courier New',monospace"}}>
-                  {category==="BODY"?`${SKIN_TONES.length} TONES`:category==="HAIR"?`${HAIR_STYLES_TIERED.length} STYLES`:category==="FACE"?`${FACE_SHAPES_TIERED.length+FACIAL_HAIR_TIERED.length} OPTIONS`:category==="OUTFIT"?`${OUTFITS_TIERED.length} LOOKS`:`${ACCESSORIES_TIERED.length} ITEMS`}
-                </div>
-              </div>
-              <div style={{display:"flex",gap:4}}>
-                {(["common","rare","epic","legendary"] as Tier[]).map(t=>(
-                  <div key={t} style={{display:"flex",alignItems:"center",gap:3,background:`rgba(${hexToRgb(TIERS[t].color)},0.07)`,border:`1px solid rgba(${hexToRgb(TIERS[t].color)},0.2)`,borderRadius:5,padding:"2px 7px"}}>
-                    <div style={{width:5,height:5,borderRadius:"50%",background:TIERS[t].color}}/>
-                    <span style={{fontSize:".62rem",color:TIERS[t].color,fontFamily:"'Courier New',monospace",letterSpacing:".04em",textTransform:"uppercase"}}>{t}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Scrollable options */}
-            <div style={{flex:1,padding:"1rem 1rem",overflowY:"auto",WebkitOverflowScrolling:"touch" as any}}>
-              {renderOptions()}
-            </div>
-          </div>
-        )}
-
-        {/* ─── TABLET / DESKTOP LAYOUT (641px+) ─── */}
-        {!isMobile && (
-          <div style={{flex:1,display:"grid",gridTemplateColumns:isTablet?"72px 1fr 270px":"190px 1fr 310px",overflow:"hidden",minHeight:0}}>
-
-            {/* ── LEFT NAV ── */}
-            <div style={{borderRight:"1px solid rgba(56,217,245,0.09)",background:"rgba(6,6,14,0.65)",display:"flex",flexDirection:"column",padding:isTablet?".7rem .4rem":".85rem .7rem",gap:".45rem",overflowY:"auto"}}>
-
-              {/* Player card — full version on desktop, hidden on tablet */}
-              {!isTablet && (
-                <div style={{background:"rgba(12,12,24,0.85)",border:"1px solid rgba(56,217,245,0.14)",borderRadius:10,padding:".8rem .7rem",marginBottom:".35rem",textAlign:"center",position:"relative",overflow:"hidden"}}>
-                  <div aria-hidden="true" style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 90% 55% at 50% 0%,rgba(228,106,46,0.11),transparent 70%)"}}/>
-                  <div style={{position:"relative",zIndex:1}}>
-                    <div style={{width:56,height:56,borderRadius:"50%",margin:"0 auto .55rem",border:`2px solid ${ORANGE}`,overflow:"hidden",position:"relative",boxShadow:`0 0 18px rgba(228,106,46,0.38)`,background:"rgba(0,0,0,0.5)"}}>
-                      <div style={{position:"absolute",top:-28,left:"50%",transform:"translateX(-50%)"}}>
-                        <CharacterSVG state={state} w={112} h={210}/>
-                      </div>
-                    </div>
-                    {editingName
-                      ?<input ref={nameRef} value={playerName} onChange={e=>setPlayerName(e.target.value.toUpperCase().slice(0,14))} onBlur={()=>setEditingName(false)} onKeyDown={e=>{if(e.key==="Enter")setEditingName(false);}} style={{background:"rgba(56,217,245,0.1)",border:`1px solid ${NEON}`,borderRadius:4,color:NEON,fontSize:".68rem",fontWeight:900,fontFamily:"'Courier New',monospace",letterSpacing:".08em",textAlign:"center",width:"100%",padding:".2rem .3rem",outline:"none"}}/>
-                      :<button onClick={()=>setEditingName(true)} style={{background:"none",border:"none",cursor:"pointer",padding:0,width:"100%"}}>
-                        <div style={{fontSize:".72rem",fontWeight:900,color:TEXT,fontFamily:"'Courier New',monospace",letterSpacing:".06em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{playerName}</div>
-                        <div style={{fontSize:".5rem",color:"rgba(240,240,255,0.3)",fontFamily:"'Courier New',monospace",letterSpacing:".08em",marginTop:2}}>TAP TO RENAME ✎</div>
-                      </button>
-                    }
-                    <div style={{display:"inline-flex",alignItems:"center",gap:4,marginTop:".5rem",background:"rgba(228,106,46,0.13)",border:"1px solid rgba(228,106,46,0.32)",borderRadius:20,padding:"3px 10px"}}>
-                      <div style={{width:5,height:5,borderRadius:"50%",background:ORANGE,boxShadow:`0 0 6px ${ORANGE}`}}/>
-                      <span style={{fontSize:".54rem",color:ORANGE,fontFamily:"'Courier New',monospace",fontWeight:900,letterSpacing:".1em"}}>ROOKIE</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Mini avatar on tablet */}
-              {isTablet && (
-                <div style={{width:44,height:44,borderRadius:"50%",border:`2px solid ${ORANGE}`,overflow:"hidden",position:"relative",background:"rgba(0,0,0,0.5)",boxShadow:`0 0 12px rgba(228,106,46,0.3)`,margin:"0 auto .4rem",flexShrink:0}}>
-                  <div style={{position:"absolute",top:-22,left:"50%",transform:"translateX(-50%)"}}>
-                    <CharacterSVG state={state} w={88} h={166}/>
-                  </div>
-                </div>
-              )}
-
-              {!isTablet && <div style={{fontSize:".5rem",color:"rgba(240,240,255,0.22)",fontFamily:"'Courier New',monospace",letterSpacing:".14em",padding:"0 .2rem",marginBottom:".1rem"}}>CATEGORIES</div>}
-
-              {CATS.map(cat => isTablet ? (
-                /* Icon-only on tablet */
-                <button key={cat.id} onClick={()=>setCategory(cat.id)} title={cat.label} style={{
-                  display:"flex",flexDirection:"column",alignItems:"center",gap:".2rem",
-                  padding:".55rem .3rem",width:"100%",borderRadius:8,cursor:"pointer",
-                  border:`1.5px solid ${category===cat.id?ORANGE:"rgba(255,255,255,0.07)"}`,
-                  background:category===cat.id?"rgba(228,106,46,0.13)":"rgba(255,255,255,0.02)",
-                  color:category===cat.id?ORANGE:"rgba(240,240,255,0.4)",
-                  boxShadow:category===cat.id?`0 0 14px rgba(228,106,46,0.25)`:undefined,
-                  touchAction:"manipulation",
-                }}>
-                  {cat.icon}
-                </button>
-              ) : (
-                <CategoryTab key={cat.id} cat={cat} active={category===cat.id} onClick={()=>setCategory(cat.id)}/>
+          {/* Category strip */}
+          <div style={{
+            flexShrink:0,
+            padding:isMobile?"6px 8px 8px":"10px 8px 10px",
+            borderBottom:`1px solid ${C.divider}`,
+            background:C.surface,
+          }}>
+            <div style={{
+              display:"flex",overflowX:"auto",WebkitOverflowScrolling:"touch" as any,
+              gap:2,scrollbarWidth:"none",
+              padding:"2px 0",
+            }} className="memoji-cat-strip">
+              {CATEGORIES.map(c => (
+                <CategoryPill
+                  key={c.id}
+                  active={category===c.id}
+                  onClick={()=>setCategory(c.id)}
+                  Icon={c.Icon}
+                  label={c.label}
+                  mobile={isMobile}
+                />
               ))}
-
-              <div style={{height:1,background:"rgba(255,255,255,0.06)",margin:".2rem 0"}}/>
-
-              <button onClick={()=>setState(DEFAULTS)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:".4rem",padding:".5rem",borderRadius:8,cursor:"pointer",width:"100%",border:"1px solid rgba(255,255,255,0.07)",background:"rgba(255,255,255,0.02)",color:"rgba(240,240,255,0.3)",fontSize:".58rem",fontFamily:"'Courier New',monospace",letterSpacing:".1em",transition:"all 150ms"}}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.32"/></svg>
-                {!isTablet && "RESET"}
-              </button>
-            </div>
-
-            {/* ── CENTER STAGE (3D) ── */}
-            <div style={{display:"flex",flexDirection:"column",position:"relative",overflow:"hidden",background:"#050510"}}>
-              <div aria-hidden="true" style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse 60% 30% at 50% 0%,rgba(56,217,245,0.04),transparent 60%),radial-gradient(ellipse 50% 25% at 50% 100%,rgba(228,106,46,0.05),transparent 55%)"}}/>
-              <div style={{flex:1,position:"relative",minHeight:0}}>
-                <CornerBracket pos="tl"/>
-                <CornerBracket pos="tr"/>
-                <CornerBracket pos="bl"/>
-                <CornerBracket pos="br"/>
-                <div style={{position:"absolute",top:14,left:16,fontSize:".52rem",color:"rgba(240,240,255,0.32)",fontFamily:"'Courier New',monospace",letterSpacing:".1em",zIndex:2,pointerEvents:"none"}}>
-                  LANE 4 · WALKERSVILLE
-                </div>
-                <div style={{position:"absolute",top:12,right:14,zIndex:2,pointerEvents:"none",fontSize:".54rem",color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900,background:"rgba(228,106,46,0.14)",border:"1px solid rgba(228,106,46,0.28)",borderRadius:4,padding:"2px 8px"}}>
-                  LVL 1
-                </div>
-                <AvatarStage state={state} />
-                <div style={{position:"absolute",bottom:32,left:"50%",transform:"translateX(-50%)",background:"rgba(5,5,15,0.88)",border:"1px solid rgba(56,217,245,0.32)",borderRadius:6,padding:".28rem 1rem",boxShadow:"0 0 18px rgba(56,217,245,0.18)",backdropFilter:"blur(8px)",whiteSpace:"nowrap",zIndex:2,pointerEvents:"none"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:".45rem"}}>
-                    <div style={{width:5,height:5,borderRadius:"50%",background:ORANGE,boxShadow:`0 0 7px ${ORANGE}`}}/>
-                    <span style={{fontSize:".6rem",color:"rgba(240,240,255,0.92)",fontFamily:"'Courier New',monospace",letterSpacing:".1em",fontWeight:900}}>{playerName}</span>
-                    <div style={{width:1,height:11,background:"rgba(255,255,255,0.18)"}}/>
-                    <span style={{fontSize:".56rem",color:NEON,fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>{OUTFITS.find(o=>o.id===state.outfit)?.label.toUpperCase()??""}</span>
-                  </div>
-                </div>
-              </div>
-              <div style={{flexShrink:0,display:"flex",alignItems:"center",gap:".5rem",padding:".5rem 1rem",background:"rgba(8,8,18,0.9)",borderTop:"1px solid rgba(255,255,255,0.055)",flexWrap:"wrap",justifyContent:"center",zIndex:2}}>
-                {[
-                  {k:"HAIR",v:HAIR_STYLES_TIERED.find(h=>h.id===state.hairStyle)?.label??state.hairStyle},
-                  {k:"OUTFIT",v:OUTFITS.find(o=>o.id===state.outfit)?.label??state.outfit},
-                  ...(state.accessories.length>0?[{k:"EXTRAS",v:`+${state.accessories.length}`}]:[]),
-                ].map((item,i)=>(
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:".35rem"}}>
-                    {i>0&&<div style={{width:1,height:10,background:"rgba(255,255,255,0.15)"}}/>}
-                    <span style={{fontSize:".52rem",color:"rgba(240,240,255,0.35)",fontFamily:"'Courier New',monospace",letterSpacing:".08em"}}>{item.k}</span>
-                    <span style={{fontSize:".56rem",color:"rgba(240,240,255,0.78)",fontFamily:"'Courier New',monospace",fontWeight:900,letterSpacing:".04em"}}>{item.v.toUpperCase()}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── RIGHT PANEL ── */}
-            <div style={{borderLeft:"1px solid rgba(56,217,245,0.09)",background:"rgba(6,6,14,0.72)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-              <div style={{padding:isTablet?".7rem .85rem .45rem":".85rem 1.1rem .55rem",borderBottom:"1px solid rgba(255,255,255,0.055)",flexShrink:0,background:"rgba(6,6,14,0.97)",backdropFilter:"blur(14px)",zIndex:2}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".45rem"}}>
-                  <div style={{fontSize:".62rem",fontWeight:900,color:ORANGE,fontFamily:"'Courier New',monospace",letterSpacing:".15em"}}>{category} OPTIONS</div>
-                  <div style={{fontSize:".52rem",color:"rgba(240,240,255,0.28)",fontFamily:"'Courier New',monospace"}}>
-                    {category==="BODY"?`${SKIN_TONES.length} TONES`:category==="HAIR"?`${HAIR_STYLES_TIERED.length} STYLES`:category==="FACE"?`${FACE_SHAPES_TIERED.length+FACIAL_HAIR_TIERED.length} OPTIONS`:category==="OUTFIT"?`${OUTFITS_TIERED.length} LOOKS`:`${ACCESSORIES_TIERED.length} ITEMS`}
-                  </div>
-                </div>
-                <div style={{display:"flex",gap:3}}>
-                  {(["common","rare","epic","legendary"] as Tier[]).map(t=>(
-                    <div key={t} style={{display:"flex",alignItems:"center",gap:3,background:`rgba(${hexToRgb(TIERS[t].color)},0.07)`,border:`1px solid rgba(${hexToRgb(TIERS[t].color)},0.2)`,borderRadius:4,padding:"1px 5px"}}>
-                      <div style={{width:4,height:4,borderRadius:"50%",background:TIERS[t].color}}/>
-                      <span style={{fontSize:".42rem",color:TIERS[t].color,fontFamily:"'Courier New',monospace",letterSpacing:".06em",textTransform:"uppercase"}}>{t}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div style={{flex:1,padding:isTablet?".7rem .85rem":".85rem 1.1rem",overflowY:"auto"}}>
-                {renderOptions()}
-              </div>
             </div>
           </div>
-        )}
+
+          {/* Options content */}
+          <div style={{
+            flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch" as any,
+            padding:isMobile?"18px 18px 32px":"22px 24px 32px",
+            background:C.surfaceMuted,
+          }}>
+            {renderCategory()}
+            {/* Reset button at bottom */}
+            <div style={{marginTop:32,paddingTop:20,borderTop:`1px solid ${C.divider}`}}>
+              <button onClick={()=>setState(DEFAULTS)} style={{
+                width:"100%",padding:"14px",borderRadius:14,
+                border:"none",background:C.surface,
+                color:C.red,fontSize:"1rem",fontWeight:500,
+                cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+                boxShadow:C.shadowSm,
+                WebkitTapHighlightColor:"transparent" as any,touchAction:"manipulation",
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.32"/></svg>
+                Reset to Default
+              </button>
+              {!loggedIn && (
+                <div style={{
+                  marginTop:14,padding:"12px 16px",
+                  background:"rgba(255,149,0,0.10)",border:"1px solid rgba(255,149,0,0.25)",
+                  borderRadius:12,
+                  fontSize:".85rem",color:"#995500",textAlign:"center",
+                }}>
+                  Log in to save your bowler.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <style>{`
-        @keyframes idleFloat{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(-11px);}}
-        @keyframes spotPulse{0%,100%{opacity:.65;transform:translateX(-50%) scaleX(1);}50%{opacity:1;transform:translateX(-50%) scaleX(1.18);}}
-        @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
-        @keyframes savedFlash{0%{transform:scale(1);}50%{transform:scale(1.12);}100%{transform:scale(1);}}
-        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:4px;background:#38d9f5;border:none;box-shadow:0 0 10px rgba(56,217,245,0.8);cursor:pointer;}
-        input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:4px;background:#38d9f5;border:none;box-shadow:0 0 10px rgba(56,217,245,0.8);cursor:pointer;}
-        input[type=range]:focus{outline:none;}
-        ::-webkit-scrollbar{width:4px;height:4px;}
-        ::-webkit-scrollbar-track{background:rgba(0,0,0,0.15);}
-        ::-webkit-scrollbar-thumb{background:rgba(56,217,245,0.28);border-radius:2px;}
-        ::-webkit-scrollbar-thumb:hover{background:rgba(56,217,245,0.48);}
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .memoji-cat-strip::-webkit-scrollbar { display: none; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(60,60,67,0.20); border-radius: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        button { font-family: inherit; }
+        button:focus-visible { outline: 2px solid ${C.accent}; outline-offset: 2px; }
       `}</style>
     </main>
   );

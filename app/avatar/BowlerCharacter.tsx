@@ -37,6 +37,16 @@ export interface AvatarState {
   accessories:  string[];
   bgColor:      string;
   gender:       "male" | "female";
+  // Memoji-style granular options (all optional with sensible defaults)
+  freckles?:    "none" | "light" | "heavy";
+  browStyle?:   "default" | "thin" | "thick" | "arched" | "angled" | "straight";
+  eyeShape?:    "round" | "almond" | "narrow" | "downturned";
+  eyelashes?:   boolean;
+  noseStyle?:   "default" | "small" | "wide" | "long" | "button";
+  mouthShape?:  "default" | "smile" | "neutral" | "small" | "full";
+  lipColor?:    string;
+  earSize?:     "default" | "small" | "large";
+  age?:         "young" | "adult" | "mature";
 }
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
@@ -583,6 +593,50 @@ function Head({ state }: { state: AvatarState }) {
   const eyeC   = EYE_HEX[state.eyeColor]   ?? "#4A2C10";
   const eyeDk  = darken(eyeC, 0.3);
 
+  // ─── Memoji-style customization parameters ──────────────────────────────────
+  const browStyle  = state.browStyle  ?? "default";
+  const eyeShape   = state.eyeShape   ?? "almond";
+  const noseStyle  = state.noseStyle  ?? "default";
+  const mouthShape = state.mouthShape ?? "default";
+  const earSize    = state.earSize    ?? "default";
+  const freckles   = state.freckles   ?? "none";
+  const eyelashes  = state.eyelashes ?? (state.gender === "female");
+  const lipColor   = state.lipColor   ?? darken(skin, 0.22);
+
+  // Brow params
+  const browScale: [number,number,number] =
+    browStyle === "thin"     ? [1.40, 0.30, 0.55] :
+    browStyle === "thick"    ? [1.55, 0.62, 0.85] :
+    browStyle === "arched"   ? [1.40, 0.50, 0.72] :
+    browStyle === "angled"   ? [1.45, 0.42, 0.70] :
+    browStyle === "straight" ? [1.50, 0.40, 0.68] :
+                               [1.48, 0.48, 0.72]; // default
+  const browTilt = browStyle === "angled" ? 0.16 : browStyle === "arched" ? -0.10 : -0.04;
+
+  // Eye params
+  const eyeScaleX = eyeShape === "round" ? 1.05 : eyeShape === "narrow" ? 1.32 : eyeShape === "downturned" ? 1.20 : 1.18;
+  const eyeScaleY = eyeShape === "round" ? 1.10 : eyeShape === "narrow" ? 0.65 : eyeShape === "downturned" ? 0.85 : 1.00;
+  const eyeRotZ   = eyeShape === "downturned" ? -0.10 : 0;
+
+  // Nose params
+  const noseScale: [number,number,number] =
+    noseStyle === "small"  ? [0.74, 0.78, 0.78] :
+    noseStyle === "wide"   ? [1.30, 0.85, 0.92] :
+    noseStyle === "long"   ? [0.85, 1.20, 0.92] :
+    noseStyle === "button" ? [0.85, 0.62, 1.05] :
+                             [1.00, 1.00, 1.00];
+
+  // Mouth params
+  const mouthScale: [number,number,number] =
+    mouthShape === "smile"   ? [1.18, 1.00, 1.00] :
+    mouthShape === "neutral" ? [0.92, 0.78, 0.95] :
+    mouthShape === "small"   ? [0.78, 0.84, 0.95] :
+    mouthShape === "full"    ? [1.10, 1.20, 1.05] :
+                               [1.00, 1.00, 1.00];
+
+  // Ear params
+  const earScale = earSize === "small" ? 0.78 : earSize === "large" ? 1.25 : 1.0;
+
   const faceScales: Record<string,[number,number,number]> = {
     oval:   [0.95,1.09,0.97],
     round:  [1.07,0.96,1.0],
@@ -627,7 +681,7 @@ function Head({ state }: { state: AvatarState }) {
 
       {/* ── EARS ── */}
       {([-1,1] as number[]).map((s,i) => (
-        <group key={i} position={[s*sx*0.41,0.01,0]}>
+        <group key={i} position={[s*sx*0.41,0.01,0]} scale={[earScale,earScale,earScale]}>
           <mesh scale={[0.6,1,0.44]}>
             <sphereGeometry args={[0.14,16,14]} />
             <meshStandardMaterial color={skin} roughness={0.64} />
@@ -654,14 +708,14 @@ function Head({ state }: { state: AvatarState }) {
 
       {/* ── EYES ── */}
       {([-1,1] as number[]).map((s,i) => (
-        <group key={i} position={[s*0.146,0.1,0.35]}>
+        <group key={i} position={[s*0.146,0.1,0.35]} rotation={[0,0,s*eyeRotZ]}>
           {/* socket shadow */}
-          <mesh scale={[1.22,1.02,0.48]} position={[0,-0.01,-0.012]}>
+          <mesh scale={[1.22*eyeScaleX/1.18,1.02*eyeScaleY,0.48]} position={[0,-0.01,-0.012]}>
             <sphereGeometry args={[0.1,16,12]} />
             <meshStandardMaterial color={skinDk2} roughness={0.7} transparent opacity={0.45} />
           </mesh>
           {/* eyeball */}
-          <mesh scale={[1.18,1,0.62]}>
+          <mesh scale={[eyeScaleX,eyeScaleY,0.62]}>
             <sphereGeometry args={[0.09,24,18]} />
             <meshStandardMaterial color="#F8F2EC" roughness={0.16} metalness={0.02} />
           </mesh>
@@ -711,21 +765,23 @@ function Head({ state }: { state: AvatarState }) {
 
       {/* ── EYEBROWS ── */}
       {([-1,1] as number[]).map((s,i) => (
-        <group key={i} position={[s*0.146,0.212,0.345]} rotation={[0,s*0.05,s*-0.16]}>
-          <mesh scale={[1.48,0.48,0.72]}>
+        <group key={i} position={[s*0.146,0.212,0.345]} rotation={[0,s*0.05,s*(browTilt-0.12)]}>
+          <mesh scale={browScale}>
             <capsuleGeometry args={[0.015,0.098,4,10]} />
             <meshStandardMaterial color={hair} roughness={0.86} />
           </mesh>
           {/* arch peak */}
-          <mesh position={[s*0.035,0.006,0.004]} scale={[0.78,0.52,0.68]}>
-            <sphereGeometry args={[0.024,10,8]} />
-            <meshStandardMaterial color={hair} roughness={0.86} />
-          </mesh>
+          {browStyle !== "straight" && browStyle !== "thin" && (
+            <mesh position={[s*0.035,browStyle==="arched"?0.012:0.006,0.004]} scale={[0.78*browScale[1]/0.48,0.52*browScale[1]/0.48,0.68]}>
+              <sphereGeometry args={[0.024,10,8]} />
+              <meshStandardMaterial color={hair} roughness={0.86} />
+            </mesh>
+          )}
         </group>
       ))}
 
       {/* ── NOSE ── */}
-      <group position={[0,0.01,0.38]}>
+      <group position={[0,0.01,0.38]} scale={noseScale}>
         {/* bridge */}
         <mesh position={[0,0.1,0]} scale={[0.52,1,0.68]}>
           <capsuleGeometry args={[0.028,0.11,4,10]} />
@@ -757,23 +813,23 @@ function Head({ state }: { state: AvatarState }) {
       </group>
 
       {/* ── MOUTH / LIPS ── */}
-      <group position={[0,-0.152,0.365]}>
+      <group position={[0,-0.152,0.365]} scale={mouthScale}>
         {/* upper lip halves (cupid's bow) */}
         {([-1,1] as number[]).map((s,i) => (
           <mesh key={i} position={[s*0.052,0.016,0]} rotation={[0,0,s*0.2]} scale={[1,0.88,0.72]}>
             <sphereGeometry args={[0.05,14,10]} />
-            <meshStandardMaterial color={darken(skin,0.2)} roughness={0.6} />
+            <meshStandardMaterial color={lipColor} roughness={0.6} />
           </mesh>
         ))}
         {/* cupid's bow center dip */}
         <mesh position={[0,0.023,0.007]} scale={[0.58,0.58,0.76]}>
           <sphereGeometry args={[0.036,12,8]} />
-          <meshStandardMaterial color={darken(skin,0.26)} roughness={0.62} />
+          <meshStandardMaterial color={darken(lipColor,0.12)} roughness={0.62} />
         </mesh>
         {/* lower lip */}
         <mesh position={[0,-0.03,0.012]} scale={[1.32,0.82,0.8]}>
           <sphereGeometry args={[0.062,18,12]} />
-          <meshStandardMaterial color={darken(skin,0.15)} roughness={0.58} />
+          <meshStandardMaterial color={lighten(lipColor,0.06)} roughness={0.58} />
         </mesh>
         {/* lower lip highlight */}
         <mesh position={[0,-0.026,0.038]} scale={[0.62,0.42,0.56]}>
@@ -798,6 +854,44 @@ function Head({ state }: { state: AvatarState }) {
       <HairMesh style={state.hairStyle} color={hair} />
       {/* ── FACIAL HAIR ── */}
       <FacialHairMesh style={state.facialHair} color={hair} />
+      {/* ── FRECKLES (Memoji-style cheek dots) ── */}
+      {freckles !== "none" && (() => {
+        const dots: [number,number,number][] = freckles === "heavy" ? [
+          [-0.18, 0.04, 0.36],[-0.14, 0.06, 0.38],[-0.10, 0.08, 0.39],
+          [-0.20, 0.00, 0.36],[-0.16, 0.02, 0.38],[-0.12, 0.04, 0.39],
+          [-0.04, 0.10, 0.40],[ 0.00, 0.12, 0.40],[ 0.04, 0.10, 0.40],
+          [ 0.18, 0.04, 0.36],[ 0.14, 0.06, 0.38],[ 0.10, 0.08, 0.39],
+          [ 0.20, 0.00, 0.36],[ 0.16, 0.02, 0.38],[ 0.12, 0.04, 0.39],
+        ] : [
+          [-0.16, 0.04, 0.37],[-0.12, 0.06, 0.39],
+          [-0.04, 0.10, 0.40],[ 0.04, 0.10, 0.40],
+          [ 0.16, 0.04, 0.37],[ 0.12, 0.06, 0.39],
+        ];
+        return dots.map(([x,y,z],i) => (
+          <mesh key={`fk-${i}`} position={[x,y,z]} scale={[0.6,0.6,0.6]}>
+            <sphereGeometry args={[0.008, 6, 5]} />
+            <meshStandardMaterial color={darken(skin,0.42)} roughness={0.9} />
+          </mesh>
+        ));
+      })()}
+
+      {/* ── EYELASHES (extra mesh above each eye) ── */}
+      {eyelashes && ([-1,1] as number[]).map((s,i) => (
+        <group key={`lash-${i}`} position={[s*0.146,0.18,0.388]} rotation={[-0.42,0,s*eyeRotZ]}>
+          <mesh scale={[1.30*eyeScaleX/1.18, 0.18, 0.45]}>
+            <sphereGeometry args={[0.094, 14, 8, 0, Math.PI*2, 0, Math.PI*0.4]} />
+            <meshStandardMaterial color="#0A0605" roughness={0.92} />
+          </mesh>
+          {/* individual lash whiskers */}
+          {[-0.06,-0.025,0.01,0.045].map((dx,j) => (
+            <mesh key={j} position={[dx, 0, 0.005]} rotation={[0, 0, dx*1.8]}>
+              <capsuleGeometry args={[0.0025, 0.022, 3, 5]} />
+              <meshStandardMaterial color="#0A0605" roughness={0.95} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+
       {/* ── ACCESSORIES ── */}
       {state.accessories.includes("glasses")    && <GlassesMesh />}
       {state.accessories.includes("sunglasses") && <GlassesMesh tinted />}
