@@ -5,6 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useDevice } from "@/app/hooks/useDevice";
 import BowlerCharacter3D from "./BowlerCharacter3D";
+import BowlingLane from "./BowlingLane";
 
 // ─── DESIGN TOKENS — clean, Apple/Memoji-inspired ─────────────────────────
 const C = {
@@ -1176,18 +1177,38 @@ export default function AvatarPage() {
             <Canvas
               style={{ width:"100%", height:"100%", background:"transparent" }}
               gl={{ alpha:true, antialias:true }}
-              camera={{ position:[0, 0.10, 4.0], fov:52 }}
+              camera={{ position:[0, 0.30, 2.9], fov:42 }}
               shadows
             >
-              <ambientLight intensity={0.55} />
-              <directionalLight position={[2, 4, 3]} intensity={1.4} castShadow />
-              <directionalLight position={[-2, 1, -2]} intensity={0.45} color="#b8d4ff" />
+              {/* lighting rig */}
+              <ambientLight intensity={0.45} />
+              <hemisphereLight args={["#fff5e0", "#3a4a6a", 0.55]} />
+              <directionalLight
+                position={[2.5, 4.5, 3.5]}
+                intensity={1.6}
+                castShadow
+                shadow-mapSize-width={2048}
+                shadow-mapSize-height={2048}
+                shadow-camera-near={0.1}
+                shadow-camera-far={20}
+                shadow-camera-left={-3}
+                shadow-camera-right={3}
+                shadow-camera-top={3}
+                shadow-camera-bottom={-3}
+              />
+              <directionalLight position={[-2, 1.5, -2]} intensity={0.35} color="#b8d4ff" />
+              <pointLight position={[0, 1.6, 1.0]} intensity={0.25} color="#ffe8c0" />
+
+              <BowlingLane />
               <BowlerCharacter3D state={syncAccessories(state)} />
+
               <OrbitControls
                 enablePan={false}
-                enableZoom={false}
-                minPolarAngle={Math.PI * 0.28}
-                maxPolarAngle={Math.PI * 0.68}
+                enableZoom={true}
+                minDistance={1.3}
+                maxDistance={6.5}
+                minPolarAngle={Math.PI * 0.20}
+                maxPolarAngle={Math.PI * 0.62}
                 target={[0, 0.10, 0]}
               />
             </Canvas>
