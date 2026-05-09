@@ -495,19 +495,29 @@ function buildHair(parent: THREE.Object3D, style: string, colorHex: string) {
   }
 
   if (style === "bob") {
+    // top cap (hemisphere only, doesn't cover face)
     const bob = new THREE.Mesh(
-      new THREE.SphereGeometry(0.240, 28, 20, 0, Math.PI*2, 0, Math.PI*0.60),
+      new THREE.SphereGeometry(0.240, 32, 22, 0, Math.PI*2, 0, Math.PI*0.50),
       hm,
     );
-    bob.position.set(0, 0.015, 0.012);
+    bob.position.set(0, 0.030, 0.008);
     parent.add(bob);
-    // straight cut at jaw level
-    const cut = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.235, 0.235, 0.012, 28),
+    // side & back skirt going down to chin (open at front)
+    const skirt = new THREE.Mesh(
+      new THREE.SphereGeometry(0.240, 32, 22, Math.PI*0.30, Math.PI*1.40, Math.PI*0.40, Math.PI*0.30),
       hm,
     );
-    cut.position.set(0, -0.120, 0);
-    parent.add(cut);
+    skirt.position.set(0, 0.030, 0.008);
+    parent.add(skirt);
+    // bottom rim
+    const rim = new THREE.Mesh(
+      new THREE.TorusGeometry(0.235, 0.012, 8, 32, Math.PI * 1.35),
+      hm,
+    );
+    rim.rotation.x = DEG(90);
+    rim.rotation.y = DEG(180);
+    rim.position.set(0, -0.130, 0.008);
+    parent.add(rim);
     return;
   }
 
@@ -758,22 +768,37 @@ function buildHeadwear(parent: THREE.Object3D, style: string, skinHex: string) {
     const capMat  = mat("#1a2a4a", { roughness: 0.75 });
     const trimMat = mat("#f0c030", { roughness: 0.55, metalness: 0.2 });
 
-    // cap body
+    // cap body (sits ABOVE the brow line at Y=0.115)
     const cap = new THREE.Mesh(
-      new THREE.SphereGeometry(0.238, 28, 18, 0, Math.PI*2, 0, Math.PI*0.50),
+      new THREE.SphereGeometry(0.236, 32, 22, 0, Math.PI*2, 0, Math.PI*0.50),
       capMat,
     );
-    cap.position.set(0, 0.025, 0.008);
+    cap.position.set(0, 0.130, 0.000);
     parent.add(cap);
 
-    // brim
+    // brim — flat curved plate extending forward from front of cap
+    const brimShape = new THREE.Shape();
+    brimShape.moveTo(-0.140, 0);
+    brimShape.quadraticCurveTo(-0.140, 0.180, 0, 0.230);
+    brimShape.quadraticCurveTo(0.140, 0.180, 0.140, 0);
+    brimShape.lineTo(-0.140, 0);
     const brim = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.135, 0.148, 0.012, 24, 1, false, DEG(-10), DEG(200)),
+      new THREE.ExtrudeGeometry(brimShape, { depth: 0.014, bevelEnabled: false }),
       capMat,
     );
-    brim.position.set(0, -0.065, 0.060);
-    brim.rotation.x = DEG(14);
+    // shape is in XY (Y forward); rotate +90° around X so shape lies on XZ plane (Y→Z, Z depth→-Y)
+    brim.rotation.x = DEG(90);
+    brim.position.set(0, 0.128, 0.000);
     parent.add(brim);
+
+    // brim underside (slight darker shadow tone)
+    const brimUnder = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(brimShape, { depth: 0.002, bevelEnabled: false }),
+      mat("#0a1428", { roughness: 0.85 }),
+    );
+    brimUnder.rotation.x = DEG(90);
+    brimUnder.position.set(0, 0.114, 0.000);
+    parent.add(brimUnder);
 
     // seams
     for (let i = 0; i < 6; i++) {
@@ -781,46 +806,52 @@ function buildHeadwear(parent: THREE.Object3D, style: string, skinHex: string) {
       const seam = new THREE.Mesh(
         new THREE.TubeGeometry(
           new THREE.CatmullRomCurve3([
-            new THREE.Vector3(Math.sin(a)*0.010, -0.060, Math.cos(a)*0.010),
-            new THREE.Vector3(Math.sin(a)*0.090, 0.060, Math.cos(a)*0.090),
-            new THREE.Vector3(Math.sin(a)*0.120, 0.140, Math.cos(a)*0.120),
-            new THREE.Vector3(Math.sin(a)*0.030, 0.210, Math.cos(a)*0.030),
+            new THREE.Vector3(Math.sin(a)*0.010, 0.130, Math.cos(a)*0.010),
+            new THREE.Vector3(Math.sin(a)*0.090, 0.180, Math.cos(a)*0.090),
+            new THREE.Vector3(Math.sin(a)*0.140, 0.250, Math.cos(a)*0.140),
+            new THREE.Vector3(Math.sin(a)*0.040, 0.320, Math.cos(a)*0.040),
           ]),
           10, 0.003, 4,
         ),
         mat("#2a3a5a", { roughness: 0.8 }),
       );
-      seam.position.set(0, 0.028, 0.008);
       parent.add(seam);
     }
 
     // front logo badge
     const logo = new THREE.Mesh(
-      new THREE.BoxGeometry(0.048, 0.032, 0.003),
+      new THREE.BoxGeometry(0.052, 0.034, 0.003),
       trimMat,
     );
-    logo.position.set(0, -0.010, 0.230);
+    logo.position.set(0, 0.205, 0.232);
     parent.add(logo);
 
-    // sweatband
-    const band = new THREE.Mesh(
-      new THREE.TorusGeometry(0.234, 0.010, 6, 28, Math.PI*2),
-      mat("#e8e0d0", { roughness: 0.6 }),
+    // button on top
+    const btn = new THREE.Mesh(
+      new THREE.SphereGeometry(0.012, 12, 8),
+      capMat,
     );
-    band.position.set(0, -0.062, 0.008);
-    parent.add(band);
+    btn.position.set(0, 0.366, 0);
+    parent.add(btn);
     return;
   }
 
   if (style === "headband") {
     const hbMat = mat("#c0392b", { roughness: 0.55 });
     const band = new THREE.Mesh(
-      new THREE.TorusGeometry(0.234, 0.016, 8, 28, Math.PI*1.12),
+      new THREE.TorusGeometry(0.232, 0.018, 10, 32, Math.PI*1.20),
       hbMat,
     );
-    band.position.set(0, 0.028, 0.040);
-    band.rotation.x = DEG(12);
+    band.position.set(0, 0.140, 0.020);
+    band.rotation.x = DEG(8);
     parent.add(band);
+    // tied knot at the back
+    const knot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.020, 12, 10),
+      hbMat,
+    );
+    knot.position.set(0, 0.140, -0.230);
+    parent.add(knot);
     return;
   }
 }
@@ -1346,13 +1377,60 @@ function buildCharacter(
 
   buildBall(rElbowGrp);
 
-  /* ── NECK ── */
+  /* ── COLLAR / TRAPEZIUS bridge between shoulders and neck ── */
+  const collar = new THREE.Mesh(
+    new THREE.SphereGeometry(0.165, 24, 16, 0, Math.PI*2, 0, Math.PI*0.55),
+    outfitMat,
+  );
+  collar.position.set(0, 0.380, 0);
+  collar.scale.set(1.0, 0.55, 1.0);
+  torsoGrp.add(collar);
+
+  // shirt collar opening (slight darker ring)
+  const collarRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.062, 0.012, 10, 24),
+    mat(new THREE.Color(outfitHex).multiplyScalar(0.78).getHexString().padStart(6,"0").replace(/^/,"#"), { roughness: 0.65 }),
+  );
+  collarRing.rotation.x = DEG(90);
+  collarRing.position.set(0, 0.430, 0.012);
+  torsoGrp.add(collarRing);
+
+  /* ── NECK (extended, connects to head & shoulder bridge) ── */
   const neck = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.042, 0.050, 0.072, 14),
+    new THREE.CylinderGeometry(0.052, 0.072, 0.210, 20),
     skinMat,
   );
-  neck.position.set(0, 0.456, 0);
+  neck.position.set(0, 0.525, 0);
   torsoGrp.add(neck);
+
+  // adam's apple (males) / soft thyroid bump
+  if (state.gender !== "female") {
+    const adam = new THREE.Mesh(
+      new THREE.SphereGeometry(0.014, 10, 8),
+      skinMat,
+    );
+    adam.position.set(0, 0.490, 0.052);
+    adam.scale.set(1.0, 0.7, 0.5);
+    torsoGrp.add(adam);
+  }
+
+  // jaw underside / chin shadow connection
+  const jawBase = new THREE.Mesh(
+    new THREE.SphereGeometry(0.078, 16, 12, 0, Math.PI*2, Math.PI*0.45, Math.PI*0.55),
+    mat(new THREE.Color(skin).multiplyScalar(0.88).getHexString().padStart(6,"0").replace(/^/,"#"), { roughness: 0.6 }),
+  );
+  jawBase.position.set(0, 0.620, 0);
+  torsoGrp.add(jawBase);
+
+  /* ── FACE-SHAPE adaptive scales (used for hair, beard, headwear) ── */
+  const FACE_SCALE: Record<string, { sx: number; sy: number; dy: number }> = {
+    oval:    { sx: 0.92, sy: 1.16, dy:  0.012 },
+    round:   { sx: 1.08, sy: 0.98, dy: -0.008 },
+    square:  { sx: 1.06, sy: 0.94, dy: -0.006 },
+    heart:   { sx: 1.10, sy: 1.04, dy:  0.006 },
+    diamond: { sx: 0.96, sy: 1.08, dy:  0.004 },
+  };
+  const fScale = FACE_SCALE[state.faceShape ?? "oval"] ?? FACE_SCALE.oval;
 
   /* ── HEAD group ── */
   const headGrp = new THREE.Group();
@@ -1362,13 +1440,21 @@ function buildCharacter(
   // head mesh with morph targets
   const headMesh = new THREE.Mesh(
     headGeo.clone(),
-    mat(skin, { roughness: 0.52 }),
+    mat(skin, { roughness: 0.50, metalness: 0.02 }),
   );
   headMesh.morphTargetInfluences = [0,0,0,0,0];
   const shapeIdx: Record<string,number> = { oval:0, round:1, square:2, heart:3, diamond:4 };
   const si = shapeIdx[state.faceShape ?? "oval"] ?? 0;
   headMesh.morphTargetInfluences[si] = 1.0;
   headGrp.add(headMesh);
+
+  // back-of-head darker layer (subtle AO at hairline)
+  const aoBack = new THREE.Mesh(
+    new THREE.SphereGeometry(0.221, 28, 20, 0, Math.PI*2, 0, Math.PI*0.45),
+    mat(new THREE.Color(skin).multiplyScalar(0.86).getHexString().padStart(6,"0").replace(/^/,"#"), { roughness: 0.85 }),
+  );
+  aoBack.position.set(0, 0.000, -0.003);
+  headGrp.add(aoBack);
 
   // eyes
   buildEye(headGrp, -1, eye, state.eyeShape ?? "almond", state.eyelashes ?? true);
@@ -1392,19 +1478,31 @@ function buildCharacter(
   if (state.freckles) buildFreckles(headGrp, skin);
   if (state.age === "mature") buildAgingMarks(headGrp, skin);
 
-  // hair
-  buildHair(headGrp, state.hairStyle ?? "short", hair);
+  /* hair — wrapped in face-adaptive group so it scales with face */
+  const hairGrp = new THREE.Group();
+  hairGrp.scale.set(fScale.sx, fScale.sy, fScale.sx);
+  hairGrp.position.y = fScale.dy;
+  headGrp.add(hairGrp);
+  buildHair(hairGrp, state.hairStyle ?? "short", hair);
 
-  // facial hair (male only)
+  /* facial hair — adapts to face shape (jaw width) */
   if (state.gender !== "female") {
-    buildFacialHair(headGrp, state.facialHair ?? "none", hair);
+    const beardGrp = new THREE.Group();
+    beardGrp.scale.set(fScale.sx, fScale.sy * 0.95, fScale.sx);
+    beardGrp.position.y = fScale.dy * 0.5;
+    headGrp.add(beardGrp);
+    buildFacialHair(beardGrp, state.facialHair ?? "none", hair);
   }
 
   // eyewear
   buildEyewear(headGrp, state.eyewear ?? "none");
 
-  // headwear
-  buildHeadwear(headGrp, state.headwear ?? "none", skin);
+  // headwear (also adapts to face shape)
+  const hatGrp = new THREE.Group();
+  hatGrp.scale.set(fScale.sx, fScale.sy, fScale.sx);
+  hatGrp.position.y = fScale.dy;
+  headGrp.add(hatGrp);
+  buildHeadwear(hatGrp, state.headwear ?? "none", skin);
 
   return {
     hips:      hipsGrp,
@@ -1477,6 +1575,13 @@ export default function BowlerCharacter3D({ state }: { state: AvatarState }) {
     });
     mountRef.current.clear();
     jointsRef.current = buildCharacter(mountRef.current, state, headGeo);
+    // enable shadow casting on every mesh
+    mountRef.current.traverse((obj) => {
+      if ((obj as THREE.Mesh).isMesh) {
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+      }
+    });
   }, [state, headGeo]);
 
   useFrame(({ clock }) => {
