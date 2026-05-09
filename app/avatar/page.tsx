@@ -1,8 +1,10 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 import { useDevice } from "@/app/hooks/useDevice";
-import AvatarSVG from "./AvatarSVG";
+import BowlerCharacter3D from "./BowlerCharacter3D";
 
 // ─── DESIGN TOKENS — clean, Apple/Memoji-inspired ─────────────────────────
 const C = {
@@ -1164,14 +1166,31 @@ export default function AvatarPage() {
             background:`radial-gradient(circle at 50% 35%, ${lt(state.bgColor,0.18)} 0%, ${state.bgColor} 65%, ${dk(state.bgColor,0.10)} 100%)`,
             boxShadow:"0 24px 60px rgba(0,0,0,0.18),inset 0 -10px 40px rgba(0,0,0,0.12)",
           }}/>
-          {/* SVG avatar on top of backdrop */}
+          {/* 3D avatar on top of backdrop */}
           <div style={{
             position:"relative",
             width:isMobile?"min(82vw,360px)":"min(56vh,460px)",
             height:isMobile?"min(82vw,360px)":"min(56vh,460px)",
             zIndex:1,
           }}>
-            <AvatarSVG state={syncAccessories(state)} showBackground={false} animated/>
+            <Canvas
+              style={{ width:"100%", height:"100%", background:"transparent" }}
+              gl={{ alpha:true, antialias:true }}
+              camera={{ position:[0, -0.18, 3.6], fov:50 }}
+              shadows
+            >
+              <ambientLight intensity={0.55} />
+              <directionalLight position={[2, 4, 3]} intensity={1.4} castShadow />
+              <directionalLight position={[-2, 1, -2]} intensity={0.45} color="#b8d4ff" />
+              <BowlerCharacter3D state={syncAccessories(state)} />
+              <OrbitControls
+                enablePan={false}
+                enableZoom={false}
+                minPolarAngle={Math.PI * 0.28}
+                maxPolarAngle={Math.PI * 0.68}
+                target={[0, -0.18, 0]}
+              />
+            </Canvas>
           </div>
         </div>
 
