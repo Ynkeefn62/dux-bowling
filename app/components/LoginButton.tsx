@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import type { AvatarState } from "@/app/avatar/AvatarSVG";
+
+const AvatarFaceThumb = dynamic(
+  () => import("@/app/components/AvatarFaceThumb"),
+  { ssr: false, loading: () => null },
+);
 
 const ORANGE = "#e46a2e";
 const BORDER = "rgba(0,0,0,0.08)";
@@ -158,6 +165,17 @@ export default function LoginButton() {
   function setFe(key: string, msg: string) { setFieldErr(prev => ({ ...prev, [key]: msg })); }
   function clearErrors() { setFieldErr({}); setAlert(null); }
 
+  // Avatar state for face thumbnail
+  const [avatarState, setAvatarState] = useState<AvatarState | null>(null);
+
+  async function fetchAvatar() {
+    try {
+      const res  = await fetch("/api/profile/avatar", { cache: "no-store" });
+      const data = await res.json();
+      if (data?.avatar) setAvatarState(data.avatar as AvatarState);
+    } catch { /* silently keep null */ }
+  }
+
   // Refresh session on mount + auto-refresh timer
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -165,6 +183,7 @@ export default function LoginButton() {
     try {
       const data = await api<MeResponse>("/api/auth/me");
       setMe(data);
+      if (data?.user?.id) fetchAvatar();
     } catch {
       setMe({ ok: true, user: null, profile: null });
     }
@@ -338,14 +357,27 @@ export default function LoginButton() {
         style={{
           position: "fixed", top: 14, right: 14,
           width: 44, height: 44, borderRadius: "50%",
-          border: "none", background: ORANGE, color: "#fff",
+          border: loggedIn && avatarState ? `2.5px solid ${ORANGE}` : "none",
+          background: loggedIn && avatarState ? "transparent" : ORANGE,
+          color: "#fff",
           display: "grid", placeItems: "center",
-          zIndex: 1000, boxShadow: "0 8px 22px rgba(228,106,46,0.45)",
+          zIndex: 1000,
+          boxShadow: loggedIn && avatarState
+            ? `0 0 0 3px ${ORANGE}55, 0 8px 22px rgba(228,106,46,0.45)`
+            : "0 8px 22px rgba(228,106,46,0.45)",
           cursor: "pointer", fontWeight: 900, fontSize: ".9rem",
           fontFamily: "Montserrat, system-ui",
+          padding: 0, overflow: "hidden",
         }}
       >
-        {loggedIn ? displayInitials : (
+        {loggedIn && avatarState ? (
+          <AvatarFaceThumb state={avatarState} size={40} />
+        ) : loggedIn ? (
+          /* avatar not loaded yet — show initials */
+          <span style={{ background: ORANGE, width: "100%", height: "100%", display: "grid", placeItems: "center", borderRadius: "50%" }}>
+            {displayInitials}
+          </span>
+        ) : (
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
             <path fill="currentColor" d="M12 12a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 12Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" />
           </svg>

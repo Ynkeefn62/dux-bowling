@@ -6,8 +6,8 @@ import ReactECharts from "echarts-for-react";
 import type { AvatarState } from "@/app/avatar/AvatarSVG";
 
 // ─── Dynamic imports (no SSR) ─────────────────────────────────────────────────
-const DashboardAvatarScene = dynamic(
-  () => import("@/app/components/DashboardAvatarScene"),
+const Dashboard3DAvatar = dynamic(
+  () => import("@/app/components/Dashboard3DAvatar"),
   { ssr: false }
 );
 const QrScannerModal = dynamic(() => import("@/app/components/QrScannerModal"), { ssr: false });
@@ -350,6 +350,7 @@ export default function BowlerDashboardPage() {
   const [err, setErr]                 = useState<string | null>(null);
   const [filters, setFilters]         = useState<Filters>({ alleyId: "", lane: "", gameType: "" });
   const [showLaneScanner, setShowLaneScanner] = useState(false);
+  const [avatarState, setAvatarState] = useState<AvatarState>(DEFAULT_AVATAR);
   const mainRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -363,6 +364,13 @@ export default function BowlerDashboardPage() {
         const userId: string | undefined = me?.user?.id;
         if (!userId) { setLoggedIn(false); setStats(null); return; }
         setLoggedIn(true);
+
+        // Load the user's saved avatar (fire-and-forget so stats load in parallel)
+        fetch("/api/profile/avatar", { cache: "no-store" })
+          .then(r => r.json())
+          .then(d => { if (d?.avatar) setAvatarState(d.avatar as AvatarState); })
+          .catch(() => { /* keep DEFAULT_AVATAR */ });
+
         const qs = new URLSearchParams();
         if (filters.alleyId) qs.set("alleyId", filters.alleyId);
         if (filters.lane)    qs.set("lane",    filters.lane);
@@ -520,7 +528,7 @@ export default function BowlerDashboardPage() {
           <Panel style={{ padding: 0, overflow: "hidden" }}>
             {/* 3D Canvas */}
             <div style={{ height: 320, position: "relative" }}>
-              <DashboardAvatarScene state={DEFAULT_AVATAR} mood={mood} />
+              <Dashboard3DAvatar state={avatarState} mood={mood} />
 
               {/* Speech bubble */}
               <div style={{
