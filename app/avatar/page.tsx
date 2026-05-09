@@ -1176,7 +1176,7 @@ export default function AvatarPage() {
             <Canvas
               style={{ width:"100%", height:"100%", background:"transparent" }}
               gl={{ alpha:true, antialias:true }}
-              camera={{ position:[0, -0.18, 3.6], fov:50 }}
+              camera={{ position:[0, 0.10, 4.0], fov:52 }}
               shadows
             >
               <ambientLight intensity={0.55} />
@@ -1188,7 +1188,7 @@ export default function AvatarPage() {
                 enableZoom={false}
                 minPolarAngle={Math.PI * 0.28}
                 maxPolarAngle={Math.PI * 0.68}
-                target={[0, -0.18, 0]}
+                target={[0, 0.10, 0]}
               />
             </Canvas>
           </div>
