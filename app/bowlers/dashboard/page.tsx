@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import ReactECharts from "echarts-for-react";
-import type { AvatarState } from "@/app/avatar/BowlerCharacter";
+import type { AvatarState } from "@/app/avatar/AvatarSVG";
 
 // ─── Dynamic imports (no SSR) ─────────────────────────────────────────────────
 const DashboardAvatarScene = dynamic(
