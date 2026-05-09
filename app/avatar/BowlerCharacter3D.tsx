@@ -1390,7 +1390,7 @@ function buildCharacter(
 
   // optional features
   if (state.freckles) buildFreckles(headGrp, skin);
-  if ((state.age ?? 0) >= 40) buildAgingMarks(headGrp, skin);
+  if (state.age === "mature") buildAgingMarks(headGrp, skin);
 
   // hair
   buildHair(headGrp, state.hairStyle ?? "short", hair);
