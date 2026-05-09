@@ -102,37 +102,37 @@ const HAIR_STYLES = [
   {id:"bun",      label:"Top Bun"},
 ];
 const BROW_STYLES = [
-  {id:"default", label:"Natural"},
-  {id:"thin",    label:"Thin"},
-  {id:"thick",   label:"Thick"},
-  {id:"arched",  label:"Arched"},
-  {id:"angled",  label:"Angled"},
-  {id:"straight",label:"Straight"},
+  {id:"default"  as const, label:"Natural"},
+  {id:"thin"     as const, label:"Thin"},
+  {id:"thick"    as const, label:"Thick"},
+  {id:"arched"   as const, label:"Arched"},
+  {id:"angled"   as const, label:"Angled"},
+  {id:"straight" as const, label:"Straight"},
 ];
 const EYE_SHAPES = [
-  {id:"almond",     label:"Almond"},
-  {id:"round",      label:"Round"},
-  {id:"narrow",     label:"Narrow"},
-  {id:"downturned", label:"Downturned"},
+  {id:"almond"     as const, label:"Almond"},
+  {id:"round"      as const, label:"Round"},
+  {id:"narrow"     as const, label:"Narrow"},
+  {id:"downturned" as const, label:"Downturned"},
 ];
 const NOSE_STYLES = [
-  {id:"default", label:"Natural"},
-  {id:"small",   label:"Small"},
-  {id:"button",  label:"Button"},
-  {id:"wide",    label:"Wide"},
-  {id:"long",    label:"Long"},
+  {id:"default" as const, label:"Natural"},
+  {id:"small"   as const, label:"Small"},
+  {id:"button"  as const, label:"Button"},
+  {id:"wide"    as const, label:"Wide"},
+  {id:"long"    as const, label:"Long"},
 ];
 const MOUTH_SHAPES = [
-  {id:"default", label:"Natural"},
-  {id:"smile",   label:"Smile"},
-  {id:"neutral", label:"Neutral"},
-  {id:"small",   label:"Small"},
-  {id:"full",    label:"Full"},
+  {id:"default" as const, label:"Natural"},
+  {id:"smile"   as const, label:"Smile"},
+  {id:"neutral" as const, label:"Neutral"},
+  {id:"small"   as const, label:"Small"},
+  {id:"full"    as const, label:"Full"},
 ];
 const EAR_SIZES = [
-  {id:"small",   label:"Small"},
-  {id:"default", label:"Medium"},
-  {id:"large",   label:"Large"},
+  {id:"small"   as const, label:"Small"},
+  {id:"default" as const, label:"Medium"},
+  {id:"large"   as const, label:"Large"},
 ];
 const FACE_SHAPES = [
   {id:"oval",  label:"Oval"},
@@ -184,13 +184,13 @@ type AvatarState = {
   bgColor:string;
   // Memoji-style
   freckles:"none"|"light"|"heavy";
-  browStyle:string;
-  eyeShape:string;
+  browStyle:"default"|"thin"|"thick"|"arched"|"angled"|"straight";
+  eyeShape:"round"|"almond"|"narrow"|"downturned";
   eyelashes:boolean;
-  noseStyle:string;
-  mouthShape:string;
+  noseStyle:"default"|"small"|"wide"|"long"|"button";
+  mouthShape:"default"|"smile"|"neutral"|"small"|"full";
   lipColor:string;
-  earSize:string;
+  earSize:"default"|"small"|"large";
   age:"young"|"adult"|"mature";
   eyewear:string;
   headwear:string;
