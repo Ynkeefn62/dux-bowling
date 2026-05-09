@@ -242,21 +242,25 @@ function HairMesh({ style, color }: { style: string; color: string }) {
 
   if (style === "short") return (
     <group>
-      <mesh position={[0,0.03,0]}>
-        <sphereGeometry args={[0.445, 32, 22, 0, Math.PI*2, 0, Math.PI*0.55]} />
+      {/* main cap — slightly larger and more domed */}
+      <mesh position={[0,0.04,0]}>
+        <sphereGeometry args={[0.452, 32, 22, 0, Math.PI*2, 0, Math.PI*0.52]} />
         {mat}
       </mesh>
+      {/* tapered sides — pulled UP and BACK so they don't intrude on cheeks */}
       {([-1,1] as number[]).map((s,i) => (
-        <mesh key={i} position={[s*0.38,-0.04,0.09]} scale={[0.6,0.85,0.55]}>
-          <sphereGeometry args={[0.15,14,12]} />
+        <mesh key={i} position={[s*0.36,0.10,-0.02]} scale={[0.55,0.75,0.55]}>
+          <sphereGeometry args={[0.13,14,12]} />
           {mat}
         </mesh>
       ))}
-      <mesh position={[0,-0.07,-0.28]} scale={[1.05,0.65,0.6]}>
-        <sphereGeometry args={[0.37,20,14,0,Math.PI*2,Math.PI*0.4,Math.PI*0.28]} />
+      {/* back of head fade */}
+      <mesh position={[0,-0.04,-0.30]} scale={[1.02,0.55,0.55]}>
+        <sphereGeometry args={[0.36,20,14,0,Math.PI*2,Math.PI*0.42,Math.PI*0.22]} />
         {matD}
       </mesh>
-      {([[0,0.38,0.2,0.09],[0.13,0.34,0.16,0.08],[-0.13,0.34,0.16,0.08]] as [number,number,number,number][]).map(([x,y,z,r],i) => (
+      {/* small front fringe — clearly above the brow ridge */}
+      {([[0,0.40,0.22,0.08],[0.11,0.38,0.20,0.07],[-0.11,0.38,0.20,0.07]] as [number,number,number,number][]).map(([x,y,z,r],i) => (
         <mesh key={i} position={[x,y,z]}>
           <sphereGeometry args={[r,10,8]} />
           {i===0 ? matL : mat}
@@ -267,22 +271,25 @@ function HairMesh({ style, color }: { style: string; color: string }) {
 
   if (style === "pompadour") return (
     <group>
-      <mesh position={[0,0.02,0.01]}>
-        <sphereGeometry args={[0.455, 32, 22, 0, Math.PI*2, 0, Math.PI*0.62]} />
+      {/* base cap — covers the head fully, tapered sides */}
+      <mesh position={[0,0.03,0]}>
+        <sphereGeometry args={[0.458, 32, 22, 0, Math.PI*2, 0, Math.PI*0.55]} />
         {mat}
       </mesh>
-      {/* pompadour volume */}
-      <mesh position={[0,0.38,0.17]} rotation={[0.42,0,0]} scale={[1,1.22,0.82]}>
-        <sphereGeometry args={[0.28,22,16]} />
+      {/* pompadour volume — sits ON TOP of the head, slightly back so it doesn't push into the forehead */}
+      <mesh position={[0,0.46,0.06]} rotation={[0.18,0,0]} scale={[0.95,1.0,0.82]}>
+        <sphereGeometry args={[0.26,22,16]} />
         {mat}
       </mesh>
-      <mesh position={[0,0.52,0.14]} rotation={[0.52,0,0]} scale={[0.78,1.45,0.58]}>
-        <sphereGeometry args={[0.2,16,14]} />
+      {/* subtle highlight crown */}
+      <mesh position={[0,0.58,0.04]} rotation={[0.22,0,0]} scale={[0.72,1.05,0.58]}>
+        <sphereGeometry args={[0.18,16,14]} />
         {matL}
       </mesh>
-      {([-0.12,0,0.12] as number[]).map((x,i) => (
-        <mesh key={i} position={[x,0.3,0.08]} rotation={[0.58,0,x*0.5]}>
-          <capsuleGeometry args={[0.045,0.18,4,8]} />
+      {/* swept-back side strands */}
+      {([-0.10,0,0.10] as number[]).map((x,i) => (
+        <mesh key={i} position={[x,0.42,0.18]} rotation={[0.10,0,x*0.4]}>
+          <capsuleGeometry args={[0.035,0.16,4,8]} />
           {i===1 ? matL : matD}
         </mesh>
       ))}
@@ -926,21 +933,22 @@ function Torso({ outfit, outfitDk, gender = "male" }: { outfit: string; outfitDk
         <Mat color={outfit} roughness={0.8} />
       </mesh>
 
-      {/* chest — male pec definition vs female bust */}
-      {gender === "female"
-        ? ([-1,1] as number[]).map((s,i) => (
-            <mesh key={i} position={[s*0.13,0.25,0.37]} scale={[0.76,0.88,0.78]}>
-              <sphereGeometry args={[0.22,18,14]} />
-              <Mat color={hi} roughness={0.80} />
-            </mesh>
-          ))
-        : ([-1,1] as number[]).map((s,i) => (
-            <mesh key={i} position={[s*0.14,0.18,0.38]} scale={[0.92,0.55,0.38]}>
-              <sphereGeometry args={[0.18,14,10]} />
-              <Mat color={hi} roughness={0.84} />
-            </mesh>
-          ))
-      }
+      {/* chest — male relies on the torso lathe shape (no stuck-on pec mesh).
+          female has a subtle bust embedded into the torso surface. */}
+      {gender === "female" && ([-1,1] as number[]).map((s,i) => (
+        <group key={i} position={[s*0.105,0.22,0.30]}>
+          {/* main bust volume — embedded, smaller, blended with shirt color */}
+          <mesh scale={[0.62,0.72,0.50]}>
+            <sphereGeometry args={[0.20,20,16]} />
+            <Mat color={outfit} roughness={0.82} />
+          </mesh>
+          {/* gentle highlight */}
+          <mesh position={[s*-0.012,0.018,0.038]} scale={[0.40,0.42,0.30]}>
+            <sphereGeometry args={[0.17,14,10]} />
+            <Mat color={hi} roughness={0.78} />
+          </mesh>
+        </group>
+      ))}
 
       {/* shoulder caps */}
       {([-1,1] as number[]).map((s,i) => (
@@ -985,48 +993,54 @@ function Torso({ outfit, outfitDk, gender = "male" }: { outfit: string; outfitDk
 }
 
 // ─── ARM ──────────────────────────────────────────────────────────────────────
-function Arm({ side, outfit, skin, holdingBall }: {
-  side: "left"|"right"; outfit: string; skin: string; holdingBall?: boolean;
+function Arm({ side, outfit, skin, holdingBall, supportingBall }: {
+  side: "left"|"right"; outfit: string; skin: string;
+  holdingBall?: boolean; supportingBall?: boolean;
 }) {
   const s = side === "left" ? -1 : 1;
   const dk = darken(outfit, 0.18);
+  const bent = holdingBall || supportingBall;
+
+  // bowling-ready stance: both arms come forward to cradle the ball at chest height
+  const upperArmRotX = bent ? 1.05 : 0.18;
+  const upperArmRotZ = s * (bent ? -0.28 : -0.42);
+  const forearmRotX  = bent ? -1.45 : -0.16;
 
   return (
-    <group position={[s*0.44, 0.50, 0.04]}>
-      <group rotation={[holdingBall ? 0.52 : 0.22, 0, s*-0.58]}>
-        {/* upper arm */}
-        <mesh position={[0,-0.22,0]} scale={[0.94,1,0.94]} castShadow>
-          <capsuleGeometry args={[0.13,0.40,8,14]} />
+    <group position={[s*0.40, 0.48, 0.08]}>
+      <group rotation={[upperArmRotX, 0, upperArmRotZ]}>
+        {/* upper arm — thicker, more anatomical */}
+        <mesh position={[0,-0.22,0]} scale={[1.0,1,1.0]} castShadow>
+          <capsuleGeometry args={[0.155,0.40,8,14]} />
           <Mat color={outfit} roughness={0.8} />
         </mesh>
         {/* bicep swell */}
-        <mesh position={[0,-0.14,0.05]} scale={[0.78,0.62,0.68]}>
-          <sphereGeometry args={[0.14,14,10]} />
+        <mesh position={[0,-0.14,0.06]} scale={[0.82,0.62,0.7]}>
+          <sphereGeometry args={[0.16,14,10]} />
           <Mat color={lighten(outfit,0.06)} roughness={0.82} />
         </mesh>
         {/* elbow */}
         <mesh position={[0,-0.42,0]}>
-          <sphereGeometry args={[0.115,16,14]} />
+          <sphereGeometry args={[0.13,16,14]} />
           <Mat color={dk} roughness={0.8} />
         </mesh>
 
-        {/* forearm */}
-        <group position={[0,-0.42,0]}
-          rotation={[holdingBall ? -0.85 : -0.18, 0, 0]}>
-          <mesh position={[0,-0.2,0]} scale={[0.8,1,0.8]} castShadow>
-            <capsuleGeometry args={[0.098,0.32,8,12]} />
+        {/* forearm — bends forward strongly when holding/supporting ball */}
+        <group position={[0,-0.42,0]} rotation={[forearmRotX, 0, 0]}>
+          <mesh position={[0,-0.20,0]} scale={[0.92,1,0.92]} castShadow>
+            <capsuleGeometry args={[0.118,0.32,8,12]} />
             <Mat color={skin} roughness={0.64} />
           </mesh>
           {/* wrist */}
-          <mesh position={[0,-0.4,0]} scale={[0.85,0.52,0.85]}>
-            <sphereGeometry args={[0.098,14,12]} />
+          <mesh position={[0,-0.40,0]} scale={[0.92,0.55,0.92]}>
+            <sphereGeometry args={[0.115,14,12]} />
             <Mat color={skin} roughness={0.64} />
           </mesh>
           {/* hand */}
-          <group position={[0,-0.5,0]}>
+          <group position={[0,-0.50,0]}>
             <Hand skin={skin} mirror={side==="left"} />
             {holdingBall && (
-              <group position={[0,-0.2,0.11]}>
+              <group position={[0,-0.16,0.06]}>
                 <BowlingBall />
               </group>
             )}
@@ -1159,10 +1173,10 @@ export default function BowlerCharacter({ state }: { state: AvatarState }) {
         <Torso outfit={outfit} outfitDk={outfitDk} gender={state.gender ?? "male"} />
       </group>
 
-      {/* ARMS */}
+      {/* ARMS — both come forward in a classic bowling stance */}
       <group position={[0, 1.0, 0]}>
         <Arm side="right" outfit={outfit} skin={skin} holdingBall />
-        <Arm side="left"  outfit={outfit} skin={skin} />
+        <Arm side="left"  outfit={outfit} skin={skin} supportingBall />
       </group>
 
       {/* HIPS */}
