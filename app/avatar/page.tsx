@@ -1,27 +1,8 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useDevice } from "@/app/hooks/useDevice";
-
-const AvatarStage = dynamic(() => import("./AvatarStage"), {
-  ssr: false,
-  loading: () => (
-    <div style={{
-      width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",
-      flexDirection:"column",gap:"1rem",
-    }}>
-      <div style={{
-        width:44,height:44,border:"3px solid rgba(0,0,0,0.08)",
-        borderTop:"3px solid #007AFF",borderRadius:"50%",
-        animation:"spin 1s linear infinite",
-      }}/>
-      <span style={{fontSize:".82rem",color:"rgba(60,60,67,0.55)",letterSpacing:".02em",fontWeight:500}}>
-        Loading…
-      </span>
-    </div>
-  ),
-});
+import AvatarSVG from "./AvatarSVG";
 
 // ─── DESIGN TOKENS — clean, Apple/Memoji-inspired ─────────────────────────
 const C = {
@@ -1183,14 +1164,14 @@ export default function AvatarPage() {
             background:`radial-gradient(circle at 50% 35%, ${lt(state.bgColor,0.18)} 0%, ${state.bgColor} 65%, ${dk(state.bgColor,0.10)} 100%)`,
             boxShadow:"0 24px 60px rgba(0,0,0,0.18),inset 0 -10px 40px rgba(0,0,0,0.12)",
           }}/>
-          {/* 3D canvas on top of backdrop */}
+          {/* SVG avatar on top of backdrop */}
           <div style={{
             position:"relative",
-            width:isMobile?"min(78vw,340px)":"min(54vh,440px)",
-            height:isMobile?"min(78vw,340px)":"min(54vh,440px)",
+            width:isMobile?"min(82vw,360px)":"min(56vh,460px)",
+            height:isMobile?"min(82vw,360px)":"min(56vh,460px)",
             zIndex:1,
           }}>
-            <AvatarStage state={syncAccessories(state)}/>
+            <AvatarSVG state={syncAccessories(state)} showBackground={false} animated/>
           </div>
         </div>
 
