@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>Dux Bowling</title>
+  <defs>
+    <g id="xi">
+      <path d="M40 40 L88 88"/>
+      <path d="M88 40 L40 88"/>
+    </g>
+    <mask id="cut">
+      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <use href="#xi" stroke="#fff" stroke-width="26"/>
+        <use href="#xi" stroke="#000" stroke-width="8"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#EFE2C4"/>
+  <rect width="128" height="128" fill="#D96A29" mask="url(#cut)"/>
+</svg>
