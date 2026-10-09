@@ -57,7 +57,8 @@ export default function TermsPage() {
           <h2 className="stripe">Our content</h2>
           <p>
             The Dux Bowling name, the duck, the machine designs, drawings, animations and the contents of this
-            site belong to Dux Bowling LLC. Patent applications covering the machine are pending. You may view
+            site belong to Dux Bowling LLC. A provisional patent application covering the machine was filed with
+            the United States Patent and Trademark Office in October 2026; patent protection is pending. You may view
             and share the site, but not reproduce its content commercially or use our branding without written
             permission. Other company and product names shown for comparison belong to their owners; those
             references are for identification and do not imply endorsement or any affiliation.

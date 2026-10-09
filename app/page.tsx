@@ -94,7 +94,7 @@ export default function Home() {
       <section className="tight">
         <div className="wrap">
           <p className="eyebrow">Where we are</p>
-          <h2 className="stripe sec">Design done. Prototype next.</h2>
+          <h2 className="stripe sec">Design done. Patent filed. Prototype next.</h2>
           <hr className="rule" />
           <p className="lede">Tap a stage to see what it involves.</p>
           <Timeline />

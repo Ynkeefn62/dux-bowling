@@ -287,7 +287,7 @@ export default function AlleyForm() {
             Could we meet in person to discuss specifics?<span className="req">*</span>
             <br />
             <span className="opt">
-              Our initial design is finished and a patent filing is close behind, followed by a prototype build to
+              Our initial design is finished and our provisional patent is filed. Next is a prototype build to
               validate that pin cycling works as intended. Once that is proven we are looking for alleys to pilot
               the machine in live play.
             </span>

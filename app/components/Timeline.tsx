@@ -15,11 +15,11 @@ const STEPS: Step[] = [
   },
   {
     n: 'Stage 02',
-    when: 'Expected September 2026',
-    title: 'Patent filing',
-    state: 'now',
+    when: 'October 2026',
+    title: 'Patent filed',
+    state: 'done',
     body:
-      'A provisional patent application covering the configurable distributor and the machine is being prepared for filing.',
+      'A provisional patent application covering the configurable distributor and the machine was filed with the United States Patent and Trademark Office on October 7, 2026. It secures our priority date on the mechanism that places pins one at a time into any commanded pattern, and starts the twelve-month window to file the full utility application.',
   },
   {
     n: 'Stage 03',
@@ -56,7 +56,7 @@ const STEPS: Step[] = [
 ];
 
 export default function Timeline() {
-  const [open, setOpen] = useState(1);
+  const [open, setOpen] = useState(2);
   const step = STEPS[open];
   return (
     <div>

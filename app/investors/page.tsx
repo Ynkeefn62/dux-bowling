@@ -44,7 +44,7 @@ export default function InvestorsPage() {
               <b>The moat</b>
               <span>
                 A configurable distributor that places pins one at a time into any commanded pattern —
-                provisional patent in process — plus the software only that capability makes possible.
+                provisional patent filed October 2026 — plus the software only that capability makes possible.
               </span>
             </div>
           </div>
